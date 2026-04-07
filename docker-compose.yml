@@ -1,0 +1,25 @@
+version: "2.4"
+services:
+  wildland-eco:
+    container_name: wildland-eco
+    image: ghcr.io/wildland-ecotech/wildland.eco:${ENV_TAG}
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    restart: unless-stopped
+    networks:
+      traefik-backend: {}
+
+  wildland-eco-watchtower:
+    image: ghcr.io/containrrr/watchtower:1.5.3
+    container_name: wildland-eco-watchtower
+    environment:
+      - "WATCHTOWER_CLEANUP=true"
+      - "WATCHTOWER_POLL_INTERVAL=30"
+      - "WATCHTOWER_LABEL_ENABLE=true"
+      - "NO_COLOR=true"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+networks:
+  traefik-backend:
+    external: true

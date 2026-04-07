@@ -1,0 +1,9 @@
+version: '2.4'
+services:
+  wildland-eco:
+    container_name: wildland-eco
+    image: wildland.eco:dev
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:31337:80"
