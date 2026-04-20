@@ -56,6 +56,29 @@
     .footer--green::before {
         background-image: url('$lib/images/bubbles-green.svg');
     }
+    .social {
+        margin-top: 1.5em;
+        display: flex;
+        gap: 1em;
+        flex-wrap: wrap;
+    }
+
+    .social a {
+        font-family: satoshi;
+        font-size: 16px;
+        color: #2ECF9E;
+        text-decoration: none;
+        border: 1px solid rgba(46, 207, 158, 0.4);
+        border-radius: 10px;
+        padding: 0.5em 1em;
+        background-color: rgba(0, 0, 0, 0.3);
+        transition: background-color 0.2s;
+
+        &:hover {
+            background-color: transparent;
+            color: #fff;
+        }
+    }
 </style>
 
 <div class="footer footer--{color}">
@@ -65,6 +88,14 @@
         <div class="buttons">
             <a class="button hire full" href="mailto:wildland@wetfish.net">Get In Touch</a>
         </div>
-        <p style="font-size: 14px; opacity: 0.6; margin-top: 2em;">Wildland Ecotech is a 501(c)(3) nonprofit organization.</p>
+        <h3>Follow our progress</h3>
+        <div class="social">
+            <a href="https://www.instagram.com/wildland.ecotech" target="_blank" rel="noopener noreferrer">Instagram</a>
+            <a href="https://www.linkedin.com/company/wildland-ecotech" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+        </div>
+        <p style="font-size: 14px; opacity: 0.6; margin-top: 2em;">
+            Wildland Ecotech is a 501(c)(3) nonprofit organization. <br>
+            EIN: 33-3738514
+        </p>
     </div>
 </div>
