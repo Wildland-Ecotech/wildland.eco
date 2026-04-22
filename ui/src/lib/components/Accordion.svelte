@@ -30,7 +30,7 @@
         min-width: 325px;
         text-align: center;
         margin-top: 0.6em;
-        margin-left: -1.5em;
+        margin-left: 1em;
         pointer-events: none;
     }
 
@@ -48,6 +48,12 @@
         margin-right: 0.3em;
         font-size: 24px;
         animation: bounce 1.2s ease-in-out infinite;
+    }
+
+    @media screen and (min-width: 768px) {
+        .tap-hint {
+            margin-left: -1.5em;
+        }
     }
 
     @keyframes bounce {
