@@ -3,21 +3,12 @@
 </svelte:head>
 
 <style lang="scss">
-    .cta-wrapper {
+    .social-cta {
         position: absolute;
         z-index: 10;
         top: 100px;
         left: 50%;
         transform: translateX(-50%);
-
-        canvas {
-            position: absolute;
-            pointer-events: none;
-        }
-    }
-
-    .social-cta {
-        position: relative;
         width: 320px;
         border-radius: 14px;
         border: 4px solid #ff0000;
@@ -27,6 +18,11 @@
         text-align: center;
         box-sizing: border-box;
         animation: rainbow-border 4s linear infinite;
+
+        canvas {
+            position: absolute;
+            pointer-events: none;
+        }
 
         .cta-text {
             position: relative;
@@ -107,6 +103,10 @@
         100% { border-color: #ff0000; }
     }
 
+    .nature {
+        overflow-x: hidden;
+    }
+
     .content-background {
         .header {
             position: absolute;
@@ -166,6 +166,10 @@
             padding-bottom: 150px;
             flex-direction: column;
         }
+    }
+
+    .project {
+        cursor: pointer;
     }
 
     @media screen and (min-width: 460px) {
@@ -259,6 +263,65 @@
             }
         }
     }
+
+    // Modal layout styles
+    .modal-layout {
+        position: relative;
+    }
+
+    .modal-blob {
+        position: absolute;
+        left: -80px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 250px;
+        height: 250px;
+        z-index: 1;
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    }
+
+    .modal-card {
+        background: rgba(1, 9, 2, 0.75);
+        border-top: 3px solid #2ECF9E;
+        border-radius: 0 0 16px 16px;
+        backdrop-filter: blur(4px);
+        padding: 2em 2em 2em 200px;
+        max-height: 80vh;
+        overflow-y: auto;
+
+        h1 {
+            font-size: 36px;
+        }
+
+        p {
+            font-size: 18px;
+        }
+    }
+
+    @media screen and (max-width: 599px) {
+        .modal-blob {
+            position: relative;
+            left: auto;
+            top: auto;
+            transform: none;
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 1em;
+        }
+
+        .modal-card {
+            padding: 1.5em;
+
+            h1 {
+                font-size: 32px;
+            }
+        }
+    }
 </style>
 
 <script>
@@ -267,6 +330,7 @@
     import Accordion from '$lib/components/Accordion.svelte';
     import Blob from '$lib/components/Blob.svelte';
     import Footer from "$lib/components/Footer.svelte";
+    import Modal from "$lib/components/Modal.svelte";
 
     const accordionOptions = [
         {id: 'leaves', title: 'Collecting Leaves'},
@@ -275,6 +339,7 @@
         {id: 'permaculture', title: 'Permaculture'},
     ];
 
+    let selectedProject = $state(null);
     let ctaEl;
     let canvasEl;
 
@@ -287,7 +352,7 @@
         ctaEl.style.animation = 'none';
 
         const borderWidth = 4;
-        const radius = 16;
+        const radius = 14;
         const pad = 4;
         const dpr = window.devicePixelRatio || 1;
 
@@ -367,21 +432,19 @@
         <div class="fireflies" alt="A forest background with grasses in the foreground and fireflies on the left"></div>
     </div>
 
-    <div class="cta-wrapper">
+    <div class="social-cta" bind:this={ctaEl}>
         <canvas bind:this={canvasEl}></canvas>
-        <div class="social-cta" bind:this={ctaEl}>
-            <div class="cta-text">Follow our socials for weekly progress reports</div>
-            <div class="cta-links">
-                <a href="https://www.instagram.com/wildland.ecotech" target="_blank" rel="noopener noreferrer">
-                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.5" cy="6.5" r="1.5"/></svg>
-                    Instagram
-                </a>
-                <span class="cta-divider">|</span>
-                <a href="https://www.linkedin.com/company/wildland-ecotech" target="_blank" rel="noopener noreferrer">
-                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="20" height="20" rx="3" ry="3" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="11" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="8" x2="8" y2="8.01" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M12 17v-3.5c0-1.5 1-2.5 2.5-2.5s2.5 1 2.5 2.5V17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="11" x2="12" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                    LinkedIn
-                </a>
-            </div>
+        <div class="cta-text">Follow our socials for weekly progress reports</div>
+        <div class="cta-links">
+            <a href="https://www.instagram.com/wildland.ecotech" target="_blank" rel="noopener noreferrer">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.5" cy="6.5" r="1.5"/></svg>
+                Instagram
+            </a>
+            <span class="cta-divider">|</span>
+            <a href="https://www.linkedin.com/company/wildland-ecotech" target="_blank" rel="noopener noreferrer">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="20" height="20" rx="3" ry="3" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="11" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="8" x2="8" y2="8.01" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M12 17v-3.5c0-1.5 1-2.5 2.5-2.5s2.5 1 2.5 2.5V17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="11" x2="12" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                LinkedIn
+            </a>
         </div>
     </div>
 
@@ -498,15 +561,15 @@
             </div>
 
             <div class="projects">
-                <div class="project">
-                    <Blob type="5">
+                <div class="project" onclick={() => selectedProject = 'high-park'} role="button" tabindex="0">
+                    <Blob type={5}>
                         <img src="/content/nature-burn-scar.jpg" alt="Restoration work at the High Park burn scar in Northern Colorado" />
                     </Blob>
                     <div class="button wide dark">High Park Burn Scar</div>
                 </div>
 
-                <div class="project">
-                    <Blob type="4">
+                <div class="project" onclick={() => selectedProject = 'ge-moreau'} role="button" tabindex="0">
+                    <Blob type={4}>
                         <img src="/content/nature-pond.jpg" alt="Wetland recovery at the Fish Pit near the GE Moreau Superfund site in New York" />
                     </Blob>
                     <div class="button wide dark">GE Moreau Superfund</div>
@@ -515,4 +578,73 @@
         </div>
         <Footer color="green"></Footer>
     </DisappearingContent>
+
+    <Modal open={selectedProject === 'high-park'} title="High Park Burn Scar" onclose={() => selectedProject = null}>
+        <div class="modal-layout">
+            <div class="modal-blob">
+                <Blob type={5}>
+                    <img src="/content/nature-burn-scar.jpg" alt="High Park Burn Scar" />
+                </Blob>
+            </div>
+            <div class="modal-card">
+                <h1>High Park Burn Scar</h1>
+                <p>
+                    Since 2020, Wildland Ecotech has been working with dozens of landowners across 1,000+ acres
+                    in Colorado's High Park burn scar to restore landscapes damaged by the 2012 wildfire.
+                </p>
+                <p>
+                    Our volunteers have built over 70 Beaver Dam Analogs across several properties, planted
+                    hundreds of trees, and created permaculture food forests with hugelkultur terraces made
+                    from wildfire-reclaimed dead timber. This work recharges aquifers, reduces future wildfire
+                    risk, and grows food for the community.
+                </p>
+                <div class="buttons">
+                    <a class="button dark" href="https://www.instagram.com/wildland.ecotech" target="_blank" rel="noopener noreferrer">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;vertical-align:middle;margin-right:0.3em;fill:currentColor;"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.5" cy="6.5" r="1.5"/></svg>
+                        Instagram
+                    </a>
+                    <a class="button dark" href="https://www.linkedin.com/company/wildland-ecotech" target="_blank" rel="noopener noreferrer">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;vertical-align:middle;margin-right:0.3em;fill:currentColor;"><rect x="2" y="2" width="20" height="20" rx="3" ry="3" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="11" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="8" x2="8" y2="8.01" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M12 17v-3.5c0-1.5 1-2.5 2.5-2.5s2.5 1 2.5 2.5V17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="11" x2="12" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                        LinkedIn
+                    </a>
+                </div>
+            </div>
+        </div>
+    </Modal>
+
+    <Modal open={selectedProject === 'ge-moreau'} title="GE Moreau Superfund" onclose={() => selectedProject = null}>
+        <div class="modal-layout">
+            <div class="modal-blob">
+                <Blob type={4}>
+                    <img src="/content/nature-pond.jpg" alt="GE Moreau Superfund" />
+                </Blob>
+            </div>
+            <div class="modal-card">
+                <h1>GE Moreau Superfund</h1>
+                <p>
+                    Adjacent to the GE Moreau Superfund site in Upstate New York, this 18-acre property is a former
+                    sand mine where decades of extraction hit the water table, creating a bowl-shaped depression now
+                    designated as a wetland. Surrounded by forest and bordered by a historic cemetery, the land has
+                    naturally recovered over the past 50 years into a thriving ecosystem of ponds, fish, turtles,
+                    snails, and migratory birds.
+                </p>
+                <p>
+                    We've partnered with local community members who use ATV trails in the surrounding area to
+                    organize cleanups and create opportunities for residents to get involved in land stewardship.
+                    Our long-term goals include water and soil sampling to study bioremediation potential and
+                    installing solar-powered monitoring equipment for remote wildlife observation.
+                </p>
+                <div class="buttons">
+                    <a class="button dark" href="https://www.instagram.com/wildland.ecotech" target="_blank" rel="noopener noreferrer">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;vertical-align:middle;margin-right:0.3em;fill:currentColor;"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.5" cy="6.5" r="1.5"/></svg>
+                        Instagram
+                    </a>
+                    <a class="button dark" href="https://www.linkedin.com/company/wildland-ecotech" target="_blank" rel="noopener noreferrer">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;vertical-align:middle;margin-right:0.3em;fill:currentColor;"><rect x="2" y="2" width="20" height="20" rx="3" ry="3" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="11" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="8" x2="8" y2="8.01" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M12 17v-3.5c0-1.5 1-2.5 2.5-2.5s2.5 1 2.5 2.5V17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="11" x2="12" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                        LinkedIn
+                    </a>
+                </div>
+            </div>
+        </div>
+    </Modal>
 </section>
