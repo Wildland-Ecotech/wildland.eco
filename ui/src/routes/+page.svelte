@@ -348,12 +348,12 @@
         const ctx = canvasEl.getContext('2d');
         if (!ctx) return;
 
-        ctaEl.style.borderColor = 'transparent';
+        ctaEl.style.border = 'none';
         ctaEl.style.animation = 'none';
 
         const borderWidth = 4;
-        const radius = 14;
-        const pad = 4;
+        const radius = 16;
+        const pad = borderWidth;
         const dpr = window.devicePixelRatio || 1;
 
         function updateCanvas() {
