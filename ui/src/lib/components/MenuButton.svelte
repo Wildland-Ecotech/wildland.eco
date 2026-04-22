@@ -8,6 +8,10 @@
         color: #fff;
         height: 32px !important;
         padding: 0.1em 0.25em 0.3em 0.25em;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        line-height: 1;
 
         &:hover {
             background-color: transparent;
@@ -31,12 +35,13 @@
 		menuIsOpen = value;
 	});
 
-    function toggleMenu() {
+    function handleClick(event) {
+        // With JS: prevent navigation and toggle overlay
+        event.preventDefault();
         menuStore.set(!menuIsOpen);
     }
 
     function handleKeyUp(event) {
-        // Only process keyboard events when the menu is open
         if(menuIsOpen) {
             if(event.key === "Escape") {
                 menuStore.set(false);
@@ -45,6 +50,7 @@
     }
 </script>
 
-<div class="menu-button" onclick={toggleMenu}>≡</div>
+<!-- Without JS: navigates to /menu. With JS: opens overlay -->
+<a href="/menu" class="menu-button" onclick={handleClick} aria-label="Menu">≡</a>
 
 <svelte:window onkeyup={handleKeyUp} />
