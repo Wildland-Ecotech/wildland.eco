@@ -1,6 +1,15 @@
 <script>
-    let { color } = $props();
+    let {
+        color = 'green',
+        heading = 'Want to make a difference?',
+        title = 'Help us restore wildlands for future generations.',
+        buttonText = 'Get In Touch',
+        buttonHref = 'mailto:hello@wildland.eco',
+        showDonate = true,
+        showSocials = true,
+    } = $props();
 </script>
+
 <style>
     h2, h2 {
         display: block;
@@ -56,6 +65,14 @@
     .footer--green::before {
         background-image: url('$lib/images/bubbles-green.svg');
     }
+
+    .footer-actions {
+        display: flex;
+        gap: 1em;
+        flex-wrap: wrap;
+        margin: 1em 0;
+    }
+
     .social {
         margin-top: 1.5em;
         display: flex;
@@ -83,18 +100,23 @@
 
 <div class="footer footer--{color}">
     <div class="footer-content">
-        <h3>Want to make a difference?</h3>
-        <h1>Help us restore wildlands for future generations.</h1>
-        <div class="buttons">
-            <a class="button hire full" href="mailto:wildland@wetfish.net">Get In Touch</a>
+        <h3>{heading}</h3>
+        <h1>{title}</h1>
+        <div class="footer-actions">
+            <a class="button hire full" href={buttonHref}>{buttonText}</a>
+            {#if showDonate}
+                <a class="button dark" href="/donate">Donate</a>
+            {/if}
         </div>
-        <h3>Follow our progress</h3>
-        <div class="social">
-            <a href="https://www.instagram.com/wildland.ecotech" target="_blank" rel="noopener noreferrer">Instagram</a>
-            <a href="https://www.linkedin.com/company/wildland-ecotech" target="_blank" rel="noopener noreferrer">LinkedIn</a>
-        </div>
+        {#if showSocials}
+            <h3>Follow our progress</h3>
+            <div class="social">
+                <a href="https://www.instagram.com/wildland.ecotech" target="_blank" rel="noopener noreferrer">Instagram</a>
+                <a href="https://www.linkedin.com/company/wildland-ecotech" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+            </div>
+        {/if}
         <p style="font-size: 14px; opacity: 0.6; margin-top: 2em;">
-            Wildland Ecotech is a 501(c)(3) nonprofit organization. <br>
+            Wildland Ecotech is a 501(c)(3) nonprofit organization.<br>
             EIN: 33-3738514
         </p>
     </div>
