@@ -107,6 +107,7 @@
             cursor: pointer;
             transition: all 0.2s;
             position: relative;
+            white-space: nowrap;
 
             &:first-child {
                 border-radius: 10px 0 0 10px;
@@ -136,14 +137,78 @@
     .tier-grid {
         display: grid;
         gap: 1em;
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(3, 1fr);
         max-width: 600px;
         margin: 0 auto 1.5em;
     }
 
-    @media screen and (min-width: 500px) {
+    @media screen and (max-width: 499px) {
+        .page-content {
+            padding: 100px 0.75em 0;
+        }
+
+        .donate-section {
+            padding: 1.25em 1em 2em;
+            margin-bottom: 2em;
+
+            h1 {
+                font-size: 48px;
+            }
+
+            .subtitle {
+                font-size: 16px;
+                margin-bottom: 1.5em;
+            }
+        }
+
+        .frequency-toggle {
+            margin-bottom: 1.5em;
+
+            .freq-btn {
+                font-size: 15px;
+                padding: 0.6em 0.5em;
+            }
+        }
+
         .tier-grid {
-            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5em;
+        }
+
+        .tier-card {
+            padding: 1em 0.5em;
+            gap: 0.5em;
+
+            .amount {
+                font-size: 30px;
+            }
+        }
+
+        .custom-amount {
+            margin-bottom: 1.5em;
+        }
+
+        .donate-button {
+            font-size: 18px;
+            padding: 0.7em 2em;
+        }
+
+        .story {
+            margin-bottom: 2em;
+
+            .story-card {
+                padding: 1.25em;
+
+                h2 { font-size: 20px; }
+                p { font-size: 16px; }
+            }
+        }
+
+        .impact {
+            margin-bottom: 2em;
+
+            .impact-stat .number {
+                font-size: 32px;
+            }
         }
     }
 
@@ -567,6 +632,7 @@
         <div class="impact">
             <h3>— Our Impact</h3>
             <h1>By The Numbers</h1>
+
             <div class="impact-grid">
                 <div class="impact-stat">
                     <div class="number">1,000+</div>
@@ -610,7 +676,6 @@
                 </a>
             </div>
         </div>
-
     </div>
 
     <Footer
