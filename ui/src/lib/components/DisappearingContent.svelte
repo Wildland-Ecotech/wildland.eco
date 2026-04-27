@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { onMount } from 'svelte';
+
     interface Props {
         children?: import('svelte').Snippet;
     }
@@ -14,8 +16,8 @@
             `linear-gradient(
                 0deg,
                 rgba(0, 0, 0, 1),
-                rgba(0, 0, 0, 1) ${((boundingBox.height + boundingBox.top) - 244)}px,
-                transparent ${(boundingBox.height + boundingBox.top) - 122}px
+                rgba(0, 0, 0, 1) ${((boundingBox.height + boundingBox.top) - 150)}px,
+                transparent ${(boundingBox.height + boundingBox.top) - 65}px
             )`;
 
         // It's 2023 and mask image has been around for over 10 years... why is this still prefixed in chrome? 🙄
@@ -23,10 +25,14 @@
             `linear-gradient(
                 0deg,
                 rgba(0, 0, 0, 1),
-                rgba(0, 0, 0, 1) ${((boundingBox.height + boundingBox.top) - 244)}px,
-                transparent ${(boundingBox.height + boundingBox.top) - 122}px
+                rgba(0, 0, 0, 1) ${((boundingBox.height + boundingBox.top) - 150)}px,
+                transparent ${(boundingBox.height + boundingBox.top) - 65}px
             )`;
     }
+
+    onMount(() => {
+        handleScroll();
+    });
 </script>
 
 <style>

@@ -70,7 +70,6 @@
         text-align: center;
         margin-bottom: 4em;
         background: rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(4px);
         border-radius: 16px;
         padding: 2em 2em 2.5em;
 
@@ -140,76 +139,6 @@
         grid-template-columns: repeat(3, 1fr);
         max-width: 600px;
         margin: 0 auto 1.5em;
-    }
-
-    @media screen and (max-width: 499px) {
-        .page-content {
-            padding: 100px 0.75em 0;
-        }
-
-        .donate-section {
-            padding: 1.25em 1em 2em;
-            margin-bottom: 2em;
-
-            h1 {
-                font-size: 48px;
-            }
-
-            .subtitle {
-                font-size: 16px;
-                margin-bottom: 1.5em;
-            }
-        }
-
-        .frequency-toggle {
-            margin-bottom: 1.5em;
-
-            .freq-btn {
-                font-size: 15px;
-                padding: 0.6em 0.5em;
-            }
-        }
-
-        .tier-grid {
-            gap: 0.5em;
-        }
-
-        .tier-card {
-            padding: 1em 0.5em;
-            gap: 0.5em;
-
-            .amount {
-                font-size: 30px;
-            }
-        }
-
-        .custom-amount {
-            margin-bottom: 1.5em;
-        }
-
-        .donate-button {
-            font-size: 18px;
-            padding: 0.7em 2em;
-        }
-
-        .story {
-            margin-bottom: 2em;
-
-            .story-card {
-                padding: 1.25em;
-
-                h2 { font-size: 20px; }
-                p { font-size: 16px; }
-            }
-        }
-
-        .impact {
-            margin-bottom: 2em;
-
-            .impact-stat .number {
-                font-size: 32px;
-            }
-        }
     }
 
     .tier-card {
@@ -377,12 +306,6 @@
         }
     }
 
-    @media screen and (min-width: 768px) {
-        .story .story-grid {
-            grid-template-columns: 1fr 1fr;
-        }
-    }
-
     // Impact stats
     .impact {
         margin-bottom: 3em;
@@ -410,12 +333,6 @@
         }
     }
 
-    @media screen and (min-width: 768px) {
-        .impact .impact-grid {
-            grid-template-columns: repeat(4, 1fr);
-        }
-    }
-
     // Other ways
     .other-ways {
         text-align: center;
@@ -435,6 +352,87 @@
             flex-wrap: wrap;
         }
     }
+
+    @media screen and (max-width: 499px) {
+        .page-content {
+            padding: 100px 0.75em 0;
+        }
+
+        .donate-section {
+            padding: 1.25em 1em 2em;
+            margin-bottom: 2em;
+
+            h1 {
+                font-size: 48px;
+            }
+
+            .subtitle {
+                font-size: 16px;
+                margin-bottom: 1.5em;
+            }
+        }
+
+        .frequency-toggle {
+            margin-bottom: 1.5em;
+
+            .freq-btn {
+                font-size: 15px;
+                padding: 0.6em 0.5em;
+            }
+        }
+
+        .tier-grid {
+            gap: 0.5em;
+        }
+
+        .tier-card {
+            padding: 1em 0.25em;
+            gap: 0.5em;
+
+            .amount {
+                font-size: 22px;
+            }
+        }
+
+        .custom-amount {
+            margin-bottom: 1.5em;
+        }
+
+        .donate-button {
+            font-size: 18px;
+            padding: 0.7em 2em;
+        }
+
+        .story {
+            margin-bottom: 2em;
+
+            .story-card {
+                padding: 1.25em;
+
+                h2 { font-size: 20px; }
+                p { font-size: 16px; }
+            }
+        }
+
+        .impact {
+            margin-bottom: 2em;
+
+            .impact-stat .number {
+                font-size: 32px;
+            }
+        }
+    }
+
+    @media screen and (min-width: 768px) {
+        .story .story-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .impact .impact-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+
 
     @media screen and (min-width: 1024px) {
         .donate-section .subtitle {
@@ -457,6 +455,7 @@
 </style>
 
 <script>
+    import DisappearingContent from "$lib/components/DisappearingContent.svelte";
     import Footer from "$lib/components/Footer.svelte";
 
     let frequency = $state('monthly');
@@ -500,6 +499,7 @@
     </div>
 
     <div class="page-content">
+    <DisappearingContent>
 
         <div class="donate-section">
             <h3>— Support Our Mission</h3>
@@ -676,6 +676,7 @@
                 </a>
             </div>
         </div>
+    </DisappearingContent>
     </div>
 
     <Footer
