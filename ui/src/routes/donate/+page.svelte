@@ -238,10 +238,17 @@
         padding: 0.7em 3em;
         cursor: pointer;
         text-decoration: none;
-        transition: background 0.2s;
+        transition: all 0.2s;
 
-        &:hover {
+        &:hover:not(.disabled) {
             background: transparent;
+        }
+
+        &.disabled {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.3);
+            cursor: default;
         }
     }
 
@@ -459,7 +466,7 @@
     import Footer from "$lib/components/Footer.svelte";
 
     let frequency = $state('monthly');
-    let selectedTier = $state(1);
+    let selectedTier = $state(-1);
     let customAmount = $state('');
 
     const tiers = {
@@ -479,13 +486,75 @@
         customAmount = '';
     }
 
-    function handleCustomFocus() {
-        selectedTier = -1;
+    function handleCustomInput(e) {
+        // Strip anything that isn't a digit or decimal point
+        let raw = e.target.value.replace(/[^\d.]/g, '');
+
+        // Only allow one decimal point
+        const parts = raw.split('.');
+        if (parts.length > 2) {
+            raw = parts[0] + '.' + parts.slice(1).join('');
+        }
+
+        // Limit to 2 decimal places
+        if (parts.length === 2 && parts[1].length > 2) {
+            raw = parts[0] + '.' + parts[1].slice(0, 2);
+        }
+
+        // Cap at 9999
+        const num = parseFloat(raw);
+        if (!isNaN(num) && num > 9999) {
+            raw = '9999';
+        }
+
+        customAmount = raw;
+        e.target.value = raw;
+
+        // Only deselect tier when custom amount is valid
+        if (isValidCustom()) {
+            selectedTier = -1;
+        }
+    }
+
+    function isValidCustom() {
+        const num = parseFloat(customAmount);
+        return !isNaN(num) && num >= 1 && num <= 9999;
+    }
+
+    function isValidDonation() {
+        return selectedTier >= 0 || isValidCustom();
+    }
+
+    function formatAmount(amount) {
+        const num = parseFloat(amount);
+        if (isNaN(num)) return '';
+        if (num % 1 !== 0) {
+            return `$${num.toFixed(2)}`;
+        }
+        return `$${num.toLocaleString()}`;
+    }
+
+    function displayAmount() {
+        if (selectedTier >= 0) {
+            return `$${tiers[frequency][selectedTier].toLocaleString()}`;
+        }
+        if (isValidCustom()) {
+            return formatAmount(customAmount);
+        }
+        return '';
+    }
+
+    function buttonLabel() {
+        const amount = displayAmount();
+        if (!amount) return 'Select an amount';
+        if (frequency === 'monthly') return `Donate ${amount}/month`;
+        if (frequency === 'annual') return `Donate ${amount}/year`;
+        return `Donate ${amount}`;
     }
 
     $effect(() => {
         frequency;
-        selectedTier = 1;
+        selectedTier = -1;
         customAmount = '';
     });
 </script>
@@ -553,23 +622,17 @@
                 <div class="input-wrapper">
                     <span class="dollar-sign">$</span>
                     <input
-                        type="number"
+                        type="text"
+                        inputmode="decimal"
                         placeholder="Other amount"
                         bind:value={customAmount}
-                        onfocus={handleCustomFocus}
-                        min="1"
+                        oninput={handleCustomInput}
                     />
                 </div>
             </div>
 
-            <button class="donate-button">
-                {#if frequency === 'one-time'}
-                    Donate {selectedTier >= 0 ? `$${tiers[frequency][selectedTier].toLocaleString()}` : customAmount ? `$${customAmount}` : ''}
-                {:else if frequency === 'monthly'}
-                    Donate {selectedTier >= 0 ? `$${tiers[frequency][selectedTier]}` : customAmount ? `$${customAmount}` : ''}/month
-                {:else}
-                    Donate {selectedTier >= 0 ? `$${tiers[frequency][selectedTier].toLocaleString()}` : customAmount ? `$${customAmount}` : ''}/year
-                {/if}
+            <button class="donate-button" class:disabled={!isValidDonation()} disabled={!isValidDonation()}>
+                {buttonLabel()}
             </button>
 
             <p class="tax-note">
