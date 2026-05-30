@@ -29,30 +29,6 @@ docker compose -f docker-compose.dev.yml up --build
 
 The site will be available at `http://localhost:31337`.
 
-## Project Structure
-
-```
-wildland.eco/
-├── ui/                          # SvelteKit frontend
-│   ├── src/
-│   │   ├── routes/              # Pages
-│   │   │   ├── +page.svelte     # Home page
-│   │   │   ├── donate/          # Donation page
-│   │   │   └── menu/            # No-JS fallback menu
-│   │   ├── lib/
-│   │   │   ├── components/      # Svelte components
-│   │   │   ├── css/             # Global styles (SCSS)
-│   │   │   ├── fonts/           # Clash Display, Red Hat Display, Satoshi
-│   │   │   └── images/          # Background illustrations
-│   │   └── app.html             # HTML shell
-│   └── static/                  # Static assets (project photos)
-├── docs/                        # Project documentation
-├── Dockerfile                   # Multi-stage build (Node + nginx)
-├── docker-compose.yml           # Production deployment
-├── docker-compose.dev.yml       # Local development
-└── nginx.conf                   # Server configuration
-```
-
 ## Documentation
 
 See the [docs/](docs/) directory for detailed documentation:
@@ -60,6 +36,7 @@ See the [docs/](docs/) directory for detailed documentation:
 - **[Organization](docs/ORGANIZATION.md)** — Mission, history, board structure, legal status
 - **[Technical](docs/TECHNICAL.md)** — Website architecture, deployment, components
 - **[Restoration](docs/RESTORATION.md)** — Project areas, programs, impact metrics
+- **[Content](docs/CONTENT.md)** — Photo and video index for restoration media
 - **[Roadmap](docs/ROADMAP.md)** — Technical and organizational plans
 
 ## Contributing
