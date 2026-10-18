@@ -144,8 +144,11 @@ Priority order for applications:
 ### Domain and Email
 
 - **Domain:** wildland.eco (activated through .eco registrar)
-- **Current email:** wildland@wetfish.net (temporary, using Wetfish infrastructure)
-- **Future:** Set up email on wildland.eco domain
+- **Email:** Hosted on the wildland.eco domain
+  - `contact@wildland.eco` — general contact
+  - `volunteer@wildland.eco` — volunteering inquiries
+  - `donate@wildland.eco` — donation questions
+  - `no-reply@wildland.eco` — automated transactional email (sending provider TBD)
 
 ### Repository
 

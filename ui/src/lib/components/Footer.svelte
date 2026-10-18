@@ -4,7 +4,7 @@
         heading = 'Want to make a difference?',
         title = 'Help us restore wildlands for future generations.',
         buttonText = 'Get In Touch',
-        buttonHref = 'mailto:hello@wildland.eco',
+        buttonHref = 'mailto:contact@wildland.eco',
         showDonate = true,
         showSocials = true,
     } = $props();

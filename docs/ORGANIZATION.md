@@ -32,7 +32,9 @@ After five years of volunteer-driven restoration work under the Wetfish banner, 
 - **Organization Type:** 501(c)(3) nonprofit
 - **EIN:** 33-3738514
 - **Domain:** wildland.eco
-- **Contact:** wildland@wetfish.net
+- **Contact:** contact@wildland.eco
+- **Volunteering:** volunteer@wildland.eco
+- **Donations:** donate@wildland.eco
 
 ## Board of Directors
 

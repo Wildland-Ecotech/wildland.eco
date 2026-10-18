@@ -99,7 +99,7 @@ Customizable footer with green gradient background and decorative SVG bubbles. P
 - `color` (default: `'green'`)
 - `heading` (default: `'Want to make a difference?'`)
 - `title` (default: `'Help us restore wildlands for future generations.'`)
-- `buttonText` / `buttonHref` (default: `'Get In Touch'` / `mailto:wildland@wetfish.net`)
+- `buttonText` / `buttonHref` (default: `'Get In Touch'` / `mailto:contact@wildland.eco`)
 - `showDonate` (default: `true`)
 - `showSocials` (default: `true`)
 
@@ -147,7 +147,6 @@ GitHub Actions builds and pushes Docker images on push to `main` (tagged `stagin
 
 ## Known Issues and Notes
 
-- The Footer component still references `hello@wildland.eco` in the default `buttonHref` prop; the correct email is `wildland@wetfish.net`. Update when convenient.
 - `backdrop-filter: blur()` conflicts with DisappearingContent's CSS mask filter. The donate section uses `rgba(0, 0, 0, 0.5)` without blur as a workaround.
 - The favicon is still the Wetfish fish icon; needs replacing with a Wildland Ecotech logo.
 - The canvas rainbow border on the social CTA requires JS; CSS fallback is a solid color cycling animation.

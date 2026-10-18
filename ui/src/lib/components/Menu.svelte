@@ -95,7 +95,7 @@
             </li>
 
             <li>
-                <a class="button" href="mailto:wildland@wetfish.net" onclick={closeMenu}>Contact Us</a>
+                <a class="button" href="mailto:contact@wildland.eco" onclick={closeMenu}>Contact Us</a>
             </li>
         </ul>
 

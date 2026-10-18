@@ -60,7 +60,7 @@
         </li>
 
         <li>
-            <a class="button" href="mailto:hello@wildland.eco">Contact Us</a>
+            <a class="button" href="mailto:contact@wildland.eco">Contact Us</a>
         </li>
     </ul>
 
