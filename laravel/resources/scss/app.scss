@@ -11,6 +11,10 @@
 @use 'components/menu-overlay';
 @use 'components/footer';
 @use 'components/disappearing-content';
+@use 'components/accordion';
+@use 'components/modal';
+@use 'components/blob';
 
 @use 'pages/menu';
 @use 'pages/donate';
+@use 'pages/home';

@@ -1,0 +1,72 @@
+// Accordion built from <details> elements sharing a name, so only one
+// section is open at a time and it works without JavaScript. Each
+// <summary> is styled like .button.dark when closed and .button.full when open.
+
+.accordion {
+    position: relative;
+
+    .accordion-item > summary {
+        list-style: none;
+
+        &::-webkit-details-marker {
+            display: none;
+        }
+    }
+
+    .accordion-item:not([open]) > summary {
+        background-color: rgba(0, 0, 0, 0.3);
+        color: #fff;
+
+        &:hover {
+            background-color: transparent;
+        }
+    }
+
+    .accordion-item[open] > summary {
+        background-color: rgba(46, 207, 158, 0.25);
+        color: #fff;
+
+        &:hover {
+            background-color: transparent;
+        }
+    }
+
+    .tap-hint {
+        position: absolute;
+        width: 90%;
+        min-width: 325px;
+        text-align: center;
+        margin-top: 0.6em;
+        margin-left: 1em;
+        pointer-events: none;
+    }
+
+    .tap-hint-inner {
+        position: relative;
+        display: inline-block;
+        font-family: satoshi;
+        font-size: 19px;
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    .tap-hint-emoji {
+        position: absolute;
+        right: 100%;
+        margin-right: 0.3em;
+        font-size: 24px;
+        animation: tap-hint-bounce 1.2s ease-in-out infinite;
+    }
+}
+
+@media screen and (min-width: 768px) {
+    .accordion {
+        .tap-hint {
+            margin-left: -1.5em;
+        }
+    }
+}
+
+@keyframes tap-hint-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}

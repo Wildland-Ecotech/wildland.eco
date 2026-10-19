@@ -1,0 +1,34 @@
+// Morphing image blob with two rotating gradient layers behind it.
+// The blob-N classes clip an element to shape N from blob-shapes.blade.php;
+// this static shape is what visitors without JavaScript see.
+
+.blob-container {
+    position: relative;
+    display: inline-block;
+
+    .blob-bg {
+        position: absolute;
+        inset: 5%;
+        opacity: 0.5;
+        animation: blob-spin var(--spin-duration) linear infinite var(--spin-direction);
+    }
+
+    .blob-bg-1 {
+        background: linear-gradient(135deg, #2F742D, #89940E);
+    }
+
+    .blob-bg-2 {
+        background: linear-gradient(225deg, #24A114, #94770E);
+    }
+}
+
+@keyframes blob-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@for $i from 1 through 10 {
+    .blob-#{$i} {
+        clip-path: url(#blob-#{$i});
+    }
+}

@@ -14,11 +14,49 @@ class PagesTest extends TestCase
         $this->withoutVite();
     }
 
-    public function test_home_page_renders(): void
+    public function test_home_page_renders_each_section(): void
     {
         $this->get('/')
             ->assertOk()
-            ->assertSee('Wildland Ecotech');
+            ->assertSee('id="mission"', false)
+            ->assertSee('id="programs"', false)
+            ->assertSee('id="projects"', false)
+            ->assertSee('Building Abundance');
+    }
+
+    public function test_home_accordion_opens_the_first_program_without_javascript(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('<details class="accordion-item" name="programs" id="leaves" open>', false)
+            ->assertSee('<details class="accordion-item" name="programs" id="water">', false);
+    }
+
+    public function test_project_cards_link_to_their_modals(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('href="#high-park" data-modal-open', false)
+            ->assertSee('id="high-park"', false)
+            ->assertSee('href="#ge-moreau" data-modal-open', false)
+            ->assertSee('id="ge-moreau"', false);
+    }
+
+    public function test_blob_shapes_render_once_per_page(): void
+    {
+        $content = $this->get('/')->assertOk()->getContent();
+
+        $this->assertSame(1, substr_count($content, 'id="blob-1"'));
+        $this->assertSame(4, substr_count($content, 'data-blob '));
+    }
+
+    public function test_no_page_links_to_donate_page_until_payments_are_integrated(): void
+    {
+        foreach (['/', '/menu', '/donate'] as $uri) {
+            $this->get($uri)
+                ->assertOk()
+                ->assertDontSee('href="' . route('donate') . '"', false);
+        }
     }
 
     public function test_menu_page_links_to_site_sections(): void
