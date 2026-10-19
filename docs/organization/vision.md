@@ -1,67 +1,6 @@
-# Roadmap
+# Vision and Growth
 
-## Website Platform
-
-The current static SvelteKit site is a temporary foundation. The plan is to migrate to a full Laravel platform using the [Wetfish Skeleton](https://github.com/wetfish/skeleton/) as a starting point.
-
-### Phase 1 — Laravel Foundation
-
-- Set up Laravel using the wetfish skeleton (targeting latest Laravel version)
-- Convert existing Svelte templates into Blade views
-- Deploy and verify feature parity with current static site
-- PHP 8.5-FPM compatible
-
-### Phase 2 — Content Pages
-
-- Individual pages for each project area (High Park, GE Moreau)
-- Individual pages for each program (leaf collection, wetland restoration, wildfire mitigation, permaculture)
-- About page
-- Blog / news section for posting updates (supplementing Instagram/LinkedIn)
-
-### Phase 3 — Donation Platform
-
-Stripe integration using the PHP SDK directly (no Laravel Cashier; the team has experience with custom Stripe integration from Andon Alert).
-
-**Database schema:**
-
-- **users** — Donors and admins, with `stripe_customer_id`, roles (donor, admin, board_member)
-- **donations** — Every payment (one-time or subscription renewal), with `stripe_payment_intent_id`, amount in cents, status tracking (succeeded, pending, failed, refunded)
-- **subscriptions** — Recurring giving relationships, with `stripe_subscription_id`, plan type (monthly/annual), status (active, past_due, canceled, paused, unpaid), period tracking
-- **subscription_events** — Audit trail for lifecycle changes (created, renewed, payment_failed, canceled, reactivated)
-- **donation_receipts** — Tax receipt records with receipt numbers and tax year
-
-**Stripe webhook events to handle:**
-
-- `payment_intent.succeeded` — Create donation record
-- `invoice.payment_failed` — Mark subscription past_due, trigger notification
-- `customer.subscription.updated` — Sync status
-- `customer.subscription.deleted` — Mark canceled
-
-**Features:**
-
-- One-time donations with custom amounts ($1-$9999)
-- Recurring monthly and annual donations
-- Automated tax-deductible donation receipts
-- Donor dashboard for managing subscriptions
-- Anonymous one-time donations (no account required)
-- Account required for recurring donations
-
-**Reporting:**
-
-- Total donations by month/quarter/year
-- Active vs churned subscribers
-- Monthly recurring revenue (MRR)
-- Failed payment rate and recovery
-- Average donation size by type
-- Donor retention analysis
-- Year-end tax receipt generation
-
-### Phase 4 — Analytics and IoT
-
-- User metrics and analytics built into the platform
-- Project area tracking with data from drone surveys
-- IoT device dashboards (water barrel irrigation system status)
-- Real-time monitoring displays for restoration sites
+Long-term plans for Wildland Ecotech's technology projects and organizational growth. Website and platform plans are tracked separately in [Planned Features](../06-planned-features.md).
 
 ## Ecotech Vision
 
@@ -139,19 +78,10 @@ Priority order for applications:
 - Local manufacturers — Barrel donations for IoT irrigation system
 - Private landowners — Expanding restoration access across the Front Range
 
-## Infrastructure
+## Future Repositories
 
-### Domain and Email
+Alongside the [website repository](https://github.com/wildland-ecotech/wildland.eco), planned open-source projects under the [wildland-ecotech](https://github.com/wildland-ecotech) GitHub organization include:
 
-- **Domain:** wildland.eco (activated through .eco registrar)
-- **Email:** Hosted on the wildland.eco domain
-  - `contact@wildland.eco` — general contact
-  - `volunteer@wildland.eco` — volunteering inquiries
-  - `donate@wildland.eco` — donation questions
-  - `no-reply@wildland.eco` — automated transactional email (sending provider TBD)
-
-### Repository
-
-- **GitHub organization:** [wildland-ecotech](https://github.com/wildland-ecotech)
-- **Website repo:** [wildland.eco](https://github.com/wildland-ecotech/wildland.eco)
-- **Future repos:** Laravel platform, IoT firmware, photogrammetry tools, 3D modeling pipeline
+- IoT irrigation firmware
+- Photogrammetry tools
+- 3D terrain modeling pipeline

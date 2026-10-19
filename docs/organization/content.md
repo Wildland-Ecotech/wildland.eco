@@ -2,6 +2,10 @@
 
 A catalog of photos, videos, and media documenting Wildland Ecotech's restoration work, project areas, and volunteers.
 
+Photos are stored in the repository's [`content/`](../../content/) directory, except `nature-burn-scar.jpg` and `nature-pond.jpg`, which are used on the home page and live with the website's static assets.
+
+## Photos
+
 ### Restoration Activities
 
 | File | Description |
@@ -19,7 +23,7 @@ A catalog of photos, videos, and media documenting Wildland Ecotech's restoratio
 
 | File | Description |
 |------|-------------|
-| `mountain-waterfall.jpeg` | The Brown Gulch waterfall in the High Park burn scar |
+| `mountain_waterfall.jpeg` | The Brown Gulch waterfall in the High Park burn scar |
 | `nature-burn-scar.jpg` | Overview of the High Park burn scar restoration area (used on home page) |
 | `nature-pond.jpg` | Wetland at the Fish Pit, GE Moreau Superfund site in New York (used on home page) |
 

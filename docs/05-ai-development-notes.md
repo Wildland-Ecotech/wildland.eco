@@ -10,8 +10,16 @@ Review the relevant documentation files in this `docs/` directory before beginni
 - `02-services-and-commands.md` for existing service classes and artisan commands
 - `03-routes-and-controllers.md` to understand the current route/controller layout
 - `04-frontend.md` for Blade template structure and UI conventions
+- `06-planned-features.md` for the agreed development plan and design decisions
+- `07-deployment.md` for local development and server setup
 
 This ensures new work builds on existing patterns rather than introducing inconsistencies.
+
+## Never Guess Implementation Details
+
+Never guess function names, file contents, or implementation details. Read the relevant source in the repository before building on it, including packages under `laravel/vendor/` when a dependency's behavior matters. A dependency often already provides what is needed, so check before reinventing it.
+
+If the information is not in the repository (server configuration, account settings, credentials, or local changes that have not been pushed), ask the developer for it rather than assuming.
 
 ## Keep Documentation Updated
 
@@ -20,6 +28,12 @@ When development work introduces new files, database columns, design decisions, 
 ## Provide Full File Artifacts
 
 When making changes to existing files, always provide the complete updated file rather than piecemeal diffs, snippets, or partial patches. The developer will review and apply the full file directly. This avoids ambiguity about where changes go and reduces the risk of merge errors.
+
+Present work one commit at a time: the `codium` commands and full file artifacts for that commit, QA steps, and a commit message. Wait for the developer to review and ask to continue before presenting the next commit.
+
+## Artifact File Extensions
+
+The Claude interface cannot display artifacts with nonstandard file extensions such as `.env` or `.example`. Deliver these as plain text files with a `.txt` extension and a descriptive name (for example, `laravel-env-example.txt` for `laravel/.env.example`), and use the `codium` command to show where the content belongs.
 
 ## File Path References
 
@@ -55,6 +69,29 @@ Always use an explicit language identifier on every code block (e.g., `bash`, `i
 
 Bare ` ``` ` without a language tag causes consecutive blocks to merge into a single block in the Claude chat renderer. This was identified early and must be avoided throughout all documentation and chat output.
 
+## Commit Messages
+
+Draft a short commit message to explain what we've built. Don't explain intermediary steps, don't explain our iterations and internal dev process, only explain the final state we agreed upon. A concise subject line (80 chars or less) with a couple of bullet lines underneath is ideal, 256 characters at most in total. We want to produce something people will actually read, not gloss over a wall of text.
+
+## Commit Scope
+
+Split larger features into separate, logically isolated commits (for example: database and back-end changes, refactoring or helper changes, UI work, documentation) so each one can be reviewed on its own. Avoid touching too many files in a single commit, but don't split so finely that the commit count itself becomes hard to follow. Each commit should leave the application in a working state.
+
+## Testing and Verification
+
+Do not run the full test suite (or other long-running, resource-heavy commands) inside the AI sandbox. The sandbox is resource constrained and test runs are slow, which gets in the way of iterating quickly. Instead:
+
+- Run a syntax check on every changed PHP file (`php -l`) before handing over code.
+- Provide the changed files along with QA testing steps: the test commands to run and any manual checks to perform.
+- The developer runs the tests locally on a machine with more resources and reports back any failures.
+
+Example QA commands handed to the developer:
+
+```bash
+docker compose exec app php artisan test --filter=DonationSyncTest
+docker compose exec app php artisan test
+```
+
 ## Artisan Commands
 
 All Laravel artisan commands should be run via Docker Compose during local development. The `app` container's working directory is already set to the Laravel project root:
@@ -82,6 +119,12 @@ sleep 1
 docker compose exec app php artisan make:migration create_second_table
 ```
 
+## Progressive Enhancement
+
+Every public page must render and work without JavaScript. Pages are rendered on the server with Blade, and JavaScript only enhances them (animations, live labels, overlays). Forms are real HTML forms that submit to the server and are validated there. Features that cannot work without JavaScript, such as the canvas border animation, need a CSS fallback.
+
+Do not add a runtime Node.js process (for example, server-side rendering) to production. Node is only used to build assets.
+
 ## Page References
 
 Do not add navigation links, buttons, or URLs pointing to pages that have not been built yet. Build the pages first, then add the references. This avoids broken links and confusion during development.
@@ -97,6 +140,8 @@ All forms must display validation errors visibly to the user (typically in red t
 ## Schema Conventions
 
 All status and type fields use string columns instead of database enum types (MySQL `ENUM` columns or PostgreSQL enum types). Enums are difficult to modify in production migrations and cause issues with schema diffing tools. Expected values are documented in the schema docs and enforced in application logic.
+
+Money is stored as integer cents (`amount_cents`) with a separate `currency` column, never as floats or decimals.
 
 ## Database Connections
 
