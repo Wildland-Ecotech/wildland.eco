@@ -1,0 +1,45 @@
+// The /menu page: the same links as the menu overlay, for visitors
+// without JavaScript.
+
+.menu-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2em;
+
+    .links {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        text-align: center;
+
+        li {
+            margin: 0;
+        }
+    }
+
+    .back {
+        margin-top: 2em;
+        font-family: satoshi;
+        font-size: 16px;
+        color: rgba(255, 255, 255, 0.5);
+        text-decoration: none;
+
+        &:hover {
+            color: #2ECF9E;
+        }
+    }
+}
+
+@media screen and (min-width: 1024px) {
+    .menu-page {
+        .links {
+            .button {
+                font-size: 32px;
+                padding: 0.7em 1.5em;
+            }
+        }
+    }
+}

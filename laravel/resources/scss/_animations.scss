@@ -1,0 +1,15 @@
+// Hue rotation used on hover by the wordmark (filter) and by the menu
+// buttons (backdrop-filter). Defined once here because keyframe names
+// are global in plain CSS.
+
+@keyframes trippy-filter {
+    0% { filter: hue-rotate(0deg); }
+    50% { filter: hue-rotate(180deg); }
+    100% { filter: hue-rotate(360deg); }
+}
+
+@keyframes trippy-backdrop {
+    0% { backdrop-filter: hue-rotate(0deg); }
+    50% { backdrop-filter: hue-rotate(180deg); }
+    100% { backdrop-filter: hue-rotate(360deg); }
+}

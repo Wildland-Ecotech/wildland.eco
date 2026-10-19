@@ -3,4 +3,10 @@
 // replacing the automatic style scoping that Svelte provided.
 
 @use 'fonts';
+@use 'animations';
 @use 'base';
+
+@use 'components/top-nav';
+@use 'components/menu-button';
+
+@use 'pages/menu';
