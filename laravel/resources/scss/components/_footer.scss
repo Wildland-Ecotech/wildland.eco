@@ -1,0 +1,98 @@
+// Page footer with a gradient background and decorative bubbles.
+// The color modifier (footer--green) sets the gradient and bubble image.
+
+.footer {
+    position: relative;
+    padding: 4rem 2rem;
+
+    &::before {
+        content: '';
+        display: block;
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 100%;
+        height: 100%;
+        background-repeat: no-repeat;
+        background-position: bottom right;
+    }
+
+    h2 {
+        display: block;
+    }
+
+    .footer-content {
+        display: block;
+        position: relative;
+        z-index: 1;
+    }
+
+    .button.hire {
+        padding-left: 5.8rem;
+        padding-right: 5.8rem;
+    }
+
+    .footer-actions {
+        display: flex;
+        gap: 1em;
+        flex-wrap: wrap;
+        margin: 1em 0;
+    }
+
+    .social {
+        margin-top: 1.5em;
+        display: flex;
+        gap: 1em;
+        flex-wrap: wrap;
+
+        a {
+            font-family: satoshi;
+            font-size: 16px;
+            color: #2ECF9E;
+            text-decoration: none;
+            border: 1px solid rgba(46, 207, 158, 0.4);
+            border-radius: 10px;
+            padding: 0.5em 1em;
+            background-color: rgba(0, 0, 0, 0.3);
+            transition: background-color 0.2s;
+
+            &:hover {
+                background-color: transparent;
+                color: #fff;
+            }
+        }
+    }
+
+    .legal {
+        font-size: 14px;
+        opacity: 0.6;
+        margin-top: 2em;
+    }
+}
+
+.footer--green {
+    background-image: linear-gradient(to bottom, rgba(169, 180, 38, 0), rgba(16, 56, 24, 1) 50%);
+
+    &::before {
+        background-image: url('../../images/bubbles-green.svg');
+    }
+}
+
+@media screen and (max-width: 599px) {
+    .footer {
+        .button {
+            width: 100%;
+            margin-bottom: 12px;
+        }
+    }
+}
+
+@media screen and (min-width: 600px) {
+    .footer {
+        padding: 16rem 6rem 10rem;
+
+        .footer-content {
+            width: 65%;
+        }
+    }
+}

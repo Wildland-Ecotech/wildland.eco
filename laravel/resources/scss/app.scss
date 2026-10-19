@@ -9,5 +9,8 @@
 @use 'components/top-nav';
 @use 'components/menu-button';
 @use 'components/menu-overlay';
+@use 'components/footer';
+@use 'components/disappearing-content';
 
 @use 'pages/menu';
+@use 'pages/donate';

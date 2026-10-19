@@ -1,0 +1,510 @@
+// The /donate page.
+//
+// Frequency and tier choices are radio inputs, visually hidden and styled
+// through their labels, so the selector works without JavaScript. The
+// frequency radios sit before the toggle and tier grids in the form, which
+// lets the sibling selector (~) show the tier set for the checked frequency.
+
+$frequencies: one-time, monthly, annual;
+
+.donate-page {
+    overflow-x: hidden;
+
+    .backgrounds {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        z-index: 0;
+        pointer-events: none;
+
+        .mountains {
+            position: absolute;
+            width: 100%;
+            height: 500px;
+            background-image: url('../../images/bg-nature.png');
+            background-position: center top;
+            background-repeat: no-repeat;
+            background-size: cover;
+        }
+
+        .gradient {
+            position: absolute;
+            width: 100%;
+            height: 400px;
+            top: 100px;
+            background: linear-gradient(0deg, #010902 0%, rgba(1, 9, 2, 0) 100%);
+            z-index: 1;
+        }
+
+        .gradient-fireflies {
+            position: absolute;
+            width: 100%;
+            height: 300px;
+            top: 900px;
+            background: linear-gradient(0deg, rgba(1, 9, 2, 0) 0%, #010902 100%);
+            z-index: 1;
+        }
+
+        .fireflies {
+            position: absolute;
+            z-index: 0;
+            width: 100%;
+            height: 1200px;
+            background-image: url('../../images/bg-fireflies.png');
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: cover;
+            opacity: 0.5;
+            top: 900px;
+        }
+    }
+
+    .page-content {
+        position: relative;
+        z-index: 1;
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 120px 1.5em 0;
+    }
+
+    // Donate section
+    .donate-section {
+        text-align: center;
+        margin-bottom: 4em;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 16px;
+        padding: 2em 2em 2.5em;
+
+        h1 {
+            margin-bottom: 0.1em;
+        }
+
+        .subtitle {
+            font-family: satoshi;
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.6);
+            margin: 0 auto 2em;
+        }
+    }
+
+    // Hidden radio inputs; their labels are the visible controls
+    .frequency-radio,
+    .tier-radio {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    .frequency-toggle {
+        display: flex;
+        justify-content: center;
+        gap: 0;
+        margin-bottom: 2em;
+        max-width: 400px;
+        margin-left: auto;
+        margin-right: auto;
+
+        .freq-btn {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(46, 207, 158, 0.3);
+            color: rgba(255, 255, 255, 0.6);
+            font-family: satoshi;
+            font-size: 17px;
+            font-weight: 600;
+            padding: 0.7em 1em;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            white-space: nowrap;
+            text-align: center;
+
+            &:first-child {
+                border-radius: 10px 0 0 10px;
+            }
+
+            &:last-child {
+                border-radius: 0 10px 10px 0;
+            }
+
+            &:not(:first-child) {
+                margin-left: -2px;
+            }
+
+            &:hover {
+                color: #fff;
+            }
+        }
+    }
+
+    .tier-grid {
+        display: none;
+        gap: 1em;
+        grid-template-columns: repeat(3, 1fr);
+        max-width: 600px;
+        margin: 0 auto 1.5em;
+    }
+
+    // Highlight the checked frequency and show its tier set
+    @each $frequency in $frequencies {
+        #frequency-#{$frequency}:checked ~ .frequency-toggle .freq-btn[for="frequency-#{$frequency}"] {
+            background: rgba(46, 207, 158, 0.25);
+            border-color: #2ECF9E;
+            color: #fff;
+            z-index: 1;
+        }
+
+        #frequency-#{$frequency}:focus-visible ~ .frequency-toggle .freq-btn[for="frequency-#{$frequency}"] {
+            outline: 2px solid #fff;
+            outline-offset: 2px;
+            z-index: 2;
+        }
+
+        #frequency-#{$frequency}:checked ~ .tier-grid--#{$frequency} {
+            display: grid;
+        }
+    }
+
+    .tier-card {
+        background: rgba(0, 0, 0, 0.3);
+        border: 2px solid rgba(46, 207, 158, 0.3);
+        border-radius: 12px;
+        padding: 1.5em 1em;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+
+        .amount {
+            font-family: redhat;
+            font-size: 36px;
+            color: #2ECF9E;
+            margin-bottom: 0.1em;
+        }
+
+        .period {
+            font-family: satoshi;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        &:hover {
+            border-color: rgba(46, 207, 158, 0.6);
+        }
+    }
+
+    .tier-radio:checked + .tier-card {
+        border-color: #2ECF9E;
+        background: rgba(46, 207, 158, 0.15);
+
+        .amount {
+            color: #fff;
+        }
+    }
+
+    .tier-radio:focus-visible + .tier-card {
+        outline: 2px solid #fff;
+        outline-offset: 2px;
+    }
+
+    .custom-amount {
+        max-width: 300px;
+        margin: 0 auto 2em;
+
+        label {
+            display: block;
+            font-family: satoshi;
+            font-size: 15px;
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 0.5em;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+
+            .dollar-sign {
+                position: absolute;
+                left: 1em;
+                font-family: redhat;
+                font-size: 20px;
+                color: rgba(255, 255, 255, 0.4);
+                pointer-events: none;
+            }
+
+            input {
+                width: 100%;
+                background: rgba(0, 0, 0, 0.4);
+                border: 2px solid rgba(46, 207, 158, 0.3);
+                border-radius: 10px;
+                padding: 0.7em 1em 0.7em 2em;
+                color: #fff;
+                font-family: redhat;
+                font-size: 20px;
+                outline: none;
+                box-sizing: border-box;
+
+                &:focus {
+                    border-color: #2ECF9E;
+                }
+
+                &::placeholder {
+                    color: rgba(255, 255, 255, 0.3);
+                }
+            }
+        }
+    }
+
+    .donate-button {
+        display: inline-block;
+        background: rgba(46, 207, 158, 0.25);
+        border: 3px solid #2ECF9E;
+        border-radius: 10px;
+        color: #fff;
+        font-family: satoshi;
+        font-size: 21px;
+        font-weight: 1000;
+        padding: 0.7em 3em;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.2s;
+
+        &:hover:not(:disabled) {
+            background: transparent;
+        }
+
+        &:disabled {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.3);
+            cursor: default;
+        }
+    }
+
+    .tax-note {
+        font-family: satoshi;
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.4);
+        margin-top: 1em;
+    }
+
+    // Divider
+    .section-divider {
+        width: 100%;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(46, 207, 158, 0.3), transparent);
+        margin: 1em 0 3em;
+    }
+
+    // Story section
+    .story {
+        margin-bottom: 3em;
+        text-align: center;
+
+        .story-intro {
+            font-family: satoshi;
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.7);
+            max-width: 650px;
+            margin: 0 auto 2em;
+            line-height: 1.6;
+        }
+
+        .story-grid {
+            display: grid;
+            gap: 1.5em;
+            grid-template-columns: 1fr;
+            text-align: left;
+        }
+
+        .story-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-top: 3px solid #2ECF9E;
+            border-radius: 0 0 12px 12px;
+            padding: 1.5em;
+
+            .story-icon {
+                font-size: 32px;
+                margin-bottom: 0.4em;
+            }
+
+            h2 {
+                font-size: 22px;
+                margin: 0 0 0.5em;
+            }
+
+            p {
+                font-size: 17px;
+                margin: 0;
+                color: rgba(255, 255, 255, 0.8);
+                line-height: 1.5;
+            }
+        }
+    }
+
+    // Impact stats
+    .impact {
+        margin-bottom: 3em;
+        text-align: center;
+
+        .impact-grid {
+            display: grid;
+            gap: 1.5em;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .impact-stat {
+            .number {
+                font-family: redhat;
+                font-size: 40px;
+                color: #2ECF9E;
+            }
+
+            .label {
+                font-family: satoshi;
+                font-size: 16px;
+                color: rgba(255, 255, 255, 0.7);
+                margin-top: 0.2em;
+            }
+        }
+    }
+
+    // Other ways
+    .other-ways {
+        text-align: center;
+        margin-bottom: 2em;
+
+        p {
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.7);
+            max-width: 600px;
+            margin: 0 auto 1.5em;
+        }
+
+        .social-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1em;
+            flex-wrap: wrap;
+
+            svg {
+                width: 18px;
+                height: 18px;
+                vertical-align: middle;
+                margin-right: 0.3em;
+                fill: currentColor;
+            }
+        }
+    }
+}
+
+@media screen and (max-width: 499px) {
+    .donate-page {
+        .page-content {
+            padding: 100px 0.75em 0;
+        }
+
+        .donate-section {
+            padding: 1.25em 1em 2em;
+            margin-bottom: 2em;
+
+            h1 {
+                font-size: 48px;
+            }
+
+            .subtitle {
+                font-size: 16px;
+                margin-bottom: 1.5em;
+            }
+        }
+
+        .frequency-toggle {
+            margin-bottom: 1.5em;
+
+            .freq-btn {
+                font-size: 15px;
+                padding: 0.6em 0.5em;
+            }
+        }
+
+        .tier-grid {
+            gap: 0.5em;
+        }
+
+        .tier-card {
+            padding: 1em 0.25em;
+
+            .amount {
+                font-size: 22px;
+            }
+        }
+
+        .custom-amount {
+            margin-bottom: 1.5em;
+        }
+
+        .donate-button {
+            font-size: 18px;
+            padding: 0.7em 2em;
+        }
+
+        .story {
+            margin-bottom: 2em;
+
+            .story-card {
+                padding: 1.25em;
+
+                h2 { font-size: 20px; }
+                p { font-size: 16px; }
+            }
+        }
+
+        .impact {
+            margin-bottom: 2em;
+
+            .impact-stat .number {
+                font-size: 32px;
+            }
+        }
+    }
+}
+
+@media screen and (min-width: 768px) {
+    .donate-page {
+        .story .story-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .impact .impact-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+}
+
+@media screen and (min-width: 1024px) {
+    .donate-page {
+        .donate-section .subtitle {
+            font-size: 20px;
+        }
+
+        .story .story-card {
+            h2 { font-size: 26px; }
+            p { font-size: 18px; }
+        }
+
+        .tier-card .amount {
+            font-size: 42px;
+        }
+
+        .impact .impact-stat .number {
+            font-size: 48px;
+        }
+    }
+}

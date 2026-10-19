@@ -46,4 +46,31 @@ class PagesTest extends TestCase
             ->assertSee('data-menu-overlay hidden', false)
             ->assertSee('data-menu-toggle', false);
     }
+
+    public function test_donate_page_renders_tiers_for_each_frequency(): void
+    {
+        $this->get('/donate')
+            ->assertOk()
+            ->assertSee('Support Our Mission')
+            ->assertSee('id="frequency-monthly" value="monthly" data-frequency data-suffix="/month" checked', false)
+            ->assertSee('id="tier-one-time-5"', false)
+            ->assertSee('id="tier-monthly-100"', false)
+            ->assertSee('id="tier-annual-5000"', false)
+            ->assertSee('$5,000');
+    }
+
+    public function test_donate_button_is_disabled_until_payments_are_integrated(): void
+    {
+        $this->get('/donate')
+            ->assertOk()
+            ->assertSee('data-donate-button disabled', false);
+    }
+
+    public function test_donate_page_footer_links_home_instead_of_to_donate(): void
+    {
+        $this->get('/donate')
+            ->assertOk()
+            ->assertSee('Back to Home')
+            ->assertDontSee('href="' . route('donate') . '"', false);
+    }
 }
