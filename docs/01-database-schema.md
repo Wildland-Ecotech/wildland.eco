@@ -6,36 +6,12 @@ The planned donation schema is described in [Planned Features](06-planned-featur
 
 ## Current Tables
 
-These are Laravel's default tables, created by the migrations in `laravel/database/migrations/`.
+None. Laravel's default migrations were removed so that every migration in this project is generated with `php artisan make:migration` and carries the timestamp of when it was created (see [Migration Generation](05-ai-development-notes.md#migration-generation)). The users table and the framework tables for sessions, cache, queues, and password resets will be generated when the features that need them are built.
 
-### users
+Until those tables exist, local development uses drivers that do not need the database:
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | bigint | Primary key |
-| name | string | |
-| email | string | Unique |
-| email_verified_at | timestamp | Nullable |
-| password | string | Hashed |
-| remember_token | string | Nullable |
-| created_at, updated_at | timestamp | |
-
-### password_reset_tokens
-
-| Column | Type | Notes |
-|--------|------|-------|
-| email | string | Primary key |
-| token | string | Hashed reset token |
-| created_at | timestamp | Nullable |
-
-### sessions
-
-Database session storage. Local development uses file sessions (`SESSION_DRIVER=file`), so this table is currently unused.
-
-### cache, cache_locks
-
-Database cache storage (`CACHE_STORE=database`).
-
-### jobs, job_batches, failed_jobs
-
-Database queue storage (`QUEUE_CONNECTION=database`). Webhook processing and outgoing email will run through this queue.
+| Setting | Value | Switches to `database` when |
+|---------|-------|-----------------------------|
+| `SESSION_DRIVER` | `file` | Accounts are built (milestone 8) |
+| `CACHE_STORE` | `file` | The cache table is added (milestone 5) |
+| `QUEUE_CONNECTION` | `sync` | The queue tables are added (milestone 5) |

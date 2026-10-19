@@ -65,7 +65,7 @@ Notes:
 
 ### 5. Database Schema
 
-See [Planned Schema](#planned-schema). Includes models, relationships, factories, and seeding the General Fund designation.
+See [Planned Schema](#planned-schema). Includes models, relationships, factories, and seeding the General Fund designation. The framework tables for the cache, queue, and password resets are generated in this milestone, and local development switches `CACHE_STORE` and `QUEUE_CONNECTION` to `database`.
 
 ### 6. Stripe Integration
 
@@ -157,14 +157,16 @@ For the MVP, all gifts go to the General Fund and the donate page has no selecto
 
 Money is stored as integer cents with a `currency` column. Status and type fields are strings, per the [schema conventions](05-ai-development-notes.md#schema-conventions).
 
-### users (modify Laravel's default)
+### users
 
 | Column | Notes |
 |--------|-------|
-| name | Becomes nullable |
-| email | Stored lowercase, so finding a donor by email is case-insensitive |
-| password | Becomes nullable |
+| name | Nullable |
+| email | Unique; stored lowercase, so finding a donor by email is case-insensitive |
+| email_verified_at | Nullable timestamp |
+| password | Nullable; donors can always sign in with an email link |
 | role | String, default `donor` (`donor`, `admin`, `board_member`) |
+| remember_token | Nullable |
 
 ### designations
 
