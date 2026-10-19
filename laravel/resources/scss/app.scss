@@ -1,0 +1,6 @@
+// Entry point for all site styles, compiled by Vite.
+// Component and page partials nest their rules under a root class,
+// replacing the automatic style scoping that Svelte provided.
+
+@use 'fonts';
+@use 'base';
