@@ -1,25 +1,48 @@
-version: "2.4"
 services:
-  wildland-eco:
-    container_name: wildland-eco
-    image: ghcr.io/wildland-ecotech/wildland.eco:${ENV_TAG}
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ${APP_NAME}-app
     restart: unless-stopped
-    networks:
-      traefik-backend: {}
-
-  wildland-eco-watchtower:
-    image: ghcr.io/containrrr/watchtower:1.5.3
-    container_name: wildland-eco-watchtower
-    environment:
-      - "WATCHTOWER_CLEANUP=true"
-      - "WATCHTOWER_POLL_INTERVAL=30"
-      - "WATCHTOWER_LABEL_ENABLE=true"
-      - "NO_COLOR=true"
+    working_dir: /var/www/laravel
+    user: "${UID:-1000}:${GID:-1000}"
     volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock"
+      - ./:/var/www
+    networks:
+      - app-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: ${APP_NAME}-nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT:-8080}:80"
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx:/etc/nginx/conf.d
+    networks:
+      - app-network
+
+  db:
+    image: postgis/postgis:17-3.5
+    container_name: ${APP_NAME}-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    networks:
+      - app-network
 
 networks:
-  traefik-backend:
-    external: true
+  app-network:
+    driver: bridge
+
+volumes:
+  dbdata:
+    driver: local
