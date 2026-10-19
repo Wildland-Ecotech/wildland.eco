@@ -20,8 +20,8 @@ The development plan for moving wildland.eco from a static SvelteKit site to a L
 |---|-----------|--------|
 | 1 | Laravel setup with Wetfish Skeleton | Done |
 | 2 | Consolidate documentation and record this plan | Done |
-| 3 | Convert the site to Blade, SCSS, and vanilla JS | Next |
-| 4 | New production server, webhook deploys, launch at parity | Planned |
+| 3 | Convert the site to Blade, SCSS, and vanilla JS | Done |
+| 4 | New production server, webhook deploys, launch at parity | Next |
 | 5 | Donation database schema and models | Planned |
 | 6 | Stripe Checkout, webhooks, and history import | Planned |
 | 7 | Donation receipts and transactional email | Planned |
@@ -33,26 +33,12 @@ Content pages can be built any time after milestone 4. Stripe test mode is used 
 
 ### 3. Convert the Site to Blade
 
-Rebuild `/`, `/donate`, and `/menu` in `laravel/` with the same design and behavior as `ui/`.
+Done. `/`, `/donate`, and `/menu` were rebuilt in `laravel/` with the same design and behavior as the SvelteKit site, which was then removed from the repository. The structure and conventions are documented in [Frontend](04-frontend.md).
 
-| SvelteKit | Laravel |
-|-----------|---------|
-| `routes/+layout.svelte` | `resources/views/layouts/app.blade.php` |
-| `routes/+page.svelte`, `donate/`, `menu/` | `resources/views/pages/*.blade.php` |
-| `lib/components/*.svelte` | `resources/views/components/*.blade.php` (Footer keeps its props and defaults) |
-| Component `<script>` logic | `resources/js/*.js` modules, initialized from `data-*` attributes |
-| `lib/css/global.scss` and `<style>` blocks | `resources/scss/`, with a partial per component and page |
-| `lib/fonts/`, `lib/images/` | `resources/fonts/`, `resources/images/` (processed by Vite) |
-| `static/content/`, `static/favicon.png` | `public/content/`, `public/favicon.png` |
-
-Notes:
-
-- Svelte scopes component styles automatically; SCSS does not. Component classes need a unique prefix per component to avoid collisions.
-- Remove Tailwind, its Vite plugin, the default Instrument Sans font, and `welcome.blade.php`. Add `sass`.
-- **No-JS fallbacks:** the programs accordion becomes `<details>` elements; project modals become sections reachable by anchor links, with JS upgrading them to modals; the canvas border keeps its CSS fallback.
-- **Donate form:** a real `<form method="POST">`. Frequency and tier choices are radio inputs styled as the existing toggle and cards, and CSS `:has()` shows the tier set for the selected frequency, so the form works without JS. JS only updates the button label and disabled state. The server cleans and validates the amount ($1 to $9,999).
-- Until milestone 6, the form validates input but does not take payments (see [Open Questions](#open-questions)).
-- Feature tests confirm each page renders with its key content.
+- Tailwind was replaced with Sass; component styles nest under a root class instead of relying on Svelte's scoping.
+- Every page works without JavaScript: the programs accordion uses `<details>`, project modals open through anchor links and CSS `:target`, and the donate selector uses radio inputs.
+- The donate form does not submit yet: its button stays disabled, and no page links to `/donate` until milestone 6.
+- Feature tests in `tests/Feature/PagesTest.php` cover each page's key content and no-JavaScript fallbacks.
 
 ### 4. Production Server and Deploys
 
@@ -60,12 +46,14 @@ Notes:
 - **Deploy trigger:** a GitHub push webhook calls a small listener on the server that is separate from the Laravel app, so a broken deploy can still be redeployed. The listener verifies GitHub's `X-Hub-Signature-256` signature and treats the request only as a "something changed" signal; it never uses the payload to decide what to deploy.
 - **Deploy script:** runs under a lock so deploys never overlap, then fetches and checks out the server's configured branch, runs `composer install --no-dev`, builds assets, runs `php artisan migrate --force`, caches config, routes, and views, and restarts the queue worker. Output is logged.
 - **Credentials:** the repository is public, so the server pulls without any GitHub credentials. Secrets live only in `laravel/.env` on the server.
-- **Cutover:** verify parity on the new server, point wildland.eco at it, then remove `ui/` from the repository.
+- **Cutover:** verify parity on the new server, merge `laravel-integration` into `main`, and point wildland.eco at the new server. The current server keeps serving the static build from `main` until then.
 - **Future hardening:** deploy only release tags signed with a maintainer's hardware key (YubiKey), verified on the server against an allowed-signers file that never leaves the server. A compromised GitHub account then cannot deploy code to production.
 
 ### 5. Database Schema
 
 See [Planned Schema](#planned-schema). Includes models, relationships, factories, and seeding the General Fund designation. The framework tables for the cache, queue, and password resets are generated in this milestone, and local development switches `CACHE_STORE` and `QUEUE_CONNECTION` to `database`.
+
+This milestone also sets up the test database: a separate PostgreSQL + PostGIS database in the Docker Compose setup, matching production, replacing the in-memory SQLite database that Laravel's default `phpunit.xml` configures. Tests must never run against SQLite or the development database.
 
 ### 6. Stripe Integration
 
@@ -74,6 +62,7 @@ See [Planned Schema](#planned-schema). Includes models, relationships, factories
 - Webhook endpoint that verifies Stripe's signature, stores the event, and processes it on the queue.
 - History importer command and a scheduled nightly sync. See [Payment Sync and Import](#payment-sync-and-import).
 - Customer Portal session for managing recurring gifts.
+- Enable the donate button and restore the Donate links in the home page footer, replacing the test that checks no page links to `/donate`.
 
 ### 7. Receipts and Email
 
@@ -296,7 +285,6 @@ Later phases, built on PostGIS:
 
 ## Open Questions
 
-- **Interim one-time donations:** should the donate form send one-time gifts to the existing Stripe Payment Link between milestones 4 and 6?
 - **Production runtime:** run Laravel directly on the new server, or in Docker?
 - **Staging:** add a staging site that deploys from a separate branch?
 - **Email provider:** which SMTP sending provider to use.

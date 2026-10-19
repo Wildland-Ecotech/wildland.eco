@@ -31,6 +31,8 @@ When making changes to existing files, always provide the complete updated file 
 
 Present work one commit at a time: the `codium` commands and full file artifacts for that commit, QA steps, and a commit message. Wait for the developer to review and ask to continue before presenting the next commit.
 
+The Claude interface shows at most 20 artifacts per message, and the rest are silently dropped. Keep each message under 20 files; if a commit needs more, split it into smaller commits that each leave the application working.
+
 ## Artifact File Extensions
 
 The Claude interface cannot display artifacts with nonstandard file extensions such as `.env` or `.example`. Deliver these as plain text files with a `.txt` extension and a descriptive name (for example, `laravel-env-example.txt` for `laravel/.env.example`), and use the `codium` command to show where the content belongs.
@@ -84,6 +86,8 @@ Do not run the full test suite (or other long-running, resource-heavy commands) 
 - Run a syntax check on every changed PHP file (`php -l`) before handing over code.
 - Provide the changed files along with QA testing steps: the test commands to run and any manual checks to perform.
 - The developer runs the tests locally on a machine with more resources and reports back any failures.
+
+Tests run against PostgreSQL in Docker, never SQLite. A separate test database, identical to production, keeps tests on the same code paths as production so they cannot pass on behavior that would break there (set up in milestone 5). Feature tests that render pages call `$this->withoutVite()` so they do not depend on built assets.
 
 Example QA commands handed to the developer:
 

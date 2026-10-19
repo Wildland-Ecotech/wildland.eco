@@ -1,27 +1,51 @@
 # Frontend
 
-## Current State
+## Stack
 
-The public site is still the static SvelteKit build in `ui/`. It is being converted to server-rendered Blade templates in `laravel/` (see [milestone 3](06-planned-features.md#3-convert-the-site-to-blade)). Until that conversion is complete, this document describes the SvelteKit implementation. The design system, pages, and component behavior below are what the Blade version must reproduce.
+- **Templates:** Blade, rendered on the server. Every public page works without JavaScript.
+- **Styling:** SCSS compiled by Vite with Dart Sass (`sass`). No CSS framework.
+- **JavaScript:** Small vanilla ES modules that enhance server-rendered markup. No frontend framework.
+- **Build:** `npm run build` (or `npm run dev` for hot reloading) in `laravel/`, run on the host. Node is only used to build assets, never at runtime in production.
 
-`laravel/` still contains Laravel's default welcome page and Tailwind setup. Tailwind will be removed during the conversion.
+The site was converted from a static SvelteKit build in milestone 3. The Svelte source is in the git history before that conversion if it is ever needed for reference.
 
-### SvelteKit Stack (`ui/`)
+## Structure
 
-- **Framework:** SvelteKit 2 with Svelte 5 (runes syntax: `$state`, `$props`, `$effect`)
-- **Language:** TypeScript / JavaScript
-- **Styling:** SCSS (Sass)
-- **Build Output:** Static HTML via `@sveltejs/adapter-static` (outputs to `ui/public_html/`)
+All paths are relative to `laravel/`.
+
+| Path | Purpose |
+|------|---------|
+| `resources/views/components/layout.blade.php` | Page shell (`<x-layout title="...">`): head, menu overlay, top nav |
+| `resources/views/components/*.blade.php` | Shared components, used as `<x-top-nav />`, `<x-footer />`, etc. |
+| `resources/views/pages/*.blade.php` | One view per page |
+| `resources/scss/app.scss` | Sass entry point; `@use`s every partial |
+| `resources/scss/_fonts.scss`, `_animations.scss`, `_base.scss` | Font faces, shared keyframes, global element and button styles |
+| `resources/scss/components/`, `resources/scss/pages/` | One partial per component or page |
+| `resources/js/app.js` | JavaScript entry point; initializes each enhancement |
+| `resources/js/*.js` | One module per enhancement, attached to markup through `data-*` attributes |
+| `resources/fonts/`, `resources/images/` | Fonts and design images, processed by Vite |
+| `public/content/` | Photos used on pages, served as-is |
+| `public/favicon.png` | Favicon |
+
+## Conventions
+
+- **Components:** Blade anonymous components in `resources/views/components/`. Props are declared with `@props` and defaults; kebab-case attributes map to camelCase props (`:show-donate="false"` sets `$showDonate`). A leading `:` passes a PHP expression instead of a string.
+- **Style scoping:** Sass does not scope styles to a component. Each component or page partial nests all of its rules under its root class (for example, `.menu-overlay .links`), so generic class names cannot leak between components.
+- **Keyframes are global.** Give each one a distinct name. Shared animations live in `_animations.scss`.
+- **JavaScript hooks** use `data-*` attributes (`data-menu-toggle`, `data-modal-open`), not styling classes, so markup and styles can change without breaking scripts. Each module does nothing when its elements are not on the page.
+- **Progressive enhancement:** build the no-JavaScript version first, then enhance it.
+  - Elements that only make sense with JavaScript start with the `hidden` attribute.
+  - If CSS gives such an element a `display` value, restate `&[hidden] { display: none; }`.
+  - Links fall back to real pages or anchors (`/menu`, `#high-park`).
+- **Images in Sass** use paths relative to the partial (`url('../../images/bg-nature.png')`); Vite rewrites them at build time.
 
 ## Design System
 
 ### Fonts
 
-- **Clash Display** (Semibold) — Headings
-- **Red Hat Display** (Bold) — Section numbers, amounts
-- **Satoshi** (Medium) — Body text, buttons, UI elements
-
-Font files live in `ui/src/lib/fonts/`.
+- **Clash Display** (Semibold) — Headings (`clash`)
+- **Red Hat Display** (Bold) — Section numbers, amounts (`redhat`)
+- **Satoshi** (Medium) — Body text, buttons, UI elements (`satoshi`)
 
 ### Color Scheme
 
@@ -32,81 +56,52 @@ Font files live in `ui/src/lib/fonts/`.
 - **Text primary:** `#fff`
 - **Text secondary:** `rgba(255, 255, 255, 0.6)` to `rgba(255, 255, 255, 0.8)`
 
+### Buttons
+
+`.button` is the shared button style in `_base.scss`, with modifiers: `.full` (filled green), `.dark` (dark transparent), and `.wide` (90% width, used in the accordion and project cards).
+
 ## Pages
 
-### Home (`/`)
+### Home (`/`) — `pages/home.blade.php`
 
-The main landing page adapted from the Wetfish Nature page. Features:
+- Illustrated mountain background with a firefly forest transition
+- Social media banner with a rotating rainbow border (`rainbow-border.js`); without JavaScript the border cycles colors in CSS
+- Three sections: Our Mission, What We Do (programs accordion), Our Projects (project cards that open modals)
+- Footer, with its Donate link hidden until donations are enabled (milestone 6)
 
-- Illustrated mountain landscape background with firefly forest transition
-- Social media CTA with animated canvas rainbow gradient border (CSS fallback for no-JS)
-- Three content sections: Our Mission, What We Do (accordion), Our Projects (clickable modals)
-- Morphing blob clip-paths on project images with rotating gradient background layers
-- "Tap to learn more" hint on accordion (disappears after first interaction)
-- DisappearingContent scroll mask effect
+### Donate (`/donate`) — `pages/donate.blade.php`
 
-### Donate (`/donate`)
+- Frequency toggle (One-Time / Monthly / Annual) and tier cards: `[5, 20, 50]` one-time, `[20, 50, 100]` monthly, `[100, 1000, 5000]` annual. The amounts are defined in the `$frequencies` array at the top of the view.
+- Frequencies and tiers are visually hidden radio inputs styled through their labels. The frequency radios come first in the form, so a sibling selector (`~`) shows the tier set for the checked frequency without JavaScript. Each frequency's tiers use their own field name (`amount_one_time`, `amount_monthly`, `amount_annual`).
+- Custom amount field. `donate.js` filters input as it is typed (digits, one decimal point, two decimal places, $9,999 maximum), clears selections when the frequency changes, and shows the amount on the button ("Donate $20/month").
+- The donate button is disabled until Stripe is integrated (milestone 6), and no page links to `/donate` until then.
+- "What You're Supporting" cards, impact stats, "Other Ways to Help", and a footer that links back home.
 
-Donation page with tier selection. Features:
+### Menu (`/menu`) — `pages/menu.blade.php`
 
-- Compressed mountain header with gradient fade to fireflies
-- Frequency toggle: One-Time / Monthly / Annual
-- Tier cards: `[5, 20, 50]` for one-time, `[20, 50, 100]` for monthly, `[100, 1000, 5000]` for annual
-- Custom amount input with validation ($1 min, $9999 max, text input with decimal filtering, no browser spinners)
-- Greyed-out donate button until valid amount selected
-- "What You're Supporting" narrative cards: Wildfire Protection, Water Conservation, Community Action, Education
-- Impact stats: 1,000+ Acres, 70+ BDAs, 500+ Trees, 80+ Volunteers
-- "Other Ways to Help" with social links and volunteer CTA
-- Customized footer (no donate button, "Back to Home" CTA)
-
-The donation selector currently runs entirely in client-side Svelte state, and the donate button does not submit anywhere yet.
-
-### Menu (`/menu`)
-
-A full-page menu for users without JavaScript. The MenuButton component uses progressive enhancement: `<a href="/menu">` that JS intercepts to open the overlay instead.
+A full-page menu for visitors without JavaScript, with the same links as the menu overlay.
 
 ## Components
 
-### TopNav
+### Layout (`layout`)
 
-Text wordmark "Wildland **Ecotech**" with dark transparent background, green accent on "Ecotech".
+Page shell used by every page: `<head>` with meta tags, favicon, and Vite assets; the menu overlay; the top nav; then the page content (`$slot`). The `title` prop sets the page title.
 
-### MenuButton
+### Top Nav (`top-nav`)
 
-Progressive enhancement: anchor link to `/menu` (no-JS), JS intercepts click to toggle overlay. Escape key closes overlay.
+Fixed bar with the text wordmark "Wildland **Ecotech**" and the menu button.
 
-### Menu
+### Menu Button (`menu-button`)
 
-Full-screen overlay with navigation links. Anchors to page sections (`#mission`, `#programs`, `#projects`), contact email, and donate link.
+A link to `/menu`. With JavaScript (`menu.js`), it toggles the menu overlay instead and keeps `aria-expanded` in sync.
 
-### Accordion
+### Menu Overlay (`menu-overlay`)
 
-Expandable content sections used for programs on the home page. Tracks `hasInteracted` state and shows a bouncing "tap to learn more" hint below the last button until first interaction. Uses `getBoundingClientRect()` for scroll positioning (compatible with `position: relative` ancestors).
+Full-screen blurred overlay with links to Home, Our Programs (`/#programs`), Our Projects (`/#projects`), and Contact Us. It repeats the top nav layout with an invisible wordmark, so its close button sits exactly where the menu button is. Escape or following a link closes it.
 
-### Blob
+### Footer (`footer`)
 
-Morphing image clip-path component with rotating gradient background layers. Features:
-
-- **CSS fallback:** Static `clip-path: url(#blob-N)` for no-JS users
-- **JS enhancement:** Samples 10 SVG blob paths into polar coordinates (64 angles), morphs between random shapes continuously using requestAnimationFrame
-- **Optional `type` prop:** When set, the specified shape acts as a floor (shape can grow but never shrink below the base type)
-- **Background layers:** Two gradient-filled divs clipped to random blob shapes, rotating slowly in opposite directions via CSS animation (no JS needed)
-
-### Blobs
-
-SVG clip-path definitions (10 blob shapes) used by Blob component. Rendered in the layout, provides global `<clipPath>` elements.
-
-### DisappearingContent
-
-Scroll-based mask effect that fades content as it approaches the top nav. Uses `mask-image` / `-webkit-mask-image` CSS properties calculated from scroll position. Runs on mount, scroll, and resize.
-
-### Modal
-
-Generic modal component. Props: `open`, `title`, `onclose`. Features: blurred backdrop, close button (above modal on desktop, at border on mobile), escape key and click-outside-to-close. Content comes from parent via slot. No opinions about layout inside.
-
-### Footer
-
-Customizable footer with green gradient background and decorative SVG bubbles. Props with defaults:
+Gradient footer with decorative bubbles. Props with defaults:
 
 - `color` (default: `'green'`)
 - `heading` (default: `'Want to make a difference?'`)
@@ -115,10 +110,27 @@ Customizable footer with green gradient background and decorative SVG bubbles. P
 - `showDonate` (default: `true`)
 - `showSocials` (default: `true`)
 
+### Disappearing Content (`disappearing-content`)
+
+Wraps page content so it fades out as it scrolls under the top nav. `disappearing-content.js` recalculates a mask image on scroll and resize.
+
+### Modal (`modal`)
+
+Dialog opened by links to `#id`. Props: `id`, `title`, `closeHref` (where the close link points without JavaScript). Without JavaScript, CSS shows the modal while its id is the URL fragment (`:target`). With JavaScript, `modal.js` opens and closes it with the `is-open` and `is-closed` classes without changing the URL, closes it on Escape or a backdrop click, and moves focus into the modal and back.
+
+### Blob (`blob`) and Blob Shapes (`blob-shapes`)
+
+Image clipped to an organic shape, with two gradient layers rotating behind it. Prop: `type` (shape 1–10); when set, the animation never shrinks below that shape. The background layers' shapes, speeds, and directions are picked randomly on each request.
+
+`blob-shapes` holds the 10 SVG clip-path definitions and is rendered once per page by the first blob (`@once`). Without JavaScript, each blob keeps its static shape. With JavaScript, `blob.js` reads the outlines from those definitions, samples them into radii around the center, and morphs between random shapes; blobs that are not displayed, such as inside closed modals, are skipped.
+
+### Accordion
+
+The programs accordion on the home page is markup rather than a component: `<details>` elements sharing `name="programs"`, so only one section is open at a time without JavaScript. `accordion.js` keeps the open section from closing when clicked again, hides the "tap to learn more" hint after the first click, scrolls the opened section into view, and closes other sections in browsers without exclusive `<details>` support.
+
 ## Known Issues and Notes
 
-- `backdrop-filter: blur()` conflicts with DisappearingContent's CSS mask filter. The donate section uses `rgba(0, 0, 0, 0.5)` without blur as a workaround.
-- The favicon is still the Wetfish fish icon; needs replacing with a Wildland Ecotech logo.
-- The canvas rainbow border on the social CTA requires JS; CSS fallback is a solid color cycling animation.
-- Blob morphing uses polar coordinate sampling which can produce slightly irregular shapes depending on the source paths. This is cosmetic and intentional.
-- The project modals on the home page only open with JavaScript, and only the first accordion section is reachable without it. The Blade version needs no-JS fallbacks for both (see [milestone 3](06-planned-features.md#3-convert-the-site-to-blade)).
+- `backdrop-filter: blur()` conflicts with DisappearingContent's mask. The donate section uses `rgba(0, 0, 0, 0.5)` without blur as a workaround.
+- `backdrop-filter` makes `position: fixed` children position relative to the element instead of the window. The menu overlay pins its copy of the top nav to `top: 0; left: 0` for this reason.
+- The favicon is still the Wetfish fish icon; it needs replacing with a Wildland Ecotech logo.
+- Blob morphing uses polar coordinate sampling, which can produce slightly irregular shapes depending on the source paths. This is cosmetic and intentional.

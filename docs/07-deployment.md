@@ -33,19 +33,11 @@ Set a real `DB_PASSWORD` in both `.env` files before the first `docker compose u
 
 Node.js is not included in the Docker environment. Frontend assets are built on the host with `npm run build`, or `npm run dev` for hot reloading.
 
-### Legacy Static Site (`ui/`)
-
-Until the Blade conversion is complete, the current public site can still be run with the Vite dev server:
-
-```bash
-cd ui && npm install && npm run dev
-```
-
 ## Production
 
 ### Current Hosting
 
-The live site at wildland.eco is the static SvelteKit build (`ui/public_html/`) served by nginx on an existing server, behind HTTPS managed by Certbot. nginx must include `try_files $uri $uri.html $uri/ =404;` to serve SvelteKit's generated pages without `.html` extensions:
+Until the Laravel site is deployed (milestone 4), wildland.eco is the static SvelteKit build from the `ui/` directory on the `main` branch (`ui/public_html/`), served by nginx on an existing server behind HTTPS managed by Certbot. The `laravel-integration` branch no longer contains `ui/`. nginx must include `try_files $uri $uri.html $uri/ =404;` to serve SvelteKit's generated pages without `.html` extensions:
 
 ```nginx
 server {

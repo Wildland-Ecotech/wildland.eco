@@ -13,11 +13,9 @@ We restore landscapes damaged by wildfire and pollution, working at the intersec
 
 This is the open-source website for Wildland Ecotech: the public-facing home for our nonprofit, featuring information about our restoration programs, project areas, and a donation platform.
 
-The site is being migrated from a static SvelteKit build (`ui/`) to a Laravel application (`laravel/`) with server-rendered Blade templates. The Laravel platform will also handle donations and donor accounts. See [Planned Features](docs/06-planned-features.md) for the development plan.
+The site is a Laravel application (`laravel/`) with server-rendered Blade templates that work without JavaScript. The platform is being extended to handle donations and donor accounts. See [Planned Features](docs/06-planned-features.md) for the development plan.
 
 ## Quick Start
-
-**Laravel (Docker):**
 
 ```bash
 cp .env.example .env
@@ -29,13 +27,7 @@ docker compose exec app php artisan migrate
 cd laravel && npm install && npm run build
 ```
 
-Set a real `DB_PASSWORD` in both `.env` files first. The site will be available at `http://localhost:8080`. See [Deployment](docs/07-deployment.md) for details.
-
-**Current static site (with hot reload):**
-
-```bash
-cd ui && npm install && npm run dev
-```
+Set a real `DB_PASSWORD` in both `.env` files first. The site will be available at `http://localhost:8080`. For hot reloading while editing styles or scripts, run `npm run dev` in `laravel/` instead of `npm run build`. See [Deployment](docs/07-deployment.md) for details.
 
 ## Documentation
 

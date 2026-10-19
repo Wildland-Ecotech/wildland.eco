@@ -2,7 +2,7 @@
 
 A catalog of photos, videos, and media documenting Wildland Ecotech's restoration work, project areas, and volunteers.
 
-Photos are stored in the repository's [`content/`](../../content/) directory, except `nature-burn-scar.jpg` and `nature-pond.jpg`, which are used on the home page and live with the website's static assets.
+Photos are stored in the repository's [`content/`](../../content/) directory, except `nature-burn-scar.jpg` and `nature-pond.jpg`, which are used on the home page and live in `laravel/public/content/`.
 
 ## Photos
 
