@@ -19,6 +19,7 @@
         @vite(['resources/scss/app.scss', 'resources/js/app.js'])
     </head>
     <body>
+        <x-menu-overlay />
         <x-top-nav />
 
         {{ $slot }}

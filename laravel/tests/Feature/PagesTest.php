@@ -38,4 +38,12 @@ class PagesTest extends TestCase
             ->assertSee('class="menu-button"', false)
             ->assertSee('href="' . route('menu') . '"', false);
     }
+
+    public function test_menu_overlay_is_hidden_until_opened(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('data-menu-overlay hidden', false)
+            ->assertSee('data-menu-toggle', false);
+    }
 }
