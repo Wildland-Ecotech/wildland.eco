@@ -51,7 +51,7 @@ Done. `/`, `/donate`, and `/menu` were rebuilt in `laravel/` with the same desig
 | Staging | Staging VPS | `stage.wildland.eco` | `main` | Automatically when changes are merged into `main` |
 | Production | Production VPS | `prod.wildland.eco`, then `wildland.eco` | `release` | Automatically when changes are merged into `release` |
 
-Each environment runs on its own server from a clone of the repository. A reverse proxy on each server terminates HTTPS and forwards requests to the environment's nginx container on localhost. Laravel trusts the proxy's `X-Forwarded-*` headers (`bootstrap/app.php`), so it generates `https://` URLs.
+Each environment runs on its own server from a clone of the repository. Caddy, in a container on each server, terminates HTTPS with automatically renewed certificates and forwards requests to the environment's nginx container. Caddy was chosen because its configuration is short and readable and, unlike Traefik's usual setup, it does not need access to the Docker socket. Laravel trusts the proxy's `X-Forwarded-*` headers (`bootstrap/app.php`), so it generates `https://` URLs.
 
 **Docker setup**
 
@@ -60,12 +60,14 @@ Each environment runs on its own server from a clone of the repository. A revers
 
 **Deploys**
 
-1. GitHub sends a push webhook to a small listener on the server ([adnanh/webhook](https://github.com/adnanh/webhook)), separate from the Laravel app so a broken deploy can still be redeployed.
+1. GitHub sends a push webhook to a small listener on the server ([adnanh/webhook](https://github.com/adnanh/webhook), in its own container behind Caddy), separate from the Laravel app so a broken deploy can still be redeployed.
 2. The listener verifies GitHub's `X-Hub-Signature-256` HMAC signature and that the push is to `main` or `release`. It never uses the payload to decide what to deploy.
 3. The listener has no Docker access. It only touches a trigger file for the matching environment; a systemd path unit on the host sees the change and runs `deploy/deploy.sh` for that environment as the deploy user. Compromising the internet-facing listener therefore cannot run arbitrary commands.
 4. `deploy/deploy.sh` waits for any running deploy, resets the clone to the latest commit on the environment's `DEPLOY_BRANCH`, rebuilds and restarts containers, installs PHP dependencies without dev packages, builds assets, runs migrations, and caches configuration, routes, and views. Output goes to the systemd journal.
 
 **Other setup**
+
+- **One-step server setup:** `deploy/setup.sh` installs Docker, creates the deploy user, clones the repository, generates every secret, prompts only for the environment, branch, and AhaSend SMTP credentials, runs the first deploy, installs the systemd units, and prints the GitHub webhook settings.
 
 - **Credentials:** the repository is public, so servers pull without GitHub credentials. Secrets live only in each environment's `.env` files on the server.
 - **Backups:** nightly `pg_dump` of the production database, kept off the server.
@@ -313,7 +315,3 @@ Later phases, built on PostGIS:
 - Changing the amount of an existing recurring gift (for the MVP, donors cancel and start a new gift)
 - Signed release tags for production deploys
 - Campaign tracking and split allocations
-
-## Open Questions
-
-- **Reverse proxy:** which one terminates HTTPS on the server (for example Caddy, Traefik, or nginx with Certbot)?

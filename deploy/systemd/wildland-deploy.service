@@ -1,0 +1,18 @@
+# Runs deploy/deploy.sh as the deploy user. Started by wildland-deploy.path,
+# or by hand with `sudo systemctl start wildland-deploy`. Output goes to the
+# journal: `journalctl -u wildland-deploy`.
+#
+# Copy to /etc/systemd/system/ during server setup; see docs/07-deployment.md.
+# Assumes the repository is cloned to /srv/wildland.eco and owned by `deploy`.
+
+[Unit]
+Description=Deploy Wildland Ecotech
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=deploy
+Group=deploy
+WorkingDirectory=/srv/wildland.eco
+ExecStart=/srv/wildland.eco/deploy/deploy.sh

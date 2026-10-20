@@ -61,10 +61,55 @@ services:
     volumes:
       - ./:/var/www
 
+  # Servers only (COMPOSE_PROFILES=server in the root .env).
+  # Terminates HTTPS for the domains in deploy/caddy/$CADDY_SITE.Caddyfile.
+  # The config directory is mounted rather than the file, so changes pulled
+  # by a deploy are visible to `caddy reload`.
+  caddy:
+    image: caddy:2
+    profiles: ["server"]
+    container_name: ${APP_NAME}-caddy
+    restart: unless-stopped
+    command: caddy run --config /etc/caddy/${CADDY_SITE:-staging}.Caddyfile --adapter caddyfile
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/caddy:/etc/caddy:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - nginx
+    networks:
+      - app-network
+
+  # Servers only. Receives GitHub push webhooks and writes a trigger file
+  # that starts the deploy on the host. It has no Docker access.
+  webhook:
+    build:
+      context: ./deploy/webhook
+    profiles: ["server"]
+    container_name: ${APP_NAME}-webhook
+    restart: unless-stopped
+    user: "${UID:-1000}:${GID:-1000}"
+    environment:
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
+      DEPLOY_BRANCH: ${DEPLOY_BRANCH:-}
+    volumes:
+      - ./deploy/webhook:/etc/webhook:ro
+      - ./deploy/trigger:/trigger
+    networks:
+      - app-network
+
 networks:
   app-network:
     driver: bridge
 
 volumes:
   dbdata:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
     driver: local

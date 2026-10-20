@@ -27,23 +27,22 @@ log() {
     echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] $*"
 }
 
-deploy() {
-    local branch
-    branch="$(env_value DEPLOY_BRANCH)"
+deploy_commit() {
+    local branch="$1"
 
-    if [[ -z "$branch" ]]; then
-        log "DEPLOY_BRANCH is not set in .env; refusing to deploy"
-        exit 1
-    fi
-
-    log "Updating to the latest commit on $branch"
-    git fetch --quiet origin "$branch"
     git reset --quiet --hard "origin/$branch"
     log "Deploying $(git log -1 --format='%h %s')"
 
     log "Building and starting containers"
     docker compose build --quiet
     docker compose up --detach --remove-orphans
+
+    # Apply Caddyfile changes on servers; `up` does not restart a running
+    # container whose compose configuration is unchanged
+    if docker compose ps --services --status running | grep -qx caddy; then
+        log "Reloading Caddy configuration"
+        docker compose exec -T caddy caddy reload --config "/etc/caddy/$(env_value CADDY_SITE).Caddyfile" --adapter caddyfile
+    fi
 
     log "Installing PHP dependencies"
     docker compose exec -T app composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
@@ -57,6 +56,30 @@ deploy() {
 
     log "Caching configuration, routes, and views"
     docker compose exec -T app php artisan optimize
+
+    log "Deployed $(git log -1 --format='%h')"
+}
+
+deploy() {
+    local branch
+    branch="$(env_value DEPLOY_BRANCH)"
+
+    if [[ -z "$branch" ]]; then
+        log "DEPLOY_BRANCH is not set in .env; refusing to deploy"
+        exit 1
+    fi
+
+    log "Fetching the latest commit on $branch"
+    git fetch --quiet origin "$branch"
+    deploy_commit "$branch"
+
+    # Deploy again if more commits were pushed while this deploy ran, since
+    # a webhook that arrives mid-deploy does not start a second deploy
+    while git fetch --quiet origin "$branch" \
+        && [[ "$(git rev-parse HEAD)" != "$(git rev-parse "origin/$branch")" ]]; do
+        log "New commits arrived during the deploy"
+        deploy_commit "$branch"
+    done
 
     log "Deploy finished"
 }

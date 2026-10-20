@@ -1,0 +1,12 @@
+# Starts wildland-deploy.service when the webhook listener writes the
+# trigger file. Copy to /etc/systemd/system/ during server setup; see
+# docs/07-deployment.md. Assumes the repository is cloned to /srv/wildland.eco.
+
+[Unit]
+Description=Watch for Wildland Ecotech deploy requests
+
+[Path]
+PathChanged=/srv/wildland.eco/deploy/trigger/deploy-requested
+
+[Install]
+WantedBy=multi-user.target

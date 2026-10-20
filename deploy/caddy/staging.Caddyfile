@@ -1,0 +1,24 @@
+# Staging server: https://stage.wildland.eco
+#
+# Caddy obtains and renews the HTTPS certificate automatically and
+# redirects HTTP to HTTPS. Selected by CADDY_SITE=staging in the root .env.
+
+{
+	email contact@wildland.eco
+}
+
+stage.wildland.eco {
+	encode zstd gzip
+
+	# Keep the staging site out of search results
+	header X-Robots-Tag "noindex, nofollow"
+
+	# GitHub push webhooks; see deploy/webhook/hooks.json
+	handle /hooks/* {
+		reverse_proxy webhook:9000
+	}
+
+	handle {
+		reverse_proxy nginx:80
+	}
+}

@@ -1,6 +1,9 @@
 # Environment configuration (contains secrets)
 .env
 
+# Deploy trigger written by the webhook listener on servers
+deploy/trigger/
+
 # IDE and editor files
 .idea/
 .vscode/
