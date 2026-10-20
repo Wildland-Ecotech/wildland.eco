@@ -19,6 +19,8 @@ This ensures new work builds on existing patterns rather than introducing incons
 
 Never guess function names, file contents, or implementation details. Read the relevant source in the repository before building on it, including packages under `laravel/vendor/` when a dependency's behavior matters. A dependency often already provides what is needed, so check before reinventing it.
 
+This applies to every dependency, not only PHP packages: Debian packages, Docker images, and other tools. Read the source or documentation for the version actually installed (for example, the webhook listener's behavior was checked against the source of the version Debian packages), since behavior changes between versions.
+
 If the information is not in the repository (server configuration, account settings, credentials, or local changes that have not been pushed), ask the developer for it rather than assuming.
 
 ## Keep Documentation Updated
@@ -31,11 +33,19 @@ When making changes to existing files, always provide the complete updated file 
 
 Present work one commit at a time: the `codium` commands and full file artifacts for that commit, QA steps, and a commit message. Wait for the developer to review and ask to continue before presenting the next commit.
 
+When a commit changes files that an earlier, not yet committed commit also changed, its full files already include the earlier changes. Say which commit to apply first.
+
 The Claude interface shows at most 20 artifacts per message, and the rest are silently dropped. Keep each message under 20 files; if a commit needs more, split it into smaller commits that each leave the application working.
 
 ## Artifact File Extensions
 
-The Claude interface cannot display artifacts with nonstandard file extensions such as `.env` or `.example`. Deliver these as plain text files with a `.txt` extension and a descriptive name (for example, `laravel-env-example.txt` for `laravel/.env.example`), and use the `codium` command to show where the content belongs.
+The Claude interface can only display artifacts with common file extensions. Deliver every other file as a plain text file with a `.txt` extension and a descriptive name, and use the `codium` command to show where the content belongs. This includes:
+
+- Files with no extension: `Dockerfile` (`webhook-Dockerfile.txt`), `production.Caddyfile` (`production-Caddyfile.txt`)
+- Dotfiles and examples: `.env`, `laravel/.env.example` (`laravel-env-example.txt`), `.gitignore`
+- Configuration with uncommon extensions, such as systemd `.path` and `.service` units
+
+When unsure whether an extension displays, use `.txt`.
 
 ## File Path References
 
@@ -73,7 +83,12 @@ Bare ` ``` ` without a language tag causes consecutive blocks to merge into a si
 
 ## Commit Messages
 
-Draft a short commit message to explain what we've built. Don't explain intermediary steps, don't explain our iterations and internal dev process, only explain the final state we agreed upon. A concise subject line (80 chars or less) with a couple of bullet lines underneath is ideal, 256 characters at most in total. We want to produce something people will actually read, not gloss over a wall of text.
+Draft a short commit message to explain what we've built. Don't explain intermediary steps, don't explain our iterations and internal dev process, only explain the final state we agreed upon. We want to produce something people will actually read, not gloss over a wall of text.
+
+- **Simple changes get a single line**, 80 characters or less, with no bullets.
+- **Bullets only when a larger commit or PR warrants them:** a subject line plus a few short bullet lines, 256 characters at most in total.
+
+The same applies to PR descriptions.
 
 ## Commit Scope
 
@@ -81,11 +96,20 @@ Split larger features into separate, logically isolated commits (for example: da
 
 ## Testing and Verification
 
-Do not run the full test suite (or other long-running, resource-heavy commands) inside the AI sandbox. The sandbox is resource constrained and test runs are slow, which gets in the way of iterating quickly. Instead:
+Do not run long-running, resource-heavy commands inside the AI sandbox. The sandbox is resource constrained and these commands are slow, which gets in the way of iterating quickly. This includes:
 
-- Run a syntax check on every changed PHP file (`php -l`) before handing over code.
-- Provide the changed files along with QA testing steps: the test commands to run and any manual checks to perform.
-- The developer runs the tests locally on a machine with more resources and reports back any failures.
+- The test suite
+- Installing or updating dependencies: `composer install`, `composer update`, `npm install`, `npm ci`
+- Creating or installing Laravel projects and packages
+- Building Docker images or starting containers
+- Building frontend assets
+
+If one of these seems necessary, provide the command for the developer to run instead. Quick checks are fine and expected:
+
+- Run a syntax check on every changed file: `php -l` for PHP, `bash -n` or `sh -n` for shell scripts, and parse JSON and YAML files.
+- Check that links between documentation files resolve.
+
+Then provide the changed files along with QA testing steps: the test commands to run and any manual checks to perform. The developer runs them locally on a machine with more resources and reports back any failures.
 
 Tests run against PostgreSQL in Docker, never SQLite. A separate test database, identical to production, keeps tests on the same code paths as production so they cannot pass on behavior that would break there (set up in milestone 5). Feature tests that render pages call `$this->withoutVite()` so they do not depend on built assets.
 
@@ -95,6 +119,27 @@ Example QA commands handed to the developer:
 docker compose exec app php artisan test --filter=DonationSyncTest
 docker compose exec app php artisan test
 ```
+
+## Deployment Changes
+
+When a commit changes how the servers run, its QA steps say what happens when it is deployed and what, if anything, the developer must do on the servers. See [Deployment](07-deployment.md).
+
+- **Applied by the next deploy:** application code, Docker images and their build files (`docker compose build` rebuilds changed images and `up` recreates only the changed containers), `docker-compose.yml`, and Caddyfiles (reloaded on every deploy).
+- **Need a manual step:** systemd units are copied onto the host, so re-run `sudo deploy/setup.sh`; changes to a server's `.env` files need a manual deploy (`sudo systemctl start wildland-deploy`).
+- **Configuration a container reads only at startup** is copied into its image rather than mounted, so changing it rebuilds the image and recreates the container.
+- **Changes to the deploy process itself** are first deployed by the old version. Describe how that first deploy behaves.
+
+Server rules that must hold:
+
+- Containers never run as root. Deploys and containers run as the clone's owner.
+- Published ports are bound to `127.0.0.1`. Docker's published ports bypass host firewalls such as ufw.
+- Comments in `.env` files go on their own lines, never after a value, because `deploy/deploy.sh` reads values literally.
+- No credentials or SSH keys are stored on GitHub; servers pull from the public repository.
+- Git commands on a server run as the clone's owner (`sudo -u deploy git status`).
+
+## Webhook Responses
+
+Webhook endpoints, both the deploy webhook and the payment gateway webhooks planned in milestone 6, return an error only when something is actually wrong, such as a missing or invalid signature or a failure while processing. Expected outcomes succeed with a 2xx response and a short message: a push to a branch this server does not deploy, an event type we do not handle, or an event already processed. An error then always means a real problem, and senders that retry failed deliveries (Stripe retries for days and can disable an endpoint) are not sent into retry loops.
 
 ## Artisan Commands
 
@@ -128,6 +173,10 @@ docker compose exec app php artisan make:migration create_second_table
 Every public page must render and work without JavaScript. Pages are rendered on the server with Blade, and JavaScript only enhances them (animations, live labels, overlays). Forms are real HTML forms that submit to the server and are validated there. Features that cannot work without JavaScript, such as the canvas border animation, need a CSS fallback.
 
 Do not add a runtime Node.js process (for example, server-side rendering) to production. Node is only used to build assets.
+
+## Follow Instructions Literally
+
+Do exactly what was asked for visible content: what to show, hide, link, or word a certain way. When an instruction could be read more than one way, ask before building rather than picking an interpretation.
 
 ## Page References
 
