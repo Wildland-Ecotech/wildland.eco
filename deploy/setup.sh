@@ -10,9 +10,10 @@
 #   cd wildland.eco
 #   sudo deploy/setup.sh
 #
-# The clone can live in any directory. Clone it as the regular user who will
-# own the deployment: deploys run as the clone's owner, and setup adds that
-# user to the docker group.
+# The clone can live in any directory. Deploys and containers run as the
+# clone's owner, and setup adds that user to the docker group. A clone owned
+# by root is handed to a dedicated `deploy` user instead, because the
+# containers must not run as root.
 #
 # It installs Docker, writes both .env files (generating every secret and
 # prompting only for what it cannot generate), runs the first deploy, and
@@ -170,6 +171,42 @@ install_docker() {
     systemctl enable --now docker
 }
 
+# Containers run as the clone's owner (UID and GID in the root .env). They
+# must not run as root: PHP-FPM started as root hands requests to workers
+# running as www-data, which cannot write to the root-owned storage
+# directory. A clone owned by root is therefore given to a dedicated deploy
+# user, which runs deploys and has no password or login shell.
+ensure_non_root_owner() {
+    if [[ "$OWNER" != "root" ]]; then
+        return 0
+    fi
+
+    info "The clone is owned by root; handing it to the deploy user"
+
+    if ! id deploy > /dev/null 2>&1; then
+        useradd --system --create-home --shell /usr/sbin/nologin deploy
+    fi
+
+    chown -R deploy:deploy "$INSTALL_DIR"
+    OWNER="deploy"
+}
+
+# Keeps the container user IDs in an existing root .env in step with the
+# clone's owner, which may have changed since the file was written
+sync_owner_ids() {
+    local root_env="$INSTALL_DIR/.env"
+
+    set_env "$root_env" UID "$(id -u "$OWNER")"
+    set_env "$root_env" GID "$(id -g "$OWNER")"
+
+    local file
+    for file in "$root_env" "$INSTALL_DIR/laravel/.env"; do
+        if [[ -f "$file" ]]; then
+            chown "$OWNER:$OWNER" "$file"
+        fi
+    done
+}
+
 # Deploys run as the clone's owner, who needs Docker access. Membership in
 # the docker group is equivalent to root access.
 grant_docker_access() {
@@ -272,6 +309,7 @@ EOF
 
 main() {
     check_system
+    ensure_non_root_owner
 
     local site domain branch smtp_username="" smtp_password=""
     local configure=true
@@ -288,6 +326,7 @@ main() {
         echo
         echo "Existing configuration found in $INSTALL_DIR/.env; keeping it."
         check_branch "$branch" || fail "change DEPLOY_BRANCH in $INSTALL_DIR/.env to a branch that can be deployed"
+        sync_owner_ids
     else
         echo
 

@@ -75,7 +75,7 @@ Staging uses `APP_ENV=production` so it behaves exactly like production. Each se
 
 `deploy/setup.sh` sets up a server in one run, from a clone of the repository. It needs a Debian or Ubuntu server with sudo access, and the server's domain (`stage.wildland.eco` or `prod.wildland.eco`) already pointing at it so Caddy can obtain the HTTPS certificate.
 
-Clone the repository as the regular user who will own the deployment, in any directory, then run the script:
+Clone the repository into any directory, then run the script:
 
 ```bash
 sudo apt install git
@@ -94,16 +94,17 @@ The script asks for:
 
 It then:
 
-1. Installs Docker Engine with the Compose plugin from Docker's apt repository.
-2. Adds the clone's owner to the `docker` group, since deploys run as that user. Membership in the `docker` group is equivalent to root access.
-3. Writes both `.env` files from their examples with the server settings, generating the database password, `APP_KEY`, and webhook secret. Both files are readable only by the clone's owner.
-4. Runs the first deploy, which builds the containers, obtains the HTTPS certificate, and sets up the database.
-5. Installs the systemd units that run deploys when the webhook fires, with the clone's path and owner filled in. They are copied rather than linked, so a deploy can never change the host's services.
-6. Prints the settings for the GitHub webhook.
+1. Makes sure the clone has a non-root owner. Deploys and containers run as the clone's owner, and the containers must not run as root: PHP-FPM started as root serves requests as `www-data`, which cannot write to root-owned storage. If the clone is owned by root (for example, cloned into `/opt` as root), the script creates a `deploy` user with no password or login shell and gives it the clone.
+2. Installs Docker Engine with the Compose plugin from Docker's apt repository.
+3. Adds the clone's owner to the `docker` group, since deploys run as that user. Membership in the `docker` group is equivalent to root access.
+4. Writes both `.env` files from their examples with the server settings, generating the database password, `APP_KEY`, and webhook secret. Both files are readable only by the clone's owner.
+5. Runs the first deploy, which builds the containers, obtains the HTTPS certificate, and sets up the database.
+6. Installs the systemd units that run deploys when the webhook fires, with the clone's path and owner filled in. They are copied rather than linked, so a deploy can never change the host's services.
+7. Prints the settings for the GitHub webhook.
 
 The one manual step is adding the webhook in GitHub (repository Settings → Webhooks → Add webhook) with the printed payload URL, content type, and secret, for push events only. GitHub's first test ping gets a 403 response, because only pushes to the server's branch start a deploy.
 
-The script is safe to re-run. It keeps existing `.env` files and repeats the remaining steps, so re-running it after the systemd units change in the repository installs the new versions.
+The script is safe to re-run. It keeps existing `.env` files (updating only the container user IDs if the clone's owner changed) and repeats the remaining steps, so re-running it after the systemd units change in the repository installs the new versions.
 
 ### Operating a Server
 
@@ -114,8 +115,11 @@ sudo systemctl start wildland-deploy
 # Follow deploy output
 journalctl -u wildland-deploy -f
 
-# Webhook and Caddy logs (from the clone's directory, as its owner)
+# Webhook and Caddy logs (from the clone's directory)
 docker compose logs -f webhook caddy
+
+# Git commands in a clone owned by the deploy user
+sudo -u deploy git status
 ```
 
 ## Production
