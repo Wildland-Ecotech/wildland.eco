@@ -41,7 +41,7 @@ Rebuild assets with `docker compose run --rm node npm run build` after changing 
 
 ## Servers
 
-Staging (`stage.wildland.eco`) and production (`prod.wildland.eco`, and `wildland.eco` after cutover) each run on their own server from a clone of the repository at `/srv/wildland.eco`, using the same `docker-compose.yml` as local development. Two more services run only on servers, enabled by `COMPOSE_PROFILES=server`:
+Staging (`stage.wildland.eco`) and production (`prod.wildland.eco`, and `wildland.eco` after cutover) each run on their own server from a clone of the repository, using the same `docker-compose.yml` as local development. The clone can be in any directory; deploys run as the user who owns it. Two more services run only on servers, enabled by `COMPOSE_PROFILES=server`:
 
 | Service | Purpose |
 |---------|---------|
@@ -52,10 +52,10 @@ Staging (`stage.wildland.eco`) and production (`prod.wildland.eco`, and `wildlan
 
 1. A push to the server's branch sends a webhook to `https://<server domain>/hooks/deploy`. Caddy receives it on the standard HTTPS port and forwards it to the webhook container; no other port needs to be opened.
 2. The webhook container checks the `X-Hub-Signature-256` signature against `WEBHOOK_SECRET` and that the push is to `refs/heads/<DEPLOY_BRANCH>`. Anything else gets a 403.
-3. A verified push writes the trigger file. The `wildland-deploy.path` systemd unit on the host sees the change and starts `wildland-deploy.service`, which runs `deploy/deploy.sh` as the `deploy` user.
-4. `deploy/deploy.sh` resets the clone to the branch's latest commit, rebuilds and restarts containers, reloads the Caddy config, installs PHP dependencies without dev packages, builds assets, runs migrations, and caches configuration, routes, and views. If more commits arrived during the deploy, it deploys again.
+3. A verified push writes the trigger file. The `wildland-deploy.path` systemd unit on the host sees the change and starts `wildland-deploy.service`, which runs `deploy/deploy.sh` as the clone's owner.
+4. `deploy/deploy.sh` checks out the branch's latest commit, rebuilds and restarts containers, reloads the Caddy config, installs PHP dependencies without dev packages, builds assets, runs migrations, and caches configuration, routes, and views. If more commits arrived during the deploy, it deploys again.
 
-Deploys in the same environment never overlap. The clone is used only for deploys: the script discards local changes to tracked files, while untracked files such as `.env` and `laravel/.env` are kept.
+Deploys in the same environment never overlap. The clone is used only for deploys: the script discards local changes to tracked files, while untracked files such as `.env` and `laravel/.env` are kept. To move a server to another branch, change `DEPLOY_BRANCH` in its root `.env`; the next deploy checks that branch out.
 
 ### Server Settings
 
@@ -73,33 +73,33 @@ Staging uses `APP_ENV=production` so it behaves exactly like production. Each se
 
 ### Setting Up a Server
 
-`deploy/setup.sh` sets up a server in one run. It needs a Debian or Ubuntu server with root access, and the server's domain (`stage.wildland.eco` or `prod.wildland.eco`) already pointing at it so Caddy can obtain the HTTPS certificate.
+`deploy/setup.sh` sets up a server in one run, from a clone of the repository. It needs a Debian or Ubuntu server with sudo access, and the server's domain (`stage.wildland.eco` or `prod.wildland.eco`) already pointing at it so Caddy can obtain the HTTPS certificate.
 
-Download the script, read it, then run it:
+Clone the repository as the regular user who will own the deployment, in any directory, then run the script:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/Wildland-Ecotech/wildland.eco/main/deploy/setup.sh
-less setup.sh
-sudo bash setup.sh
+sudo apt install git
+git clone https://github.com/Wildland-Ecotech/wildland.eco.git
+cd wildland.eco
+sudo deploy/setup.sh
 ```
 
-Until `laravel-integration` is merged into `main`, download the script from that branch instead (replace `main` in the URL with `laravel-integration`), and answer `laravel-integration` when the script asks which branch to deploy. After the merge, switch a server to its permanent branch with `sudo -u deploy git -C /srv/wildland.eco checkout <branch>` and update `DEPLOY_BRANCH` in its root `.env`.
+Until `laravel-integration` is merged, `main` does not contain the setup script yet: run `git checkout laravel-integration` before `sudo deploy/setup.sh`, and answer `laravel-integration` when the script asks which branch to deploy.
 
 The script asks for:
 
 - **Environment:** `staging` or `production`
-- **Branch to deploy:** defaults to `main` for staging and `release` for production
+- **Branch to deploy:** defaults to `main` for staging and `release` for production. If the branch does not exist on GitHub yet, or does not contain the Laravel site, the script says so and asks again.
 - **AhaSend SMTP username and password:** optional; without them, email is written to the Laravel log
 
 It then:
 
-1. Installs Git and Docker Engine with the Compose plugin from Docker's apt repository.
-2. Creates the `deploy` user, which owns the clone and runs deploys. Membership in the `docker` group is equivalent to root access, so this user has no password or login shell.
-3. Clones the repository to `/srv/wildland.eco`.
-4. Writes both `.env` files from their examples with the server settings, generating the database password, `APP_KEY`, and webhook secret. Both files are readable only by `deploy`.
-5. Runs the first deploy, which builds the containers, obtains the HTTPS certificate, and sets up the database.
-6. Installs the systemd units that run deploys when the webhook fires. They are copied rather than linked, so a deploy can never change the host's services.
-7. Prints the settings for the GitHub webhook.
+1. Installs Docker Engine with the Compose plugin from Docker's apt repository.
+2. Adds the clone's owner to the `docker` group, since deploys run as that user. Membership in the `docker` group is equivalent to root access.
+3. Writes both `.env` files from their examples with the server settings, generating the database password, `APP_KEY`, and webhook secret. Both files are readable only by the clone's owner.
+4. Runs the first deploy, which builds the containers, obtains the HTTPS certificate, and sets up the database.
+5. Installs the systemd units that run deploys when the webhook fires, with the clone's path and owner filled in. They are copied rather than linked, so a deploy can never change the host's services.
+6. Prints the settings for the GitHub webhook.
 
 The one manual step is adding the webhook in GitHub (repository Settings → Webhooks → Add webhook) with the printed payload URL, content type, and secret, for push events only. GitHub's first test ping gets a 403 response, because only pushes to the server's branch start a deploy.
 
@@ -114,8 +114,8 @@ sudo systemctl start wildland-deploy
 # Follow deploy output
 journalctl -u wildland-deploy -f
 
-# Webhook and Caddy logs
-cd /srv/wildland.eco && sudo -u deploy docker compose logs -f webhook caddy
+# Webhook and Caddy logs (from the clone's directory, as its owner)
+docker compose logs -f webhook caddy
 ```
 
 ## Production

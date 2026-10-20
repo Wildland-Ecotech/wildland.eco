@@ -2,13 +2,19 @@
 #
 # Sets up a Wildland Ecotech staging or production server.
 #
-# Run as root on a Debian or Ubuntu server whose domain already points at it:
+# Run from a clone of the repository, as root, on a Debian or Ubuntu server
+# whose domain already points at it:
 #
-#   curl -fsSLO https://raw.githubusercontent.com/Wildland-Ecotech/wildland.eco/main/deploy/setup.sh
-#   sudo bash setup.sh
+#   sudo apt install git
+#   git clone https://github.com/Wildland-Ecotech/wildland.eco.git
+#   cd wildland.eco
+#   sudo deploy/setup.sh
 #
-# It installs Docker, creates the deploy user, clones the repository to
-# /srv/wildland.eco, writes both .env files (generating every secret and
+# The clone can live in any directory. Clone it as the regular user who will
+# own the deployment: deploys run as the clone's owner, and setup adds that
+# user to the docker group.
+#
+# It installs Docker, writes both .env files (generating every secret and
 # prompting only for what it cannot generate), runs the first deploy, and
 # installs the systemd units that deploy on each push. At the end it prints
 # the GitHub webhook settings to add.
@@ -18,12 +24,11 @@
 
 set -euo pipefail
 
-REPO_URL="https://github.com/Wildland-Ecotech/wildland.eco.git"
-INSTALL_DIR="/srv/wildland.eco"
-DEPLOY_USER="deploy"
-
 SMTP_HOST="send.ahasend.com"
 SMTP_PORT="587"
+
+# All work happens in functions called from the last line, so the first
+# deploy can update this file without affecting the run in progress.
 
 # --- Output and prompts -------------------------------------------------------
 
@@ -37,24 +42,23 @@ fail() {
     exit 1
 }
 
-# Prompts are read from the terminal, so they work even if this script's
-# standard input is redirected. Prompt text goes to stderr; the answer is
-# printed to stdout for the caller to capture.
+# Prompt text goes to stderr; the answer is printed to stdout for the caller
+# to capture.
 ask() {
     local prompt="$1" default="${2:-}" reply
 
     if [[ -n "$default" ]]; then
-        read -r -p "$prompt [$default]: " reply < /dev/tty
+        read -r -p "$prompt [$default]: " reply
         echo "${reply:-$default}"
     else
-        read -r -p "$prompt: " reply < /dev/tty
+        read -r -p "$prompt: " reply
         echo "$reply"
     fi
 }
 
 ask_secret() {
     local reply
-    read -r -s -p "$1: " reply < /dev/tty
+    read -r -s -p "$1: " reply
     echo >&2
     echo "$reply"
 }
@@ -90,6 +94,35 @@ quote() {
     echo "'$1'"
 }
 
+# --- Repository ---------------------------------------------------------------
+
+# Runs a command as the user who owns the clone
+as_owner() {
+    if [[ "$OWNER" == "root" ]]; then
+        "$@"
+    else
+        runuser -u "$OWNER" -- "$@"
+    fi
+}
+
+# Checks that a branch exists on GitHub and contains the Laravel site and
+# deploy files. Prints the reason and returns 1 if it cannot be deployed.
+check_branch() {
+    local branch="$1"
+
+    if [[ -z "$(as_owner git -C "$INSTALL_DIR" ls-remote --heads origin "$branch")" ]]; then
+        echo "The $branch branch does not exist on GitHub yet." >&2
+        return 1
+    fi
+
+    as_owner git -C "$INSTALL_DIR" fetch --quiet origin "$branch"
+
+    if ! as_owner git -C "$INSTALL_DIR" cat-file -e "origin/$branch:deploy/deploy.sh" 2> /dev/null; then
+        echo "The $branch branch does not contain the Laravel site and its deploy files yet." >&2
+        return 1
+    fi
+}
+
 # --- Setup steps --------------------------------------------------------------
 
 check_system() {
@@ -101,6 +134,14 @@ check_system() {
     OS_CODENAME="$VERSION_CODENAME"
 
     [[ "$OS_ID" == "debian" || "$OS_ID" == "ubuntu" ]] || fail "only Debian and Ubuntu are supported (found $OS_ID)"
+
+    INSTALL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+    OWNER="$(stat -c '%U' "$INSTALL_DIR")"
+
+    [[ -d "$INSTALL_DIR/.git" ]] || fail "run this script from a clone of the repository"
+
+    # The path is written into the systemd units, so keep it to plain characters
+    [[ "$INSTALL_DIR" =~ ^[A-Za-z0-9._/-]+$ ]] || fail "the repository path may only contain letters, numbers, '.', '_', '-', and '/' ($INSTALL_DIR)"
 }
 
 install_packages() {
@@ -129,40 +170,13 @@ install_docker() {
     systemctl enable --now docker
 }
 
-# The deploy user owns the clone and runs deploys. Membership in the docker
-# group is equivalent to root access, so it gets no password or login shell.
-create_deploy_user() {
-    if id "$DEPLOY_USER" > /dev/null 2>&1; then
-        info "User $DEPLOY_USER already exists"
-    else
-        info "Creating user $DEPLOY_USER"
-        useradd --system --create-home --shell /usr/sbin/nologin "$DEPLOY_USER"
+# Deploys run as the clone's owner, who needs Docker access. Membership in
+# the docker group is equivalent to root access.
+grant_docker_access() {
+    if [[ "$OWNER" != "root" ]]; then
+        info "Adding $OWNER to the docker group"
+        usermod -aG docker "$OWNER"
     fi
-
-    usermod -aG docker "$DEPLOY_USER"
-}
-
-as_deploy() {
-    runuser -u "$DEPLOY_USER" -- "$@"
-}
-
-clone_repository() {
-    local branch="$1"
-
-    if [[ -d "$INSTALL_DIR/.git" ]]; then
-        info "Repository already cloned at $INSTALL_DIR"
-    else
-        if [[ -e "$INSTALL_DIR" && -n "$(ls -A "$INSTALL_DIR")" ]]; then
-            fail "$INSTALL_DIR exists and is not empty"
-        fi
-
-        info "Cloning the $branch branch to $INSTALL_DIR"
-        mkdir -p "$INSTALL_DIR"
-        chown "$DEPLOY_USER:$DEPLOY_USER" "$INSTALL_DIR"
-        as_deploy git clone --quiet --branch "$branch" "$REPO_URL" "$INSTALL_DIR"
-    fi
-
-    as_deploy mkdir -p "$INSTALL_DIR/deploy/trigger"
 }
 
 write_env_files() {
@@ -177,16 +191,16 @@ write_env_files() {
     webhook_secret="$(openssl rand -hex 32)"
     app_key="base64:$(openssl rand -base64 32)"
 
-    as_deploy cp "$INSTALL_DIR/.env.example" "$root_env"
-    set_env "$root_env" UID "$(id -u "$DEPLOY_USER")"
-    set_env "$root_env" GID "$(id -g "$DEPLOY_USER")"
+    as_owner cp "$INSTALL_DIR/.env.example" "$root_env"
+    set_env "$root_env" UID "$(id -u "$OWNER")"
+    set_env "$root_env" GID "$(id -g "$OWNER")"
     set_env "$root_env" DB_PASSWORD "$db_password"
     set_env "$root_env" COMPOSE_PROFILES server
     set_env "$root_env" CADDY_SITE "$site"
     set_env "$root_env" DEPLOY_BRANCH "$branch"
     set_env "$root_env" WEBHOOK_SECRET "$webhook_secret"
 
-    as_deploy cp "$INSTALL_DIR/laravel/.env.example" "$laravel_env"
+    as_owner cp "$INSTALL_DIR/laravel/.env.example" "$laravel_env"
     set_env "$laravel_env" APP_ENV production
     set_env "$laravel_env" APP_DEBUG false
     set_env "$laravel_env" APP_URL "https://$domain"
@@ -202,20 +216,31 @@ write_env_files() {
         set_env "$laravel_env" MAIL_PASSWORD "$(quote "$smtp_password")"
     fi
 
-    # Both files hold secrets: readable only by the deploy user
+    # Both files hold secrets: readable only by the clone's owner
     chmod 600 "$root_env" "$laravel_env"
 }
 
 first_deploy() {
     info "Running the first deploy (builds containers and obtains the HTTPS certificate)"
-    as_deploy "$INSTALL_DIR/deploy/deploy.sh"
+    as_owner mkdir -p "$INSTALL_DIR/deploy/trigger"
+    as_owner "$INSTALL_DIR/deploy/deploy.sh"
 }
 
-# The units are copied rather than linked, so a deploy can never change the
-# host's services. Re-running this script installs updated copies.
+# Installs the systemd units with this clone's path and owner filled in. They
+# are copied rather than linked, so a deploy can never change the host's
+# services. Re-running this script installs updated copies.
 install_systemd_units() {
     info "Installing systemd units for automatic deploys"
-    cp "$INSTALL_DIR/deploy/systemd/wildland-deploy.path" "$INSTALL_DIR/deploy/systemd/wildland-deploy.service" /etc/systemd/system/
+
+    local unit
+    for unit in wildland-deploy.path wildland-deploy.service; do
+        INSTALL_DIR="$INSTALL_DIR" OWNER="$OWNER" awk '{
+            gsub(/@INSTALL_DIR@/, ENVIRON["INSTALL_DIR"])
+            gsub(/@DEPLOY_USER@/, ENVIRON["OWNER"])
+            print
+        }' "$INSTALL_DIR/deploy/systemd/$unit" > "/etc/systemd/system/$unit"
+    done
+
     systemctl daemon-reload
     systemctl enable --now wildland-deploy.path > /dev/null
 }
@@ -251,13 +276,19 @@ main() {
     local site domain branch smtp_username="" smtp_password=""
     local configure=true
 
+    echo "Wildland Ecotech server setup"
+    echo "Repository: $INSTALL_DIR (deploys run as $OWNER)"
+
+    install_packages
+
     if [[ -f "$INSTALL_DIR/.env" ]]; then
         configure=false
         site="$(env_value "$INSTALL_DIR/.env" CADDY_SITE)"
         branch="$(env_value "$INSTALL_DIR/.env" DEPLOY_BRANCH)"
+        echo
         echo "Existing configuration found in $INSTALL_DIR/.env; keeping it."
+        check_branch "$branch" || fail "change DEPLOY_BRANCH in $INSTALL_DIR/.env to a branch that can be deployed"
     else
-        echo "Wildland Ecotech server setup"
         echo
 
         site="$(ask "Environment (staging or production)" "staging")"
@@ -265,7 +296,13 @@ main() {
 
         local default_branch="main"
         [[ "$site" == "production" ]] && default_branch="release"
-        branch="$(ask "Branch to deploy" "$default_branch")"
+
+        # Ask until the branch can be deployed
+        while true; do
+            branch="$(ask "Branch to deploy" "$default_branch")"
+            check_branch "$branch" && break
+            echo "Choose another branch, such as laravel-integration until it is merged." >&2
+        done
 
         echo
         echo "AhaSend SMTP credentials for sending email (leave the username empty to skip;"
@@ -281,10 +318,8 @@ main() {
     domain="stage.wildland.eco"
     [[ "$site" == "production" ]] && domain="prod.wildland.eco"
 
-    install_packages
     install_docker
-    create_deploy_user
-    clone_repository "$branch"
+    grant_docker_access
 
     if [[ "$configure" == true ]]; then
         write_env_files "$site" "$domain" "$branch" "$smtp_username" "$smtp_password"
@@ -296,3 +331,4 @@ main() {
 }
 
 main "$@"
+exit

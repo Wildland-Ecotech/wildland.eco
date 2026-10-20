@@ -2,9 +2,10 @@
 #
 # Deploys the latest commit of this server's branch.
 #
-# Runs on staging and production servers from the repository root, which
-# must be a clone used only for deploys: local changes to tracked files are
-# discarded. Untracked files such as .env and laravel/.env are kept.
+# Runs on staging and production servers, from the clone set up by
+# deploy/setup.sh. The clone must be used only for deploys: local changes to
+# tracked files are discarded. Untracked files such as .env and laravel/.env
+# are kept.
 #
 # The branch comes from DEPLOY_BRANCH in the root .env (main for staging,
 # release for production). See docs/07-deployment.md.
@@ -14,7 +15,7 @@
 set -euo pipefail
 
 # All work happens in functions called from the last line. Bash reads a
-# script as it runs, and `git reset` below can replace this file mid-run;
+# script as it runs, and `git checkout` below can replace this file mid-run;
 # defining everything up front means the new version is never half-read.
 
 env_value() {
@@ -30,7 +31,9 @@ log() {
 deploy_commit() {
     local branch="$1"
 
-    git reset --quiet --hard "origin/$branch"
+    # Check out the branch at its latest commit, discarding any local changes.
+    # Changing DEPLOY_BRANCH in .env is enough to switch the server's branch.
+    git checkout --quiet --force -B "$branch" "origin/$branch"
     log "Deploying $(git log -1 --format='%h %s')"
 
     log "Building and starting containers"

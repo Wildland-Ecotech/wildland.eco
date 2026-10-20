@@ -62,12 +62,12 @@ Each environment runs on its own server from a clone of the repository. Caddy, i
 
 1. GitHub sends a push webhook to a small listener on the server ([adnanh/webhook](https://github.com/adnanh/webhook), in its own container behind Caddy), separate from the Laravel app so a broken deploy can still be redeployed.
 2. The listener verifies GitHub's `X-Hub-Signature-256` HMAC signature and that the push is to `main` or `release`. It never uses the payload to decide what to deploy.
-3. The listener has no Docker access. It only touches a trigger file for the matching environment; a systemd path unit on the host sees the change and runs `deploy/deploy.sh` for that environment as the deploy user. Compromising the internet-facing listener therefore cannot run arbitrary commands.
-4. `deploy/deploy.sh` waits for any running deploy, resets the clone to the latest commit on the environment's `DEPLOY_BRANCH`, rebuilds and restarts containers, installs PHP dependencies without dev packages, builds assets, runs migrations, and caches configuration, routes, and views. Output goes to the systemd journal.
+3. The listener has no Docker access. It only touches a trigger file for the matching environment; a systemd path unit on the host sees the change and runs `deploy/deploy.sh` as the clone's owner. Compromising the internet-facing listener therefore cannot run arbitrary commands.
+4. `deploy/deploy.sh` waits for any running deploy, checks out the latest commit on the environment's `DEPLOY_BRANCH`, rebuilds and restarts containers, installs PHP dependencies without dev packages, builds assets, runs migrations, and caches configuration, routes, and views. Output goes to the systemd journal.
 
 **Other setup**
 
-- **One-step server setup:** `deploy/setup.sh` installs Docker, creates the deploy user, clones the repository, generates every secret, prompts only for the environment, branch, and AhaSend SMTP credentials, runs the first deploy, installs the systemd units, and prints the GitHub webhook settings.
+- **One-step server setup:** after cloning the repository into any directory, `deploy/setup.sh` installs Docker, generates every secret, prompts only for the environment, branch, and AhaSend SMTP credentials, runs the first deploy, installs the systemd units, and prints the GitHub webhook settings.
 
 - **Credentials:** the repository is public, so servers pull without GitHub credentials. Secrets live only in each environment's `.env` files on the server.
 - **Backups:** nightly `pg_dump` of the production database, kept off the server.
