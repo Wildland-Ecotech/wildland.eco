@@ -12,7 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // On servers, a reverse proxy terminates HTTPS and forwards requests to
+        // nginx over plain HTTP. Trusting its X-Forwarded-* headers lets Laravel
+        // generate https:// URLs. Trusting any address is safe because nginx is
+        // bound to 127.0.0.1, so only the proxy on the same server can reach it.
+        $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

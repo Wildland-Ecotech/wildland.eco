@@ -24,10 +24,11 @@ docker compose up -d
 docker compose exec app composer install
 docker compose exec app php artisan key:generate
 docker compose exec app php artisan migrate
-cd laravel && npm install && npm run build
+docker compose run --rm node npm ci
+docker compose run --rm node npm run build
 ```
 
-Set a real `DB_PASSWORD` in both `.env` files first. The site will be available at `http://localhost:8080`. For hot reloading while editing styles or scripts, run `npm run dev` in `laravel/` instead of `npm run build`. See [Deployment](docs/07-deployment.md) for details.
+Set a real `DB_PASSWORD` in both `.env` files first. The site will be available at `http://localhost:8080`. See [Deployment](docs/07-deployment.md) for details, including hot reloading.
 
 ## Documentation
 

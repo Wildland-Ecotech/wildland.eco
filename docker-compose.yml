@@ -1,3 +1,7 @@
+# Used unchanged in every environment (local development, staging, and
+# production). Differences between environments live only in the root .env
+# and laravel/.env files.
+
 services:
   app:
     build:
@@ -16,8 +20,11 @@ services:
     image: nginx:alpine
     container_name: ${APP_NAME}-nginx
     restart: unless-stopped
+    # Published ports are bound to localhost only. Docker's port publishing
+    # bypasses host firewalls such as ufw, so on a server anything public
+    # must go through the reverse proxy instead.
     ports:
-      - "${NGINX_PORT:-8080}:80"
+      - "127.0.0.1:${NGINX_PORT:-8080}:80"
     volumes:
       - ./:/var/www
       - ./docker/nginx:/etc/nginx/conf.d
@@ -33,11 +40,26 @@ services:
       POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - dbdata:/var/lib/postgresql/data
     networks:
       - app-network
+
+  # Builds frontend assets, so no environment needs Node installed.
+  # Not started by `docker compose up`; run it on demand:
+  #   docker compose run --rm node npm ci
+  #   docker compose run --rm node npm run build
+  node:
+    image: node:24-slim
+    profiles: ["tools"]
+    working_dir: /var/www/laravel
+    user: "${UID:-1000}:${GID:-1000}"
+    environment:
+      # The container user has no writable home directory
+      npm_config_cache: /tmp/.npm
+    volumes:
+      - ./:/var/www
 
 networks:
   app-network:

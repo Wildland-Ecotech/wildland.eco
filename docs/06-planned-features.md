@@ -6,13 +6,14 @@ The development plan for moving wildland.eco from a static SvelteKit site to a L
 
 - **Server-rendered Blade, no frontend framework.** Every public page is rendered by Laravel and works without JavaScript; small vanilla JS modules add animations and conveniences. Svelte was dropped because keeping it inside Laravel requires either a server-side rendering Node process in production or client-side rendering, and keeping SvelteKit separately would split the site into a UI and an API.
 - **No Node.js at runtime.** Node is only used to build CSS and JS assets.
+- **Docker in every environment.** Local development, staging, and production run the same `docker-compose.yml`; differences live only in each environment's `.env` files.
 - **PostgreSQL 17 + PostGIS.** PostGIS is not needed for donations, but it gives us accurate area and distance calculations, coordinate system conversion for drone and LIDAR data, raster storage, and direct QGIS access for the mapping work planned below.
 - **Gateway-neutral payments.** Stripe is used through the Stripe PHP SDK directly (no Laravel Cashier). Stripe calls sit behind our own payment gateway interface, and database columns use `gateway` and `gateway_*_id` instead of Stripe-specific names, so we can move from Stripe-hosted pages to our own UI, or to another processor, without a schema rewrite.
 - **Stripe-hosted pages for the MVP.** Stripe Checkout collects payments and the Stripe Customer Portal handles payment methods and cancellation. Both are replaceable later with on-site pages.
 - **Every payment is re-importable.** Webhooks and a history importer write through the same idempotent sync code, so any record can be imported again without creating duplicates.
 - **Email is always collected; passwords are optional.** Donors give an email address to donate and get an account automatically. Setting a password is offered only after the donation.
-- **Transactional email over SMTP** from `no-reply@wildland.eco` through a sending provider (to be chosen). Proton Mail remains the mailbox for human email.
-- **Pull-based deploys.** The server pulls code when GitHub notifies it of a push. No SSH keys or server credentials are stored on GitHub.
+- **Transactional email through AhaSend** over SMTP from `no-reply@wildland.eco`. Proton Mail remains the mailbox for human email.
+- **Pull-based deploys.** Staging updates automatically when changes are merged into `main`, and production when changes are merged into `release`, matching other Wetfish projects. The server pulls code when GitHub notifies it of a push; no SSH keys or server credentials are stored on GitHub.
 
 ## Milestones
 
@@ -42,12 +43,42 @@ Done. `/`, `/donate`, and `/menu` were rebuilt in `laravel/` with the same desig
 
 ### 4. Production Server and Deploys
 
-- **Server:** nginx, PHP 8.5-FPM, PostgreSQL 17 + PostGIS, a queue worker and the Laravel scheduler as system services, HTTPS via Certbot.
-- **Deploy trigger:** a GitHub push webhook calls a small listener on the server that is separate from the Laravel app, so a broken deploy can still be redeployed. The listener verifies GitHub's `X-Hub-Signature-256` signature and treats the request only as a "something changed" signal; it never uses the payload to decide what to deploy.
-- **Deploy script:** runs under a lock so deploys never overlap, then fetches and checks out the server's configured branch, runs `composer install --no-dev`, builds assets, runs `php artisan migrate --force`, caches config, routes, and views, and restarts the queue worker. Output is logged.
-- **Credentials:** the repository is public, so the server pulls without any GitHub credentials. Secrets live only in `laravel/.env` on the server.
-- **Cutover:** verify parity on the new server, merge `laravel-integration` into `main`, and point wildland.eco at the new server. The current server keeps serving the static build from `main` until then.
+**Environments**
+
+| Environment | Server | Domain | Branch | Updates |
+|-------------|--------|--------|--------|---------|
+| Local development | Developer's machine | `localhost:8080` | any | Manually |
+| Staging | Staging VPS | `stage.wildland.eco` | `main` | Automatically when changes are merged into `main` |
+| Production | Production VPS | `prod.wildland.eco`, then `wildland.eco` | `release` | Automatically when changes are merged into `release` |
+
+Each environment runs on its own server from a clone of the repository. A reverse proxy on each server terminates HTTPS and forwards requests to the environment's nginx container on localhost. Laravel trusts the proxy's `X-Forwarded-*` headers (`bootstrap/app.php`), so it generates `https://` URLs.
+
+**Docker setup**
+
+- Published ports (nginx, PostgreSQL) are bound to `127.0.0.1`. Docker's published ports bypass host firewalls such as ufw, so binding to all interfaces would expose the database to the internet.
+- Frontend assets are built in a `node` container (`docker compose run --rm node npm run build`), so no environment needs Node installed.
+
+**Deploys**
+
+1. GitHub sends a push webhook to a small listener on the server ([adnanh/webhook](https://github.com/adnanh/webhook)), separate from the Laravel app so a broken deploy can still be redeployed.
+2. The listener verifies GitHub's `X-Hub-Signature-256` HMAC signature and that the push is to `main` or `release`. It never uses the payload to decide what to deploy.
+3. The listener has no Docker access. It only touches a trigger file for the matching environment; a systemd path unit on the host sees the change and runs `deploy/deploy.sh` for that environment as the deploy user. Compromising the internet-facing listener therefore cannot run arbitrary commands.
+4. `deploy/deploy.sh` waits for any running deploy, resets the clone to the latest commit on the environment's `DEPLOY_BRANCH`, rebuilds and restarts containers, installs PHP dependencies without dev packages, builds assets, runs migrations, and caches configuration, routes, and views. Output goes to the systemd journal.
+
+**Other setup**
+
+- **Credentials:** the repository is public, so servers pull without GitHub credentials. Secrets live only in each environment's `.env` files on the server.
+- **Backups:** nightly `pg_dump` of the production database, kept off the server.
+- **Cutover without downtime:**
+  1. Merge `laravel-integration` into `main` (deploys staging) and then into `release` (deploys production at `prod.wildland.eco`). The old static server is updated by hand, so it keeps serving wildland.eco unchanged.
+  2. Test both servers on their own domains.
+  3. A day ahead, lower the DNS TTL on `wildland.eco` and `www.wildland.eco` (for example to 5 minutes) so the switch propagates quickly.
+  4. Add `wildland.eco` and `www.wildland.eco` to the production proxy, set production's `APP_URL` to `https://wildland.eco`, and point both DNS records at the production server. The proxy obtains HTTPS certificates as soon as DNS resolves to it, while visitors with cached DNS keep reaching the old server.
+  5. `www.wildland.eco` permanently redirects (301) to `https://wildland.eco`, keeping the path.
+  6. Once DNS has settled, `prod.wildland.eco` stays as the production server's own hostname for the deploy webhook and redirects everything else to `https://wildland.eco`, and the old static server can be retired.
 - **Future hardening:** deploy only release tags signed with a maintainer's hardware key (YubiKey), verified on the server against an allowed-signers file that never leaves the server. A compromised GitHub account then cannot deploy code to production.
+
+The queue worker and scheduler containers are added in milestone 5, when the queue tables exist; the deploy script then also restarts the queue worker.
 
 ### 5. Database Schema
 
@@ -69,7 +100,7 @@ This milestone also sets up the test database: a separate PostgreSQL + PostGIS d
 - One receipt email per successful gift: organization name, EIN, amount, date, receipt number, and a statement that no goods or services were provided in exchange. Written acknowledgment matters most for single gifts of $250 or more, which donors need in order to claim the deduction.
 - Year-end giving summaries per donor.
 - Receipt emails include the account setup link (see [Accounts](#accounts)).
-- Mailpit (a local mail-catching container) is added to Docker for development; production uses the chosen SMTP provider.
+- Mailpit (a local mail-catching container) is added to Docker for development. Staging and production send through AhaSend (`send.ahasend.com`, port 587 with STARTTLS) with an SMTP credential created in the AhaSend dashboard, after verifying the wildland.eco sending domain with its SPF, DKIM, and DMARC records.
 
 ### 8. Accounts and Member Dashboard
 
@@ -285,6 +316,4 @@ Later phases, built on PostGIS:
 
 ## Open Questions
 
-- **Production runtime:** run Laravel directly on the new server, or in Docker?
-- **Staging:** add a staging site that deploys from a separate branch?
-- **Email provider:** which SMTP sending provider to use.
+- **Reverse proxy:** which one terminates HTTPS on the server (for example Caddy, Traefik, or nginx with Certbot)?
