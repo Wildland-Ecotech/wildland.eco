@@ -41,7 +41,7 @@ Rebuild assets with `docker compose run --rm node npm run build` after changing 
 
 ## Servers
 
-Staging (`stage.wildland.eco`) and production (`prod.wildland.eco`, and `wildland.eco` after cutover) each run on their own server from a clone of the repository, using the same `docker-compose.yml` as local development. The clone can be in any directory; deploys run as the user who owns it. Two more services run only on servers, enabled by `COMPOSE_PROFILES=server`:
+Staging and production each run on their own server from a clone of the repository, using the same `docker-compose.yml` as local development. The clone can be in any directory; deploys run as the user who owns it. Two more services run only on servers, enabled by `COMPOSE_PROFILES=server`:
 
 | Service | Purpose |
 |---------|---------|
@@ -50,12 +50,12 @@ Staging (`stage.wildland.eco`) and production (`prod.wildland.eco`, and `wildlan
 
 ### How Deploys Work
 
-1. A push to the server's branch sends a webhook to `https://<server domain>/hooks/deploy`. Caddy receives it on the standard HTTPS port and forwards it to the webhook container; no other port needs to be opened.
+1. A push to the server's branch sends a webhook to `https://<server hostname>/hooks/deploy`. Caddy receives it on the standard HTTPS port and forwards it to the webhook container; no other port needs to be opened.
 2. The webhook container checks the `X-Hub-Signature-256` signature against `WEBHOOK_SECRET` and that the push is to `refs/heads/<DEPLOY_BRANCH>`. Anything else gets a 403.
 3. A verified push writes the trigger file. The `wildland-deploy.path` systemd unit on the host sees the change and starts `wildland-deploy.service`, which runs `deploy/deploy.sh` as the clone's owner.
 4. `deploy/deploy.sh` checks out the branch's latest commit, rebuilds and restarts containers, reloads the Caddy config, installs PHP dependencies without dev packages, builds assets, runs migrations, and caches configuration, routes, and views. If more commits arrived during the deploy, it deploys again.
 
-Deploys in the same environment never overlap. The clone is used only for deploys: the script discards local changes to tracked files, while untracked files such as `.env` and `laravel/.env` are kept. To move a server to another branch, change `DEPLOY_BRANCH` in its root `.env`; the next deploy checks that branch out.
+Deploys in the same environment never overlap. The clone is used only for deploys: the script discards local changes to tracked files, while untracked files such as `.env` and `laravel/.env` are kept. To deploy a different branch, see [Switching Branches](#switching-branches).
 
 ### Server Settings
 
@@ -67,13 +67,13 @@ Deploys in the same environment never overlap. The clone is used only for deploy
 | Root `.env` | `WEBHOOK_SECRET` | Random, unique per server | Random, unique per server |
 | `laravel/.env` | `APP_ENV` | `production` | `production` |
 | `laravel/.env` | `APP_DEBUG` | `false` | `false` |
-| `laravel/.env` | `APP_URL` | `https://stage.wildland.eco` | `https://prod.wildland.eco`, then `https://wildland.eco` |
+| `laravel/.env` | `APP_URL` | `https://stage.wildland.eco` | `https://wildland.eco` |
 
 Staging uses `APP_ENV=production` so it behaves exactly like production. Each server gets its own `APP_KEY`, database password, and webhook secret.
 
 ### Setting Up a Server
 
-`deploy/setup.sh` sets up a server in one run, from a clone of the repository. It needs a Debian or Ubuntu server with sudo access, and the server's domain (`stage.wildland.eco` or `prod.wildland.eco`) already pointing at it so Caddy can obtain the HTTPS certificate.
+`deploy/setup.sh` sets up a server in one run, from a clone of the repository. It needs a Debian or Ubuntu server with sudo access, and its domains (below) already pointing at it so Caddy can obtain the HTTPS certificate.
 
 Clone the repository into any directory, then run the script:
 
@@ -83,8 +83,6 @@ git clone https://github.com/Wildland-Ecotech/wildland.eco.git
 cd wildland.eco
 sudo deploy/setup.sh
 ```
-
-Until `laravel-integration` is merged, `main` does not contain the setup script yet: run `git checkout laravel-integration` before `sudo deploy/setup.sh`, and answer `laravel-integration` when the script asks which branch to deploy.
 
 The script asks for:
 
@@ -124,31 +122,34 @@ docker compose logs -f webhook caddy
 sudo -u deploy git status
 ```
 
-## Production
+### Switching Branches
 
-### Current Hosting
+A server deploys the branch named by `DEPLOY_BRANCH` in its root `.env`, so it can run another branch (for example, to try a feature branch on staging) without changing anything in GitHub. From the clone's directory, with the branch already pushed:
 
-Until the Laravel site is deployed (milestone 4), wildland.eco is the static SvelteKit build from the `ui/` directory on the `main` branch (`ui/public_html/`), served by nginx on an existing server behind HTTPS managed by Certbot. The `laravel-integration` branch no longer contains `ui/`. nginx must include `try_files $uri $uri.html $uri/ =404;` to serve SvelteKit's generated pages without `.html` extensions:
+```bash
+# Point the server at the branch
+sudo -u deploy sed -i 's/^DEPLOY_BRANCH=.*/DEPLOY_BRANCH=feature-branch/' .env
 
-```nginx
-server {
-    server_name wildland.eco *.wildland.eco;
-    root /home/sites/wildland.eco/ui/public_html;
-
-    location ~ /\. {
-        deny all;
-        return 404;
-    }
-
-    location / {
-        index index.html;
-        try_files $uri $uri.html $uri/ =404;
-    }
-}
+# Deploy it now, and follow the output
+sudo systemctl start wildland-deploy
+journalctl -u wildland-deploy -f
 ```
 
-The repository previously included a GitHub Actions workflow to publish Docker images to GHCR for Watchtower to deploy. It never succeeded and has been removed.
+The deploy checks out the new branch and recreates the webhook container with the new `DEPLOY_BRANCH`, so from then on pushes to that branch deploy automatically and pushes to the old branch are ignored. The GitHub webhook already sends every push, so it needs no changes.
 
-### Cutover
+Switch back the same way, with `main` on staging or `release` on production.
 
-The steps for moving wildland.eco from the old server to the production server without downtime are in [milestone 4](06-planned-features.md#4-production-server-and-deploys).
+Migrations are not rolled back when switching. If the branch adds migrations, run `sudo -u deploy docker compose exec app php artisan migrate:rollback --step=<count>` before switching back, so the database matches the original branch again.
+
+### Domains
+
+| Domain | Server | Serves |
+|--------|--------|--------|
+| `stage.wildland.eco` | Staging | The site, with a `noindex` header; webhook at `/hooks/deploy` |
+| `wildland.eco` | Production | The site |
+| `www.wildland.eco` | Production | Permanent redirect to `https://wildland.eco` |
+| `prod.wildland.eco` | Production | The server's own hostname: the site with a `noindex` header, and the webhook at `/hooks/deploy` |
+
+Each domain needs a DNS record pointing at its server before Caddy can obtain its certificate. The webhook uses `prod.wildland.eco` so the server can be tested and reached directly, whatever `wildland.eco` points at. To move production to a new server, set it up with `prod.wildland.eco` pointing at it, check the site there, then point `wildland.eco` and `www.wildland.eco` at it; Caddy obtains their certificates on the first requests after DNS changes.
+
+The `noindex` header (`X-Robots-Tag`) keeps search engines from listing staging and the production hostname. A `robots.txt` `Disallow` is not used, because crawlers that are blocked from a page never see its `noindex` header.

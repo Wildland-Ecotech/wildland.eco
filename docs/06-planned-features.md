@@ -1,10 +1,10 @@
 # Planned Features
 
-The development plan for moving wildland.eco from a static SvelteKit site to a Laravel platform that accepts donations and gives donors a member account. Update this document as milestones complete and decisions change.
+The development plan for the wildland.eco Laravel platform: accepting donations and giving donors a member account. Update this document as milestones complete and decisions change.
 
 ## Guiding Decisions
 
-- **Server-rendered Blade, no frontend framework.** Every public page is rendered by Laravel and works without JavaScript; small vanilla JS modules add animations and conveniences. Svelte was dropped because keeping it inside Laravel requires either a server-side rendering Node process in production or client-side rendering, and keeping SvelteKit separately would split the site into a UI and an API.
+- **Server-rendered Blade, no frontend framework.** Every public page is rendered by Laravel and works without JavaScript; small vanilla JS modules add animations and conveniences. A JavaScript framework would need either a server-side rendering Node process in production or pages rendered only in the browser.
 - **No Node.js at runtime.** Node is only used to build CSS and JS assets.
 - **Docker in every environment.** Local development, staging, and production run the same `docker-compose.yml`; differences live only in each environment's `.env` files.
 - **PostgreSQL 17 + PostGIS.** PostGIS is not needed for donations, but it gives us accurate area and distance calculations, coordinate system conversion for drone and LIDAR data, raster storage, and direct QGIS access for the mapping work planned below.
@@ -22,8 +22,8 @@ The development plan for moving wildland.eco from a static SvelteKit site to a L
 | 1 | Laravel setup with Wetfish Skeleton | Done |
 | 2 | Consolidate documentation and record this plan | Done |
 | 3 | Convert the site to Blade, SCSS, and vanilla JS | Done |
-| 4 | New production server, webhook deploys, launch at parity | Next |
-| 5 | Donation database schema and models | Planned |
+| 4 | New production server, webhook deploys, launch at parity | Launched; backups remaining |
+| 5 | Donation database schema and models | Next |
 | 6 | Stripe Checkout, webhooks, and history import | Planned |
 | 7 | Donation receipts and transactional email | Planned |
 | 8 | Donor accounts and member dashboard | Planned |
@@ -34,14 +34,15 @@ Content pages can be built any time after milestone 4. Stripe test mode is used 
 
 ### 3. Convert the Site to Blade
 
-Done. `/`, `/donate`, and `/menu` were rebuilt in `laravel/` with the same design and behavior as the SvelteKit site, which was then removed from the repository. The structure and conventions are documented in [Frontend](04-frontend.md).
+Done. `/`, `/donate`, and `/menu` are Blade pages styled with Sass and enhanced by small vanilla JavaScript modules. The structure and conventions are documented in [Frontend](04-frontend.md).
 
-- Tailwind was replaced with Sass; component styles nest under a root class instead of relying on Svelte's scoping.
 - Every page works without JavaScript: the programs accordion uses `<details>`, project modals open through anchor links and CSS `:target`, and the donate selector uses radio inputs.
 - The donate form does not submit yet: its button stays disabled, and no page links to `/donate` until milestone 6.
 - Feature tests in `tests/Feature/PagesTest.php` cover each page's key content and no-JavaScript fallbacks.
 
 ### 4. Production Server and Deploys
+
+Launched: wildland.eco is served by the production server, and both servers deploy automatically. Server setup and operations are documented in [Deployment](07-deployment.md).
 
 **Environments**
 
@@ -49,35 +50,21 @@ Done. `/`, `/donate`, and `/menu` were rebuilt in `laravel/` with the same desig
 |-------------|--------|--------|--------|---------|
 | Local development | Developer's machine | `localhost:8080` | any | Manually |
 | Staging | Staging VPS | `stage.wildland.eco` | `main` | Automatically when changes are merged into `main` |
-| Production | Production VPS | `prod.wildland.eco`, then `wildland.eco` | `release` | Automatically when changes are merged into `release` |
+| Production | Production VPS | `wildland.eco` (`www.wildland.eco` redirects; `prod.wildland.eco` is the server's own hostname) | `release` | Automatically when changes are merged into `release` |
 
-Each environment runs on its own server from a clone of the repository. Caddy, in a container on each server, terminates HTTPS with automatically renewed certificates and forwards requests to the environment's nginx container. Caddy was chosen because its configuration is short and readable and, unlike Traefik's usual setup, it does not need access to the Docker socket. Laravel trusts the proxy's `X-Forwarded-*` headers (`bootstrap/app.php`), so it generates `https://` URLs.
+**Decisions**
 
-**Docker setup**
+- **Caddy** terminates HTTPS on each server with automatically renewed certificates. It was chosen because its configuration is short and readable and, unlike Traefik's usual setup, it does not need access to the Docker socket.
+- **Published ports are bound to `127.0.0.1`.** Docker's published ports bypass host firewalls such as ufw, so binding to all interfaces would expose the database to the internet.
+- **The webhook listener has no Docker access.** It verifies GitHub's signature and the branch, then only writes a trigger file; a systemd unit on the host runs the deploy. Compromising the internet-facing listener cannot run arbitrary commands.
+- **Containers never run as root.** PHP-FPM started as root hands requests to `www-data` workers, which cannot write to root-owned storage. Deploys and containers run as the clone's owner, and setup gives a root-owned clone to a `deploy` user.
+- **No credentials on GitHub.** The repository is public, so servers pull without GitHub credentials, and secrets live only in each server's `.env` files.
 
-- Published ports (nginx, PostgreSQL) are bound to `127.0.0.1`. Docker's published ports bypass host firewalls such as ufw, so binding to all interfaces would expose the database to the internet.
-- Frontend assets are built in a `node` container (`docker compose run --rm node npm run build`), so no environment needs Node installed.
+**Remaining**
 
-**Deploys**
-
-1. GitHub sends a push webhook to a small listener on the server ([adnanh/webhook](https://github.com/adnanh/webhook), in its own container behind Caddy), separate from the Laravel app so a broken deploy can still be redeployed.
-2. The listener verifies GitHub's `X-Hub-Signature-256` HMAC signature and that the push is to `main` or `release`. It never uses the payload to decide what to deploy.
-3. The listener has no Docker access. It only touches a trigger file for the matching environment; a systemd path unit on the host sees the change and runs `deploy/deploy.sh` as the clone's owner. Compromising the internet-facing listener therefore cannot run arbitrary commands.
-4. `deploy/deploy.sh` waits for any running deploy, checks out the latest commit on the environment's `DEPLOY_BRANCH`, rebuilds and restarts containers, installs PHP dependencies without dev packages, builds assets, runs migrations, and caches configuration, routes, and views. Output goes to the systemd journal.
-
-**Other setup**
-
-- **One-step server setup:** after cloning the repository into any directory, `deploy/setup.sh` installs Docker, generates every secret, prompts only for the environment, branch, and AhaSend SMTP credentials, runs the first deploy, installs the systemd units, and prints the GitHub webhook settings.
-
-- **Credentials:** the repository is public, so servers pull without GitHub credentials. Secrets live only in each environment's `.env` files on the server.
 - **Backups:** nightly `pg_dump` of the production database, kept off the server.
-- **Cutover without downtime:**
-  1. Merge `laravel-integration` into `main` (deploys staging) and then into `release` (deploys production at `prod.wildland.eco`). The old static server is updated by hand, so it keeps serving wildland.eco unchanged.
-  2. Test both servers on their own domains.
-  3. A day ahead, lower the DNS TTL on `wildland.eco` and `www.wildland.eco` (for example to 5 minutes) so the switch propagates quickly.
-  4. Add `wildland.eco` and `www.wildland.eco` to the production proxy, set production's `APP_URL` to `https://wildland.eco`, and point both DNS records at the production server. The proxy obtains HTTPS certificates as soon as DNS resolves to it, while visitors with cached DNS keep reaching the old server.
-  5. `www.wildland.eco` permanently redirects (301) to `https://wildland.eco`, keeping the path.
-  6. Once DNS has settled, `prod.wildland.eco` stays as the production server's own hostname for the deploy webhook and redirects everything else to `https://wildland.eco`, and the old static server can be retired.
+- **`prod.wildland.eco` redirect:** redirect everything except `/hooks/` to `https://wildland.eco`, so search engines treat it as an alias. It currently serves the site with a `noindex` header.
+- **Retire the old static server** once DNS has fully propagated.
 - **Future hardening:** deploy only release tags signed with a maintainer's hardware key (YubiKey), verified on the server against an allowed-signers file that never leaves the server. A compromised GitHub account then cannot deploy code to production.
 
 The queue worker and scheduler containers are added in milestone 5, when the queue tables exist; the deploy script then also restarts the queue worker.

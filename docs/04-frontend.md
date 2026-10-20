@@ -7,8 +7,6 @@
 - **JavaScript:** Small vanilla ES modules that enhance server-rendered markup. No frontend framework.
 - **Build:** `npm run build` (or `npm run dev` for hot reloading) in `laravel/`, run on the host. Node is only used to build assets, never at runtime in production.
 
-The site was converted from a static SvelteKit build in milestone 3. The Svelte source is in the git history before that conversion if it is ever needed for reference.
-
 ## Structure
 
 All paths are relative to `laravel/`.

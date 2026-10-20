@@ -98,17 +98,17 @@ docker compose exec app php artisan test
 
 ## Artisan Commands
 
-All Laravel artisan commands should be run via Docker Compose during local development. The `app` container's working directory is already set to the Laravel project root:
+Run artisan commands through Docker Compose in every environment. The `app` container's working directory is already set to the Laravel project root:
 
 ```bash
 docker compose exec app php artisan make:migration create_example_table
 docker compose exec app php artisan migrate
 ```
 
-On production servers where Laravel runs directly, drop the Docker prefix:
+On servers, deploys already run migrations and cache configuration. For a manual command, run it from the clone's directory as the clone's owner (`deploy` when setup created that user):
 
 ```bash
-php artisan migrate
+sudo -u deploy docker compose exec app php artisan about
 ```
 
 ## Migration Generation

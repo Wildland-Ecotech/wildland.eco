@@ -3,7 +3,7 @@
 # Sets up a Wildland Ecotech staging or production server.
 #
 # Run from a clone of the repository, as root, on a Debian or Ubuntu server
-# whose domain already points at it:
+# whose domains already point at it:
 #
 #   sudo apt install git
 #   git clone https://github.com/Wildland-Ecotech/wildland.eco.git
@@ -217,7 +217,7 @@ grant_docker_access() {
 }
 
 write_env_files() {
-    local site="$1" domain="$2" branch="$3" smtp_username="$4" smtp_password="$5"
+    local site="$1" site_url="$2" branch="$3" smtp_username="$4" smtp_password="$5"
     local root_env="$INSTALL_DIR/.env" laravel_env="$INSTALL_DIR/laravel/.env"
 
     info "Writing .env files with newly generated secrets"
@@ -240,7 +240,7 @@ write_env_files() {
     as_owner cp "$INSTALL_DIR/laravel/.env.example" "$laravel_env"
     set_env "$laravel_env" APP_ENV production
     set_env "$laravel_env" APP_DEBUG false
-    set_env "$laravel_env" APP_URL "https://$domain"
+    set_env "$laravel_env" APP_URL "$site_url"
     set_env "$laravel_env" APP_KEY "$app_key"
     set_env "$laravel_env" DB_PASSWORD "$db_password"
 
@@ -283,16 +283,16 @@ install_systemd_units() {
 }
 
 print_summary() {
-    local domain="$1" root_env="$INSTALL_DIR/.env"
+    local hostname="$1" site_url="$2" root_env="$INSTALL_DIR/.env"
 
     cat << EOF
 
 ==============================================================================
-Setup complete: https://$domain
+Setup complete: $site_url
 
 Add a webhook in GitHub (repository Settings → Webhooks → Add webhook):
 
-  Payload URL:   https://$domain/hooks/deploy
+  Payload URL:   https://$hostname/hooks/deploy
   Content type:  application/json
   Secret:        $(env_value "$root_env" WEBHOOK_SECRET)
   Events:        Just the push event
@@ -313,7 +313,7 @@ main() {
     check_system
     ensure_non_root_owner
 
-    local site domain branch smtp_username="" smtp_password=""
+    local site hostname site_url branch smtp_username="" smtp_password=""
     local configure=true
 
     echo
@@ -342,7 +342,7 @@ main() {
         while true; do
             branch="$(ask "Branch to deploy" "$default_branch")"
             check_branch "$branch" && break
-            echo "Choose another branch, such as laravel-integration until it is merged." >&2
+            echo "Choose another branch." >&2
         done
 
         echo
@@ -356,19 +356,25 @@ main() {
         [[ "$smtp_username$smtp_password" != *"'"* ]] || fail "SMTP credentials containing a single quote (') are not supported"
     fi
 
-    domain="stage.wildland.eco"
-    [[ "$site" == "production" ]] && domain="prod.wildland.eco"
+    # The server's own hostname receives the webhook. Production's site is
+    # served at wildland.eco, which can point at another server during a move.
+    hostname="stage.wildland.eco"
+    site_url="https://stage.wildland.eco"
+    if [[ "$site" == "production" ]]; then
+        hostname="prod.wildland.eco"
+        site_url="https://wildland.eco"
+    fi
 
     install_docker
     grant_docker_access
 
     if [[ "$configure" == true ]]; then
-        write_env_files "$site" "$domain" "$branch" "$smtp_username" "$smtp_password"
+        write_env_files "$site" "$site_url" "$branch" "$smtp_username" "$smtp_password"
     fi
 
     first_deploy
     install_systemd_units
-    print_summary "$domain"
+    print_summary "$hostname" "$site_url"
 }
 
 main "$@"
