@@ -97,7 +97,6 @@ services:
       WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
       DEPLOY_BRANCH: ${DEPLOY_BRANCH:-}
     volumes:
-      - ./deploy/webhook:/etc/webhook:ro
       - ./deploy/trigger:/trigger
     networks:
       - app-network

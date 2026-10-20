@@ -46,13 +46,19 @@ Staging and production each run on their own server from a clone of the reposito
 | Service | Purpose |
 |---------|---------|
 | caddy | Terminates HTTPS on ports 80 and 443, obtains and renews certificates automatically, and forwards requests to nginx. Configured by `deploy/caddy/<CADDY_SITE>.Caddyfile`. |
-| webhook | Receives GitHub push webhooks at `/hooks/deploy`. It verifies the signature and branch, then writes `deploy/trigger/deploy-requested`. It has no Docker access, and its port (9000) is reachable only by Caddy over Docker's internal network. |
+| webhook | Receives GitHub push webhooks at `/hooks/deploy`. It verifies the signature, and for pushes to the server's branch writes `deploy/trigger/deploy-requested`. It has no Docker access, and its port (9000) is reachable only by Caddy over Docker's internal network. |
 
 ### How Deploys Work
 
-1. A push to the server's branch sends a webhook to `https://<server hostname>/hooks/deploy`. Caddy receives it on the standard HTTPS port and forwards it to the webhook container; no other port needs to be opened.
-2. The webhook container checks the `X-Hub-Signature-256` signature against `WEBHOOK_SECRET` and that the push is to `refs/heads/<DEPLOY_BRANCH>`. Anything else gets a 403.
-3. A verified push writes the trigger file. The `wildland-deploy.path` systemd unit on the host sees the change and starts `wildland-deploy.service`, which runs `deploy/deploy.sh` as the clone's owner.
+1. Every push sends a webhook to `https://<server hostname>/hooks/deploy` on each server. Caddy receives it on the standard HTTPS port and forwards it to the webhook container; no other port needs to be opened.
+2. The webhook container checks the `X-Hub-Signature-256` signature against `WEBHOOK_SECRET`, then compares the pushed branch with `DEPLOY_BRANCH`. GitHub shows the response under the webhook's Recent Deliveries:
+   - **Push to the server's branch:** 200, "Deploy of `<branch>` requested".
+   - **Push to another branch, or GitHub's ping:** 200, "Ignored `<ref>`", without deploying.
+   - **Wrong signature** (the secrets in GitHub and the root `.env` differ): 500.
+   - **No signature** (not sent by GitHub with a secret): 403.
+
+   Every failed delivery therefore points to a real problem.
+3. A signed push to the server's branch writes the trigger file. The `wildland-deploy.path` systemd unit on the host sees the change and starts `wildland-deploy.service`, which runs `deploy/deploy.sh` as the clone's owner.
 4. `deploy/deploy.sh` checks out the branch's latest commit, rebuilds and restarts containers, reloads the Caddy config, installs PHP dependencies without dev packages, builds assets, runs migrations, and caches configuration, routes, and views. If more commits arrived during the deploy, it deploys again.
 
 Deploys in the same environment never overlap. The clone is used only for deploys: the script discards local changes to tracked files, while untracked files such as `.env` and `laravel/.env` are kept. To deploy a different branch, see [Switching Branches](#switching-branches).
@@ -100,7 +106,7 @@ It then:
 6. Installs the systemd units that run deploys when the webhook fires, with the clone's path and owner filled in. They are copied rather than linked, so a deploy can never change the host's services.
 7. Prints the settings for the GitHub webhook.
 
-The one manual step is adding the webhook in GitHub (repository Settings → Webhooks → Add webhook) with the printed payload URL, content type, and secret, for push events only. GitHub's first test ping gets a 403 response, because only pushes to the server's branch start a deploy.
+The one manual step is adding the webhook in GitHub (repository Settings → Webhooks → Add webhook) with the printed payload URL, content type, and secret, for push events only. GitHub's first test ping should succeed with an "Ignored" response; a 500 means the secret does not match.
 
 The script is safe to re-run. It keeps existing `.env` files (updating only the container user IDs if the clone's owner changed) and repeats the remaining steps, so re-running it after the systemd units change in the repository installs the new versions.
 

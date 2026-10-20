@@ -2,31 +2,24 @@
     {
         "id": "deploy",
         "execute-command": "/etc/webhook/request-deploy.sh",
-        "response-message": "Deploy requested",
+        "pass-arguments-to-command": [
+            {
+                "source": "payload",
+                "name": "ref"
+            }
+        ],
+        "include-command-output-in-response": true,
+        "include-command-output-in-response-on-error": true,
         "trigger-rule-mismatch-http-response-code": 403,
         "trigger-rule": {
-            "and": [
-                {
-                    "match": {
-                        "type": "payload-hmac-sha256",
-                        "secret": "{{ getenv "WEBHOOK_SECRET" | js }}",
-                        "parameter": {
-                            "source": "header",
-                            "name": "X-Hub-Signature-256"
-                        }
-                    }
-                },
-                {
-                    "match": {
-                        "type": "value",
-                        "value": "refs/heads/{{ getenv "DEPLOY_BRANCH" | js }}",
-                        "parameter": {
-                            "source": "payload",
-                            "name": "ref"
-                        }
-                    }
+            "match": {
+                "type": "payload-hmac-sha256",
+                "secret": "{{ getenv "WEBHOOK_SECRET" | js }}",
+                "parameter": {
+                    "source": "header",
+                    "name": "X-Hub-Signature-256"
                 }
-            ]
+            }
         }
     }
 ]

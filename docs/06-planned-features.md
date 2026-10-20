@@ -56,7 +56,7 @@ Launched: wildland.eco is served by the production server, and both servers depl
 
 - **Caddy** terminates HTTPS on each server with automatically renewed certificates. It was chosen because its configuration is short and readable and, unlike Traefik's usual setup, it does not need access to the Docker socket.
 - **Published ports are bound to `127.0.0.1`.** Docker's published ports bypass host firewalls such as ufw, so binding to all interfaces would expose the database to the internet.
-- **The webhook listener has no Docker access.** It verifies GitHub's signature and the branch, then only writes a trigger file; a systemd unit on the host runs the deploy. Compromising the internet-facing listener cannot run arbitrary commands.
+- **The webhook listener has no Docker access.** It verifies GitHub's signature and, for pushes to the server's branch, only writes a trigger file; a systemd unit on the host runs the deploy. Compromising the internet-facing listener cannot run arbitrary commands.
 - **Containers never run as root.** PHP-FPM started as root hands requests to `www-data` workers, which cannot write to root-owned storage. Deploys and containers run as the clone's owner, and setup gives a root-owned clone to a `deploy` user.
 - **No credentials on GitHub.** The repository is public, so servers pull without GitHub credentials, and secrets live only in each server's `.env` files.
 

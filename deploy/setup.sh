@@ -297,8 +297,8 @@ Add a webhook in GitHub (repository Settings → Webhooks → Add webhook):
   Secret:        $(env_value "$root_env" WEBHOOK_SECRET)
   Events:        Just the push event
 
-GitHub's first test ping gets a 403 response. That is expected: only pushes
-to the $(env_value "$root_env" DEPLOY_BRANCH) branch start a deploy.
+GitHub's first test ping should succeed with an "Ignored" response; only
+pushes to the $(env_value "$root_env" DEPLOY_BRANCH) branch start a deploy.
 
 Watch deploys with:  journalctl -u wildland-deploy -f
 ==============================================================================
