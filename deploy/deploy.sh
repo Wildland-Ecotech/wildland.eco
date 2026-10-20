@@ -36,8 +36,13 @@ deploy_commit() {
     git checkout --quiet --force -B "$branch" "origin/$branch"
     log "Deploying $(git log -1 --format='%h %s')"
 
-    log "Building and starting containers"
-    docker compose build --quiet
+    # The first build on a new server takes several minutes; the build output
+    # shows its progress here, or in `journalctl -u wildland-deploy` when run
+    # by systemd
+    log "Building containers"
+    docker compose build
+
+    log "Starting containers"
     docker compose up --detach --remove-orphans
 
     # Apply Caddyfile changes on servers; `up` does not restart a running
