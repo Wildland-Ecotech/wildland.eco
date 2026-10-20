@@ -1,5 +1,9 @@
 // The home page.
 
+// How far the fireflies background fades in at its top edge and out at its
+// bottom edge, hiding the hard edges of the image asset
+$fireflies-fade: 400px;
+
 .nature {
     overflow-x: hidden;
 
@@ -108,6 +112,19 @@
             background-size: cover;
             opacity: 0.75;
             top: 1600px;
+
+            // Fade the image's top and bottom edges to transparent so the page
+            // background shows through, instead of the image starting and
+            // ending in a hard line
+            $fade: linear-gradient(
+                to bottom,
+                transparent 0,
+                #000 $fireflies-fade,
+                #000 calc(100% - #{$fireflies-fade}),
+                transparent 100%
+            );
+            -webkit-mask-image: $fade;
+            mask-image: $fade;
         }
     }
 
