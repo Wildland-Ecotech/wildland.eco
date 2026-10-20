@@ -1,19 +1,36 @@
-# Production server: https://prod.wildland.eco
+# Production server: https://wildland.eco
 #
-# Caddy obtains and renews the HTTPS certificate automatically and
+# Caddy obtains and renews the HTTPS certificates automatically and
 # redirects HTTP to HTTPS. Selected by CADDY_SITE=production in the root .env.
 #
-# At cutover (docs/06-planned-features.md, milestone 4), wildland.eco and
-# www.wildland.eco are added here once their DNS points to this server.
+# A certificate can only be issued once a domain's DNS points to this server.
+# Until then Caddy keeps retrying in the background, and the other domains
+# are unaffected.
 
 {
 	email contact@wildland.eco
 }
 
+# The public site
+wildland.eco {
+	encode zstd gzip
+
+	handle {
+		reverse_proxy nginx:80
+	}
+}
+
+# Permanent redirect to the public site, keeping the path and query string
+www.wildland.eco {
+	redir https://wildland.eco{uri} permanent
+}
+
+# The server's own hostname: receives GitHub push webhooks, and serves the
+# site for testing the server directly. Kept out of search results, since
+# wildland.eco is the public site.
 prod.wildland.eco {
 	encode zstd gzip
 
-	# Keep the testing hostname out of search results; wildland.eco is the public site
 	header X-Robots-Tag "noindex, nofollow"
 
 	# GitHub push webhooks; see deploy/webhook/hooks.json
