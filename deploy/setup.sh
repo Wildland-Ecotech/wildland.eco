@@ -308,13 +308,15 @@ EOF
 # --- Main ---------------------------------------------------------------------
 
 main() {
+    echo "Wildland Ecotech server setup"
+
     check_system
     ensure_non_root_owner
 
     local site domain branch smtp_username="" smtp_password=""
     local configure=true
 
-    echo "Wildland Ecotech server setup"
+    echo
     echo "Repository: $INSTALL_DIR (deploys run as $OWNER)"
 
     install_packages

@@ -118,7 +118,9 @@ journalctl -u wildland-deploy -f
 # Webhook and Caddy logs (from the clone's directory)
 docker compose logs -f webhook caddy
 
-# Git commands in a clone owned by the deploy user
+# Git commands run as the clone's owner. Git refuses to run as root in a clone
+# owned by another user ("dubious ownership"), which also keeps root from
+# creating files in the clone that the containers cannot write.
 sudo -u deploy git status
 ```
 

@@ -96,10 +96,11 @@ main() {
     cd "$(dirname "$0")/.."
 
     # Wait for any deploy already running in this environment, so a push that
-    # arrives mid-deploy is still deployed afterwards
-    local lock
-    lock="/tmp/$(env_value APP_NAME)-deploy.lock"
-    exec 9>"$lock"
+    # arrives mid-deploy is still deployed afterwards. The lock file lives in
+    # the clone's gitignored deploy/trigger directory, so it always belongs to
+    # the clone's owner.
+    mkdir -p deploy/trigger
+    exec 9>deploy/trigger/deploy.lock
     flock 9
 
     deploy
