@@ -1,25 +1,115 @@
-version: "2.4"
-services:
-  wildland-eco:
-    container_name: wildland-eco
-    image: ghcr.io/wildland-ecotech/wildland.eco:${ENV_TAG}
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
-    restart: unless-stopped
-    networks:
-      traefik-backend: {}
+# Used unchanged in every environment (local development, staging, and
+# production). Differences between environments live only in the root .env
+# and laravel/.env files.
 
-  wildland-eco-watchtower:
-    image: ghcr.io/containrrr/watchtower:1.5.3
-    container_name: wildland-eco-watchtower
-    environment:
-      - "WATCHTOWER_CLEANUP=true"
-      - "WATCHTOWER_POLL_INTERVAL=30"
-      - "WATCHTOWER_LABEL_ENABLE=true"
-      - "NO_COLOR=true"
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ${APP_NAME}-app
+    restart: unless-stopped
+    working_dir: /var/www/laravel
+    user: "${UID:-1000}:${GID:-1000}"
     volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock"
+      - ./:/var/www
+    networks:
+      - app-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: ${APP_NAME}-nginx
+    restart: unless-stopped
+    # Published ports are bound to localhost only. Docker's port publishing
+    # bypasses host firewalls such as ufw, so on a server anything public
+    # must go through the reverse proxy instead.
+    ports:
+      - "127.0.0.1:${NGINX_PORT:-8080}:80"
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx:/etc/nginx/conf.d
+    networks:
+      - app-network
+
+  db:
+    image: postgis/postgis:17-3.5
+    container_name: ${APP_NAME}-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  # Builds frontend assets, so no environment needs Node installed.
+  # Not started by `docker compose up`; run it on demand:
+  #   docker compose run --rm node npm ci
+  #   docker compose run --rm node npm run build
+  node:
+    image: node:24-slim
+    profiles: ["tools"]
+    working_dir: /var/www/laravel
+    user: "${UID:-1000}:${GID:-1000}"
+    environment:
+      # The container user has no writable home directory
+      npm_config_cache: /tmp/.npm
+    volumes:
+      - ./:/var/www
+
+  # Servers only (COMPOSE_PROFILES=server in the root .env).
+  # Terminates HTTPS for the domains in deploy/caddy/$CADDY_SITE.Caddyfile.
+  # The config directory is mounted rather than the file, so changes pulled
+  # by a deploy are visible to `caddy reload`.
+  caddy:
+    image: caddy:2
+    profiles: ["server"]
+    container_name: ${APP_NAME}-caddy
+    restart: unless-stopped
+    command: caddy run --config /etc/caddy/${CADDY_SITE:-staging}.Caddyfile --adapter caddyfile
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/caddy:/etc/caddy:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - nginx
+    networks:
+      - app-network
+
+  # Servers only. Receives GitHub push webhooks and writes a trigger file
+  # that starts the deploy on the host. It has no Docker access.
+  webhook:
+    build:
+      context: ./deploy/webhook
+    profiles: ["server"]
+    container_name: ${APP_NAME}-webhook
+    restart: unless-stopped
+    user: "${UID:-1000}:${GID:-1000}"
+    environment:
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
+      DEPLOY_BRANCH: ${DEPLOY_BRANCH:-}
+    volumes:
+      - ./deploy/webhook:/etc/webhook:ro
+      - ./deploy/trigger:/trigger
+    networks:
+      - app-network
 
 networks:
-  traefik-backend:
-    external: true
+  app-network:
+    driver: bridge
+
+volumes:
+  dbdata:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local

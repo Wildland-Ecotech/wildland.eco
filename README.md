@@ -11,33 +11,43 @@ We restore landscapes damaged by wildfire and pollution, working at the intersec
 
 ## About This Repository
 
-This is the open-source website for Wildland Ecotech, currently built as a static site using SvelteKit and served via nginx in Docker. The site serves as the public-facing home for our nonprofit, featuring information about our restoration programs, project areas, and a donation platform.
+This is the open-source website for Wildland Ecotech: the public-facing home for our nonprofit, featuring information about our restoration programs, project areas, and a donation platform.
+
+The site is a Laravel application (`laravel/`) with server-rendered Blade templates that work without JavaScript. The platform is being extended to handle donations and donor accounts. See [Planned Features](docs/06-planned-features.md) for the development plan.
 
 ## Quick Start
 
-**Development (with hot reload):**
-
 ```bash
-cd ui && npm install && npm run dev
+cp .env.example .env
+cp laravel/.env.example laravel/.env
+docker compose up -d
+docker compose exec app composer install
+docker compose exec app php artisan key:generate
+docker compose exec app php artisan migrate
+docker compose run --rm node npm ci
+docker compose run --rm node npm run build
 ```
 
-**Docker (production build):**
-
-```bash
-docker compose -f docker-compose.dev.yml up --build
-```
-
-The site will be available at `http://localhost:31337`.
+Set a real `DB_PASSWORD` in both `.env` files first. The site will be available at `http://localhost:8080`. See [Deployment](docs/07-deployment.md) for details, including hot reloading.
 
 ## Documentation
 
-See the [docs/](docs/) directory for detailed documentation:
+Technical documentation lives in [docs/](docs/):
 
-- **[Organization](docs/ORGANIZATION.md)** — Mission, history, board structure, legal status
-- **[Technical](docs/TECHNICAL.md)** — Website architecture, deployment, components
-- **[Restoration](docs/RESTORATION.md)** — Project areas, programs, impact metrics
-- **[Content](docs/CONTENT.md)** — Photo and video index for restoration media
-- **[Roadmap](docs/ROADMAP.md)** — Technical and organizational plans
+- **[Database Schema](docs/01-database-schema.md)** — Tables, relationships, and cascade behavior
+- **[Services & Commands](docs/02-services-and-commands.md)** — Service classes and artisan commands
+- **[Routes & Controllers](docs/03-routes-and-controllers.md)** — Routes, controllers, and request flows
+- **[Frontend](docs/04-frontend.md)** — Design system, pages, and components
+- **[AI Development Notes](docs/05-ai-development-notes.md)** — Conventions for AI-assisted development
+- **[Planned Features](docs/06-planned-features.md)** — Development plan and design decisions
+- **[Deployment](docs/07-deployment.md)** — Local development and server setup
+
+Organizational documentation lives in [docs/organization/](docs/organization/):
+
+- **[About](docs/organization/about.md)** — Mission, history, board structure, legal status
+- **[Restoration](docs/organization/restoration.md)** — Project areas, programs, impact metrics
+- **[Vision and Growth](docs/organization/vision.md)** — Ecotech projects, grants, and partnerships
+- **[Content](docs/organization/content.md)** — Photo and video index for restoration media
 
 ## Contributing
 

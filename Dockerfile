@@ -1,14 +1,28 @@
-FROM docker.io/node:20 AS builder
+FROM php:8.5-fpm
 
-COPY ./ui /ui
-WORKDIR /ui
-RUN npm install
-RUN npm run build
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    libzip-dev \
+    libonig-dev \
+    libpq-dev \
+    zip \
+    unzip
 
-FROM docker.io/nginx:1.25.2-alpine
+# Clear cache
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /ui/public_html /usr/share/nginx/html
+# Install PHP extensions
+RUN docker-php-ext-install pdo_pgsql mbstring bcmath zip \
+ && pecl install redis \
+ && docker-php-ext-enable redis
 
-# Add your custom nginx config
-COPY nginx.conf /etc/nginx/nginx.conf
+# Custom PHP configuration
+COPY docker/php/custom.ini /usr/local/etc/php/conf.d/custom.ini
 
+# Get latest Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Set working directory
+WORKDIR /var/www

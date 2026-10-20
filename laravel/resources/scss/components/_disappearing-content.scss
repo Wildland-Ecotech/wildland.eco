@@ -1,0 +1,7 @@
+// Content that fades out as it scrolls under the top nav.
+// The fade is a mask image set by resources/js/disappearing-content.js.
+
+.disappearing-content {
+    position: relative;
+    z-index: 1;
+}

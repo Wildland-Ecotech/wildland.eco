@@ -1,0 +1,14 @@
+# Starts wildland-deploy.service when the webhook listener writes the
+# trigger file.
+#
+# Template: deploy/setup.sh replaces @INSTALL_DIR@ with the repository's
+# location and installs the result in /etc/systemd/system/.
+
+[Unit]
+Description=Watch for Wildland Ecotech deploy requests
+
+[Path]
+PathChanged=@INSTALL_DIR@/deploy/trigger/deploy-requested
+
+[Install]
+WantedBy=multi-user.target

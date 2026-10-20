@@ -1,0 +1,20 @@
+// Entry point for all site styles, compiled by Vite.
+// Component and page partials nest their rules under a root class,
+// replacing the automatic style scoping that Svelte provided.
+
+@use 'fonts';
+@use 'animations';
+@use 'base';
+
+@use 'components/top-nav';
+@use 'components/menu-button';
+@use 'components/menu-overlay';
+@use 'components/footer';
+@use 'components/disappearing-content';
+@use 'components/accordion';
+@use 'components/modal';
+@use 'components/blob';
+
+@use 'pages/menu';
+@use 'pages/donate';
+@use 'pages/home';
