@@ -76,6 +76,13 @@ All paths are relative to `laravel/`.
 - The donate button is disabled until Stripe is integrated (milestone 6), and no page links to `/donate` until then.
 - "What You're Supporting" cards, impact stats, "Other Ways to Help", and a footer that links back home.
 
+### Leaves (`/leaves`) — `pages/leaves.blade.php`
+
+- Built on the Content Page component
+- Leads with the program's primary message, "Leave the Leaves": don't rake, and let yards grow back into meadows
+- "Donate Your Leaves" for people who rake anyway, with Drop-Off (marked Preferred) and Pickup cards
+- Leaf guidelines (paper bags and compostable yard waste only), and Privacy: contact details stay private, and which details about the leaves may be shared for grants and outreach
+
 ### Menu (`/menu`) — `pages/menu.blade.php`
 
 A full-page menu for visitors without JavaScript, with the same links as the menu overlay.

@@ -52,7 +52,7 @@ class PagesTest extends TestCase
 
     public function test_no_page_links_to_donate_page_until_payments_are_integrated(): void
     {
-        foreach (['/', '/menu', '/donate'] as $uri) {
+        foreach (['/', '/menu', '/donate', '/leaves'] as $uri) {
             $this->get($uri)
                 ->assertOk()
                 ->assertDontSee('href="' . route('donate') . '"', false);
@@ -102,6 +102,20 @@ class PagesTest extends TestCase
         $this->get('/donate')
             ->assertOk()
             ->assertSee('data-donate-button disabled', false);
+    }
+
+    public function test_leaves_page_leads_with_leaving_the_leaves(): void
+    {
+        $this->get('/leaves')
+            ->assertOk()
+            ->assertSeeInOrder(['Leave the Leaves', 'Donate Your Leaves', 'Leaf Guidelines', 'Privacy']);
+    }
+
+    public function test_leaves_page_offers_drop_off_before_pickup(): void
+    {
+        $this->get('/leaves')
+            ->assertOk()
+            ->assertSeeInOrder(['id="drop-off"', 'Preferred', 'id="pickup"', '1–2 weeks in advance'], false);
     }
 
     public function test_donate_page_footer_links_home_instead_of_to_donate(): void

@@ -1,0 +1,169 @@
+// The /leaves page, inside the content page shell (components/_content-page.scss).
+
+.leaves-page {
+    section {
+        text-align: center;
+        margin-bottom: 3em;
+    }
+
+    // Opening section, in a card like the donate page's
+    .intro {
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 16px;
+        padding: 2em 2em 2.5em;
+        margin-bottom: 4em;
+
+        h1 {
+            margin-bottom: 0.1em;
+        }
+
+        .subtitle {
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.6);
+            margin: 0 auto 1.5em;
+        }
+    }
+
+    // Readable column of left-aligned text under centered headings
+    .prose {
+        max-width: 680px;
+        margin: 0 auto;
+        text-align: left;
+
+        p, li {
+            font-size: 18px;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        li {
+            margin: 0.5em 0;
+        }
+
+        strong {
+            color: #fff;
+        }
+    }
+
+    // Drop-off and pickup
+    .options {
+        display: grid;
+        gap: 1.5em;
+        grid-template-columns: 1fr;
+        margin-top: 2em;
+        text-align: left;
+    }
+
+    .option-card {
+        background: rgba(0, 0, 0, 0.3);
+        border-top: 3px solid #2ECF9E;
+        border-radius: 0 0 12px 12px;
+        padding: 1.5em;
+
+        .option-icon {
+            font-size: 32px;
+            margin-bottom: 0.4em;
+        }
+
+        h2 {
+            font-size: 22px;
+            margin: 0;
+        }
+
+        .badge {
+            display: inline-block;
+            margin-left: 0.5em;
+            padding: 0.2em 0.7em;
+            border-radius: 999px;
+            background: rgba(46, 207, 158, 0.25);
+            color: #fff;
+            font-family: satoshi;
+            font-size: 14px;
+            font-weight: 700;
+            vertical-align: middle;
+        }
+
+        p {
+            font-size: 17px;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.8);
+            margin: 0.75em 0 0;
+        }
+    }
+
+    .rules {
+        list-style: none;
+        padding: 0;
+
+        li {
+            position: relative;
+            padding-left: 1.75em;
+
+            &::before {
+                content: '✓';
+                position: absolute;
+                left: 0;
+                color: #2ECF9E;
+                font-weight: 700;
+            }
+        }
+    }
+
+    .notice {
+        background: rgba(0, 0, 0, 0.3);
+        border-left: 3px solid #2ECF9E;
+        border-radius: 0 12px 12px 0;
+        padding: 1em 1.25em;
+    }
+}
+
+@media screen and (max-width: 499px) {
+    .leaves-page {
+        .intro {
+            padding: 1.25em 1em 2em;
+            margin-bottom: 2em;
+
+            h1 {
+                font-size: 48px;
+            }
+
+            .subtitle {
+                font-size: 16px;
+            }
+        }
+
+        .prose {
+            p, li {
+                font-size: 16px;
+            }
+        }
+
+        .option-card {
+            padding: 1.25em;
+
+            h2 { font-size: 20px; }
+            p { font-size: 16px; }
+        }
+    }
+}
+
+@media screen and (min-width: 768px) {
+    .leaves-page {
+        .options {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+}
+
+@media screen and (min-width: 1024px) {
+    .leaves-page {
+        .intro .subtitle {
+            font-size: 20px;
+        }
+
+        .option-card {
+            h2 { font-size: 26px; }
+            p { font-size: 18px; }
+        }
+    }
+}
