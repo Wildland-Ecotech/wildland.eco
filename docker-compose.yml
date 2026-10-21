@@ -46,6 +46,25 @@ services:
     networks:
       - app-network
 
+  # Local development only. A disposable database for the test suite, from the
+  # same image as db, so tests run on the same code paths as production and
+  # never touch the development database. Its data lives in memory and is
+  # discarded when the container stops. Start it with:
+  #   docker compose --profile testing up -d db-test
+  db-test:
+    image: postgis/postgis:17-3.5
+    profiles: ["testing"]
+    container_name: ${APP_NAME}-db-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: testing
+      POSTGRES_USER: testing
+      POSTGRES_PASSWORD: testing
+    tmpfs:
+      - /var/lib/postgresql/data
+    networks:
+      - app-network
+
   # Builds frontend assets, so no environment needs Node installed.
   # Not started by `docker compose up`; run it on demand:
   #   docker compose run --rm node npm ci

@@ -111,11 +111,12 @@ If one of these seems necessary, provide the command for the developer to run in
 
 Then provide the changed files along with QA testing steps: the test commands to run and any manual checks to perform. The developer runs them locally on a machine with more resources and reports back any failures.
 
-Tests run against PostgreSQL in Docker, never SQLite. A separate test database, identical to production, keeps tests on the same code paths as production so they cannot pass on behavior that would break there (set up in milestone 5). Feature tests that render pages call `$this->withoutVite()` so they do not depend on built assets.
+Tests run against PostgreSQL in Docker, never SQLite. A separate test database, identical to production, keeps tests on the same code paths as production so they cannot pass on behavior that would break there. It runs as the `db-test` service (see [Running Tests](07-deployment.md#running-tests)). Feature tests that render pages call `$this->withoutVite()` so they do not depend on built assets.
 
 Example QA commands handed to the developer:
 
 ```bash
+docker compose --profile testing up -d db-test
 docker compose exec app php artisan test --filter=DonationSyncTest
 docker compose exec app php artisan test
 ```

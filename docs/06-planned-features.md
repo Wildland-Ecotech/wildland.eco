@@ -73,7 +73,7 @@ The queue worker and scheduler containers are added in milestone 5, when the que
 
 See [Planned Schema](#planned-schema). Includes models, relationships, factories, and seeding the General Fund designation. The framework tables for the cache, queue, and password resets are generated in this milestone, and local development switches `CACHE_STORE` and `QUEUE_CONNECTION` to `database`.
 
-This milestone also sets up the test database: a separate PostgreSQL + PostGIS database in the Docker Compose setup, matching production, replacing the in-memory SQLite database that Laravel's default `phpunit.xml` configures. Tests must never run against SQLite or the development database.
+The test database was set up ahead of this milestone, for the leaf program's application form: the `db-test` service is a separate PostgreSQL + PostGIS database matching production, replacing the in-memory SQLite database that Laravel's default `phpunit.xml` configured. Tests never run against SQLite or the development database (see [Running Tests](07-deployment.md#running-tests)).
 
 ### 6. Stripe Integration
 
