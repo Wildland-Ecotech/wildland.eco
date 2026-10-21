@@ -82,6 +82,16 @@ All paths are relative to `laravel/`.
 - Leads with the program's primary message, "Leave the Leaves": don't rake, and let yards grow back into meadows
 - "Donate Your Leaves" for people who rake anyway, with Drop-Off (marked Preferred) and Pickup cards
 - Leaf guidelines (paper bags and compostable yard waste only), and Privacy: contact details stay private, and which details about the leaves may be shared for grants and outreach
+- "Apply to Donate Leaves" buttons at the end of the opening card and after the Privacy section
+
+### Apply to Donate Leaves (`/leaves/apply`) — `pages/leaves-apply.blade.php`
+
+- Built on the Content Page component; a plain HTML form validated on the server (see [Routes & Controllers](03-routes-and-controllers.md#leaf-applications))
+- Drop-off (selected by default, marked Preferred) or pickup, contact details, the address the leaves come from, an estimated bag count, and whether the bags are ready now. Donors never choose a pickup date or time; when the bags aren't ready, they give the soonest date they will be.
+- The "when will they be ready" date is hidden with `:has()` while "Yes, they're ready now" is checked. Browsers without `:has()` always show it, and the server ignores it when the bags are ready.
+- Validation errors appear in a red summary above the form and under each field, and every field keeps its input.
+- Terms with a required "Yes, I agree" checkbox, and an off-screen `website` field as a spam trap
+- After applying, the page shows a thank-you message for drop-off or pickup instead of the form
 
 ### Menu (`/menu`) — `pages/menu.blade.php`
 

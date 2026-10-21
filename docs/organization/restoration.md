@@ -54,7 +54,7 @@ For people who rake anyway, donated leaves are used in the High Park burn scar i
 - **Drop-off (preferred):** two locations in Fort Collins, available year-round once we have approved the donor's application. Donors drop off whenever it is convenient.
 - **Pickup:** for donors without a vehicle that can carry bags of leaves, or with too many bags. Pickups take much more volunteer time and are scheduled 1–2 weeks in advance so routes can be planned efficiently.
 
-The program is described on the website at `/leaves`.
+The program is described on the website at `/leaves`, and people apply to donate leaves at `/leaves/apply`.
 
 ### Wetland Restoration
 

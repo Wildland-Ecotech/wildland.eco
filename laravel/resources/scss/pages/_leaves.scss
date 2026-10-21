@@ -109,6 +109,17 @@
         }
     }
 
+    // Links to the application form at the top and bottom of the page
+    .apply-cta {
+        margin-top: 2em;
+
+        p {
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.7);
+            margin: 0 auto 1em;
+        }
+    }
+
     .notice {
         background: rgba(0, 0, 0, 0.3);
         border-left: 3px solid #2ECF9E;

@@ -52,7 +52,7 @@ class PagesTest extends TestCase
 
     public function test_no_page_links_to_donate_page_until_payments_are_integrated(): void
     {
-        foreach (['/', '/menu', '/donate', '/leaves'] as $uri) {
+        foreach (['/', '/menu', '/donate', '/leaves', '/leaves/apply'] as $uri) {
             $this->get($uri)
                 ->assertOk()
                 ->assertDontSee('href="' . route('donate') . '"', false);
@@ -115,7 +115,16 @@ class PagesTest extends TestCase
     {
         $this->get('/leaves')
             ->assertOk()
-            ->assertSeeInOrder(['id="drop-off"', 'Preferred', 'id="pickup"', '1–2 weeks in advance'], false);
+            ->assertSeeInOrder(['id="drop-off"', 'Preferred', 'id="pickup"', '1 to 2 weeks in advance'], false);
+    }
+
+    public function test_leaves_page_links_to_the_application_at_the_top_and_bottom(): void
+    {
+        $content = $this->get('/leaves')->assertOk()->getContent();
+
+        $this->assertSame(2, substr_count($content, 'href="' . route('leaves.apply') . '"'));
+        $this->assertLessThan(strpos($content, 'id="donate-leaves"'), strpos($content, 'href="' . route('leaves.apply') . '"'));
+        $this->assertGreaterThan(strpos($content, 'id="privacy"'), strrpos($content, 'href="' . route('leaves.apply') . '"'));
     }
 
     public function test_donate_page_footer_links_home_instead_of_to_donate(): void

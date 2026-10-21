@@ -20,6 +20,11 @@
                     in our lives, we take climate change into our own hands.
                 </p>
             </div>
+
+            <div class="apply-cta">
+                <p>Raking anyway? Donate your leaves to restore habitat instead of sending them to the landfill.</p>
+                <a class="button full" href="{{ route('leaves.apply') }}">Apply to Donate Leaves</a>
+            </div>
         </section>
 
         <div class="section-divider"></div>
@@ -137,6 +142,17 @@
                     You might see these details in our grant applications and reports, on our website and
                     social media, or in our flyers, zines, and brochures.
                 </p>
+            </div>
+        </section>
+
+        <div class="section-divider"></div>
+
+        <section id="apply">
+            <h3>— Ready to Donate?</h3>
+
+            <div class="apply-cta">
+                <p>Apply for drop-off or pickup, and we'll be in touch once we've reviewed your application.</p>
+                <a class="button full" href="{{ route('leaves.apply') }}">Apply to Donate Leaves</a>
             </div>
         </section>
 
