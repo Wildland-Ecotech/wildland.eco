@@ -69,6 +69,7 @@ All paths are relative to `laravel/`.
 
 ### Donate (`/donate`) — `pages/donate.blade.php`
 
+- Built on the Content Page component
 - Frequency toggle (One-Time / Monthly / Annual) and tier cards: `[5, 20, 50]` one-time, `[20, 50, 100]` monthly, `[100, 1000, 5000]` annual. The amounts are defined in the `$frequencies` array at the top of the view.
 - Frequencies and tiers are visually hidden radio inputs styled through their labels. The frequency radios come first in the form, so a sibling selector (`~`) shows the tier set for the checked frequency without JavaScript. Each frequency's tiers use their own field name (`amount_one_time`, `amount_monthly`, `amount_annual`).
 - Custom amount field. `donate.js` filters input as it is typed (digits, one decimal point, two decimal places, $9,999 maximum), clears selections when the frequency changes, and shows the amount on the button ("Donate $20/month").
@@ -107,6 +108,10 @@ Gradient footer with decorative bubbles. Props with defaults:
 - `buttonText` / `buttonHref` (default: `'Get In Touch'` / `mailto:contact@wildland.eco`)
 - `showDonate` (default: `true`)
 - `showSocials` (default: `true`)
+
+### Content Page (`content-page`)
+
+Shell for standalone content pages such as `/donate`: the mountain and firefly backgrounds (the fireflies image fades in and out at its edges with a mask, as on the home page), a centered content column wrapped in Disappearing Content, and the page's footer in a `footer` slot. Pages add their own root class for their styles (`<x-content-page class="donate-page">`). `_content-page.scss` also provides `.section-divider`, the gradient line between sections.
 
 ### Disappearing Content (`disappearing-content`)
 

@@ -1,0 +1,88 @@
+// Shell for standalone content pages (`<x-content-page>`): the mountain and
+// firefly backgrounds, the centered content column, and section dividers.
+// Each page adds its own root class for page-specific styles.
+
+// How far the fireflies background fades in at its top edge and out at its
+// bottom edge, hiding the hard edges of the image asset (as on the home page)
+$fireflies-fade: 400px;
+
+.content-page {
+    overflow-x: hidden;
+
+    .backgrounds {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        z-index: 0;
+        pointer-events: none;
+
+        .mountains {
+            position: absolute;
+            width: 100%;
+            height: 500px;
+            background-image: url('../../images/bg-nature.png');
+            background-position: center top;
+            background-repeat: no-repeat;
+            background-size: cover;
+        }
+
+        .gradient {
+            position: absolute;
+            width: 100%;
+            height: 400px;
+            top: 100px;
+            background: linear-gradient(0deg, #010902 0%, rgba(1, 9, 2, 0) 100%);
+            z-index: 1;
+        }
+
+        .fireflies {
+            position: absolute;
+            z-index: 0;
+            width: 100%;
+            height: 1200px;
+            background-image: url('../../images/bg-fireflies.png');
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: cover;
+            opacity: 0.5;
+            top: 900px;
+
+            // Fade the image's top and bottom edges to transparent so the page
+            // background shows through, instead of the image starting and
+            // ending in a hard line
+            $fade: linear-gradient(
+                to bottom,
+                transparent 0,
+                #000 $fireflies-fade,
+                #000 calc(100% - #{$fireflies-fade}),
+                transparent 100%
+            );
+            -webkit-mask-image: $fade;
+            mask-image: $fade;
+        }
+    }
+
+    .page-content {
+        position: relative;
+        z-index: 1;
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 120px 1.5em 0;
+    }
+
+    .section-divider {
+        width: 100%;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(46, 207, 158, 0.3), transparent);
+        margin: 1em 0 3em;
+    }
+}
+
+@media screen and (max-width: 499px) {
+    .content-page {
+        .page-content {
+            padding: 100px 0.75em 0;
+        }
+    }
+}
