@@ -6,11 +6,11 @@
             </li>
 
             <li>
-                <a class="button" href="/#programs">Our Programs</a>
+                <a class="button" href="{{ route('leaves') }}">Leaf Collection</a>
             </li>
 
             <li>
-                <a class="button" href="/#projects">Our Projects</a>
+                <a class="button" href="{{ route('faq') }}">FAQ</a>
             </li>
 
             <li>

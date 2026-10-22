@@ -31,6 +31,19 @@
         }
     }
 
+    // A plain text link inside a section, so it doesn't look like the
+    // buttons that open sections
+    .accordion-link {
+        color: #fff;
+        text-decoration: underline;
+        text-decoration-style: dashed;
+
+        &:hover {
+            color: #2ECF9E;
+            text-decoration-style: solid;
+        }
+    }
+
     .tap-hint {
         position: absolute;
         width: 90%;

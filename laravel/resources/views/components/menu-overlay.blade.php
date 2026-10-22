@@ -13,11 +13,11 @@
         </li>
 
         <li>
-            <a class="button" href="/#programs" data-menu-close>Our Programs</a>
+            <a class="button" href="{{ route('leaves') }}" data-menu-close>Leaf Collection</a>
         </li>
 
         <li>
-            <a class="button" href="/#projects" data-menu-close>Our Projects</a>
+            <a class="button" href="{{ route('faq') }}" data-menu-close>FAQ</a>
         </li>
 
         <li>

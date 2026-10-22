@@ -65,6 +65,7 @@ All paths are relative to `laravel/`.
 - Illustrated mountain background with a firefly forest transition
 - Social media banner with a rotating rainbow border (`rainbow-border.js`); without JavaScript the border cycles colors in CSS
 - Three sections: Our Mission, What We Do (programs accordion), Our Projects (project cards that open modals)
+- The Collecting Leaves program ends with a plain text link to `/leaves` ("Learn more about leaf collection"), styled as a link rather than a button so it isn't mistaken for the buttons that open sections
 - Footer, with its Donate link hidden until donations are enabled (milestone 6)
 
 ### Donate (`/donate`) — `pages/donate.blade.php`
@@ -121,7 +122,7 @@ A link to `/menu`. With JavaScript (`menu.js`), it toggles the menu overlay inst
 
 ### Menu Overlay (`menu-overlay`)
 
-Full-screen blurred overlay with links to Home, Our Programs (`/#programs`), Our Projects (`/#projects`), and Contact Us. It repeats the top nav layout with an invisible wordmark, so its close button sits exactly where the menu button is. Escape or following a link closes it.
+Full-screen blurred overlay with links to Home, Leaf Collection (`/leaves`, the page visitors from our flyers are looking for), FAQ (`/faq`), and Contact Us. It repeats the top nav layout with an invisible wordmark, so its close button sits exactly where the menu button is. Escape or following a link closes it.
 
 ### Footer (`footer`)
 

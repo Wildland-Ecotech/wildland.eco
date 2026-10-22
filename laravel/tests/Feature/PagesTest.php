@@ -59,14 +59,33 @@ class PagesTest extends TestCase
         }
     }
 
-    public function test_menu_page_links_to_site_sections(): void
+    public function test_menu_page_links_to_the_main_pages(): void
     {
         $this->get('/menu')
             ->assertOk()
-            ->assertSee('Our Programs')
-            ->assertSee('href="/#programs"', false)
-            ->assertSee('href="/#projects"', false)
+            ->assertSeeInOrder(['Home', 'Leaf Collection', 'FAQ', 'Contact Us'])
+            ->assertSee('href="' . route('leaves') . '"', false)
+            ->assertSee('href="' . route('faq') . '"', false)
             ->assertSee('href="mailto:contact@wildland.eco"', false);
+    }
+
+    public function test_menu_overlay_links_to_the_new_pages(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('href="' . route('leaves') . '" data-menu-close>Leaf Collection', false)
+            ->assertSee('href="' . route('faq') . '" data-menu-close>FAQ', false)
+            ->assertDontSee('data-menu-close>Our Programs', false)
+            ->assertDontSee('data-menu-close>Our Projects', false);
+    }
+
+    public function test_home_collecting_leaves_section_links_to_the_leaf_program(): void
+    {
+        $content = $this->get('/')->assertOk()->getContent();
+
+        $section = substr($content, strpos($content, 'id="leaves"'), strpos($content, 'id="water"') - strpos($content, 'id="leaves"'));
+
+        $this->assertStringContainsString('<a class="accordion-link" href="' . route('leaves') . '">Learn more about leaf collection', $section);
     }
 
     public function test_menu_button_links_to_menu_page(): void

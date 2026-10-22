@@ -76,6 +76,10 @@
                             <p>
                                 We've used these leaves along with logs from the wildfire to create hugelkultur terraces along 2 acres of burn scar so far, with plans to continue expanding our restoration efforts every year.
                             </p>
+
+                            <p>
+                                <a class="accordion-link" href="{{ route('leaves') }}">Learn more about leaf collection</a>
+                            </p>
                         </details>
 
                         <details class="accordion-item" name="programs" id="water">
