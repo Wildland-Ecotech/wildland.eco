@@ -1,6 +1,6 @@
 # Services & Commands
 
-Planned services (payment gateway sync, history import, receipts) are described in [Planned Features](06-planned-features.md). No custom artisan commands exist yet.
+Planned services and commands (payment gateway sync, history import, receipts) are described in [Planned Features](06-planned-features.md).
 
 ## Services
 
@@ -15,3 +15,24 @@ Proof-of-work spam protection for public forms, used by the leaf application for
 Raising `DIFFICULTY` by one makes the work 16 times harder for people as well as bots.
 
 Document each service class and artisan command here as it is added: its purpose, inputs, side effects, and how to run it.
+
+## Artisan Commands
+
+### leaves:applications (`app/Console/Commands/ListLeafApplications.php`)
+
+Lists leaf program applications from `/leaves/apply`, oldest first, for reviewing them until the administrator pages are built (milestone 9). Times are shown in Fort Collins time.
+
+| Option | Default | Effect |
+|--------|---------|--------|
+| `--days=N` | 30 | Applications from the last N days |
+| `--csv` | off | CSV with a header row, for importing into a spreadsheet |
+
+```bash
+docker compose exec app php artisan leaves:applications
+docker compose exec app php artisan leaves:applications --days=7
+docker compose exec -T app php artisan leaves:applications --csv > ~/leaf-applications.csv
+```
+
+On a server, run it from the clone's directory as the clone's owner (`sudo -u deploy docker compose exec ...`).
+
+The output contains donors' personal contact details: never paste it into issues or chat, and never save the CSV inside the repository. Anyone can submit the form, so CSV values starting with `=`, `+`, `-`, or `@` get a leading apostrophe, which keeps spreadsheets from running them as formulas.
