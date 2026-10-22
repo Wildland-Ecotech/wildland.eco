@@ -1,4 +1,8 @@
-FROM php:8.5-fpm
+# Pinned to an exact PHP release so security fixes reach every environment:
+# deploys run `docker compose build` without --pull, so a floating tag such as
+# 8.5-fpm can keep using an older cached image. Update the version when
+# php.net announces a release; see "Updating PHP" in docs/07-deployment.md.
+FROM php:8.5.12-fpm
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \

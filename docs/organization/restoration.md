@@ -47,6 +47,15 @@ The GE Superfund site operates air strippers that pump groundwater and bubble ai
 
 Since 2023, volunteers collect an average of 1,000 bags of leaves every autumn from local neighborhoods. This diverts organic waste from landfills and provides approximately 10 tons of carbon sequestration per year from leaves alone. The collected leaves are used as mulch and compost for protecting young trees and creating water catchment structures.
 
+**Leave the leaves** is the program's primary message. Leaves left on a yard help retain ground water, recharge aquifers, and create habitat for wild animals and pollinators, so we encourage people not to rake at all: let the grass grow into a meadow with wildflowers and only mow walking paths. Restoring the habitat around our homes is a way for anyone to take climate change into their own hands.
+
+For people who rake anyway, donated leaves are used in the High Park burn scar instead of going to the landfill. Leaves must be in paper compostable bags with only compostable yard waste; anything non-compostable ends the service for that household.
+
+- **Drop-off (preferred):** two locations in Fort Collins, available year-round once we have approved the donor's application. Donors drop off whenever it is convenient.
+- **Pickup:** for donors without a vehicle that can carry bags of leaves, or with too many bags. Pickups take much more volunteer time and are scheduled 1–2 weeks in advance so routes can be planned efficiently.
+
+The program is described on the website at `/leaves`, and people apply to donate leaves at `/leaves/apply`.
+
 ### Wetland Restoration
 
 The core restoration technique is Low-Tech Process-Based Restoration (PBR), specifically Beaver Dam Analogs (BDAs). These structures are built from locally available materials (logs, mud, rocks) to mimic the work beavers do naturally. BDAs slow water in mountain streams, allowing it to soak into the ground, recharge high-elevation aquifers, and bring life back to old springs. By keeping water at higher elevations longer, BDAs reduce drought and flood risk downstream.

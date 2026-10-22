@@ -65,15 +65,42 @@ All paths are relative to `laravel/`.
 - Illustrated mountain background with a firefly forest transition
 - Social media banner with a rotating rainbow border (`rainbow-border.js`); without JavaScript the border cycles colors in CSS
 - Three sections: Our Mission, What We Do (programs accordion), Our Projects (project cards that open modals)
+- The Collecting Leaves program ends with a plain text link to `/leaves` ("Learn more about leaf collection"), styled as a link rather than a button so it isn't mistaken for the buttons that open sections
 - Footer, with its Donate link hidden until donations are enabled (milestone 6)
 
 ### Donate (`/donate`) — `pages/donate.blade.php`
 
+- Built on the Content Page component
 - Frequency toggle (One-Time / Monthly / Annual) and tier cards: `[5, 20, 50]` one-time, `[20, 50, 100]` monthly, `[100, 1000, 5000]` annual. The amounts are defined in the `$frequencies` array at the top of the view.
 - Frequencies and tiers are visually hidden radio inputs styled through their labels. The frequency radios come first in the form, so a sibling selector (`~`) shows the tier set for the checked frequency without JavaScript. Each frequency's tiers use their own field name (`amount_one_time`, `amount_monthly`, `amount_annual`).
 - Custom amount field. `donate.js` filters input as it is typed (digits, one decimal point, two decimal places, $9,999 maximum), clears selections when the frequency changes, and shows the amount on the button ("Donate $20/month").
 - The donate button is disabled until Stripe is integrated (milestone 6), and no page links to `/donate` until then.
 - "What You're Supporting" cards, impact stats, "Other Ways to Help", and a footer that links back home.
+
+### Leaves (`/leaves`) — `pages/leaves.blade.php`
+
+- Built on the Content Page component
+- Leads with the program's primary message, "Leave the Leaves": don't rake, and let yards grow back into meadows
+- "Donate Your Leaves" for people who rake anyway, with Drop-Off (marked Preferred) and Pickup cards
+- Leaf guidelines (paper bags and compostable yard waste only), and Privacy: contact details stay private, and which details about the leaves may be shared for grants and outreach
+- "Apply to Donate Leaves" buttons after the "Donate Your Leaves" text (kept out of the opening card, whose message is not to rake) and after the Privacy section
+- Body text uses one style (`.prose`: 18px, a 680px column); only section labels, headings, and buttons are centered
+
+### Apply to Donate Leaves (`/leaves/apply`) — `pages/leaves-apply.blade.php`
+
+- Built on the Content Page component; a plain HTML form validated on the server (see [Routes & Controllers](03-routes-and-controllers.md#leaf-applications))
+- Drop-off (selected by default, marked Preferred) or pickup, contact details, the address the leaves come from, an estimated bag count, and whether the bags are ready now. Donors never choose a pickup date or time; when the bags aren't ready, they give the soonest date they will be.
+- The "when will they be ready" date is hidden with `:has()` while "Yes, they're ready now" is checked. Browsers without `:has()` always show it, and the server ignores it when the bags are ready.
+- Validation errors appear in a red summary above the form and under each field, and every field keeps its input.
+- Terms with a required "Yes, I agree" checkbox, and an off-screen `website` field as a spam trap
+- Proof-of-work spam protection (`proof-of-work.js`, attached with `data-proof-of-work`): solving starts when the page loads, and if the form is submitted first, the button shows "Verifying…" until it finishes. This is the one page that needs JavaScript to submit: without it, a `<noscript>` notice gives the email address to apply by instead. The browser's `crypto.subtle` is only available over HTTPS and on `localhost`.
+- After applying, the page shows a thank-you message for drop-off or pickup instead of the form
+
+### FAQ (`/faq`) — `pages/faq.blade.php`
+
+- Built on the Content Page component
+- Each question is a native `<details>` element with an `id` for linking (such as `/faq#get-involved`), so questions open and close without JavaScript and several can be open at once. A plus sign turns into a minus sign when a question is open.
+- Answers use `.prose`
 
 ### Menu (`/menu`) — `pages/menu.blade.php`
 
@@ -95,7 +122,7 @@ A link to `/menu`. With JavaScript (`menu.js`), it toggles the menu overlay inst
 
 ### Menu Overlay (`menu-overlay`)
 
-Full-screen blurred overlay with links to Home, Our Programs (`/#programs`), Our Projects (`/#projects`), and Contact Us. It repeats the top nav layout with an invisible wordmark, so its close button sits exactly where the menu button is. Escape or following a link closes it.
+Full-screen blurred overlay with links to Home, Leaf Collection (`/leaves`, the page visitors from our flyers are looking for), FAQ (`/faq`), and Contact Us. It repeats the top nav layout with an invisible wordmark, so its close button sits exactly where the menu button is. Escape or following a link closes it.
 
 ### Footer (`footer`)
 
@@ -108,9 +135,13 @@ Gradient footer with decorative bubbles. Props with defaults:
 - `showDonate` (default: `true`)
 - `showSocials` (default: `true`)
 
+### Content Page (`content-page`)
+
+Shell for standalone content pages such as `/donate`: the mountain and firefly backgrounds (the fireflies image fades in and out at its edges with a mask, as on the home page), a centered content column wrapped in Disappearing Content, and the page's footer in a `footer` slot. Pages add their own root class for their styles (`<x-content-page class="donate-page">`). `_content-page.scss` also provides `.section-divider`, the gradient line between sections, and `.prose`, the shared body text style: 18px (16px on phones), left-aligned in a 680px column under centered headings.
+
 ### Disappearing Content (`disappearing-content`)
 
-Wraps page content so it fades out as it scrolls under the top nav. `disappearing-content.js` recalculates a mask image on scroll and resize.
+Wraps page content so it fades out as it scrolls under the top nav. `disappearing-content.js` recalculates a mask image on scroll and resize. The fade is positioned from the top of the content, so it stays correct when something below changes height (opening a `<details>` element, showing a form field) without being recalculated, and never flickers.
 
 ### Modal (`modal`)
 

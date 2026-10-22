@@ -63,6 +63,20 @@
         }
     }
 
+    .footer-links {
+        font-size: 16px;
+        margin-top: 2em;
+
+        a {
+            color: #2ECF9E;
+            text-decoration: underline;
+
+            &:hover {
+                color: #fff;
+            }
+        }
+    }
+
     .legal {
         font-size: 14px;
         opacity: 0.6;

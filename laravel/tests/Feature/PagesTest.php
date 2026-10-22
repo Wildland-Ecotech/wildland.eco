@@ -52,21 +52,40 @@ class PagesTest extends TestCase
 
     public function test_no_page_links_to_donate_page_until_payments_are_integrated(): void
     {
-        foreach (['/', '/menu', '/donate'] as $uri) {
+        foreach (['/', '/menu', '/donate', '/leaves', '/leaves/apply', '/faq'] as $uri) {
             $this->get($uri)
                 ->assertOk()
                 ->assertDontSee('href="' . route('donate') . '"', false);
         }
     }
 
-    public function test_menu_page_links_to_site_sections(): void
+    public function test_menu_page_links_to_the_main_pages(): void
     {
         $this->get('/menu')
             ->assertOk()
-            ->assertSee('Our Programs')
-            ->assertSee('href="/#programs"', false)
-            ->assertSee('href="/#projects"', false)
+            ->assertSeeInOrder(['Home', 'Leaf Collection', 'FAQ', 'Contact Us'])
+            ->assertSee('href="' . route('leaves') . '"', false)
+            ->assertSee('href="' . route('faq') . '"', false)
             ->assertSee('href="mailto:contact@wildland.eco"', false);
+    }
+
+    public function test_menu_overlay_links_to_the_new_pages(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('href="' . route('leaves') . '" data-menu-close>Leaf Collection', false)
+            ->assertSee('href="' . route('faq') . '" data-menu-close>FAQ', false)
+            ->assertDontSee('data-menu-close>Our Programs', false)
+            ->assertDontSee('data-menu-close>Our Projects', false);
+    }
+
+    public function test_home_collecting_leaves_section_links_to_the_leaf_program(): void
+    {
+        $content = $this->get('/')->assertOk()->getContent();
+
+        $section = substr($content, strpos($content, 'id="leaves"'), strpos($content, 'id="water"') - strpos($content, 'id="leaves"'));
+
+        $this->assertStringContainsString('<a class="accordion-link" href="' . route('leaves') . '">Learn more about leaf collection', $section);
     }
 
     public function test_menu_button_links_to_menu_page(): void
@@ -102,6 +121,52 @@ class PagesTest extends TestCase
         $this->get('/donate')
             ->assertOk()
             ->assertSee('data-donate-button disabled', false);
+    }
+
+    public function test_leaves_page_leads_with_leaving_the_leaves(): void
+    {
+        $this->get('/leaves')
+            ->assertOk()
+            ->assertSeeInOrder(['Leave the Leaves', 'Donate Your Leaves', 'Leaf Guidelines', 'Privacy']);
+    }
+
+    public function test_leaves_page_offers_drop_off_before_pickup(): void
+    {
+        $this->get('/leaves')
+            ->assertOk()
+            ->assertSeeInOrder(['id="drop-off"', 'Preferred', 'id="pickup"', '1 to 2 weeks in advance'], false);
+    }
+
+    public function test_leaves_page_links_to_the_application_at_the_top_and_bottom(): void
+    {
+        $content = $this->get('/leaves')->assertOk()->getContent();
+
+        $this->assertSame(2, substr_count($content, 'href="' . route('leaves.apply') . '"'));
+        // The first is in "Donate Your Leaves", before the drop-off and pickup cards
+        $first = strpos($content, 'href="' . route('leaves.apply') . '"');
+        $this->assertGreaterThan(strpos($content, 'id="donate-leaves"'), $first);
+        $this->assertLessThan(strpos($content, 'id="drop-off"'), $first);
+        $this->assertGreaterThan(strpos($content, 'id="privacy"'), strrpos($content, 'href="' . route('leaves.apply') . '"'));
+    }
+
+    public function test_faq_questions_open_without_javascript(): void
+    {
+        $this->get('/faq')
+            ->assertOk()
+            ->assertSee('Frequently Asked Questions')
+            ->assertSee('<details class="faq-item" id="nonprofit">', false)
+            ->assertSee('<summary>Where else can you learn about our work?</summary>', false);
+    }
+
+    public function test_faq_uses_the_agreed_names(): void
+    {
+        $this->get('/faq')
+            ->assertOk()
+            ->assertSee('Wildland Ecology Technologies (“Wildland Ecotech”)', false)
+            ->assertSee('Our EIN is 33-3738514.')
+            ->assertSee('Rachel Shelton')
+            ->assertDontSee('Rachel Fish')
+            ->assertDontSee('WET');
     }
 
     public function test_donate_page_footer_links_home_instead_of_to_donate(): void

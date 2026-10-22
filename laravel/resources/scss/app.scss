@@ -11,10 +11,14 @@
 @use 'components/menu-overlay';
 @use 'components/footer';
 @use 'components/disappearing-content';
+@use 'components/content-page';
 @use 'components/accordion';
 @use 'components/modal';
 @use 'components/blob';
 
 @use 'pages/menu';
 @use 'pages/donate';
+@use 'pages/leaves';
+@use 'pages/leaves-apply';
+@use 'pages/faq';
 @use 'pages/home';

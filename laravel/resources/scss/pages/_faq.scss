@@ -1,0 +1,105 @@
+// The /faq page, inside the content page shell (components/_content-page.scss).
+// Each question is a native <details> element, so it works without JavaScript.
+
+.faq-page {
+    // Heading card, like the opening cards on /leaves and /donate, so the
+    // heading stays readable over the background image. Same width as the
+    // questions below it.
+    .intro {
+        max-width: 760px;
+        box-sizing: border-box;
+        margin: 0 auto 2em;
+        padding: 2em;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 16px;
+        text-align: center;
+
+        // Smaller than the site-wide heading size, so it fits on one line
+        h1 {
+            font-size: 48px;
+        }
+    }
+
+    .faq {
+        max-width: 760px;
+        margin: 0 auto 4em;
+    }
+
+    .faq-item {
+        background: rgba(0, 0, 0, 0.4);
+        border: 2px solid rgba(46, 207, 158, 0.3);
+        border-radius: 12px;
+        margin-bottom: 0.75em;
+
+        &[open] {
+            border-color: #2ECF9E;
+        }
+
+        summary {
+            position: relative;
+            list-style: none;
+            cursor: pointer;
+            padding: 1em 3em 1em 1.25em;
+            font-family: satoshi;
+            font-size: 19px;
+            font-weight: 700;
+            color: #fff;
+
+            // Hide the default disclosure triangle (Safari)
+            &::-webkit-details-marker {
+                display: none;
+            }
+
+            // Plus sign that turns into a minus sign when open
+            &::after {
+                content: '+';
+                position: absolute;
+                right: 1em;
+                top: 50%;
+                transform: translateY(-50%);
+                font-family: redhat;
+                font-size: 26px;
+                color: #2ECF9E;
+            }
+
+            &:hover {
+                color: #2ECF9E;
+            }
+
+            &:focus-visible {
+                outline: 2px solid #fff;
+                outline-offset: 2px;
+                border-radius: 10px;
+            }
+        }
+
+        &[open] summary::after {
+            content: '−';
+        }
+
+        .prose {
+            padding: 0 1.25em 0.5em;
+        }
+    }
+}
+
+@media screen and (max-width: 499px) {
+    .faq-page {
+        .intro {
+            padding: 1.25em 1em;
+
+            h1 {
+                font-size: 34px;
+            }
+        }
+
+        .faq-item summary {
+            font-size: 17px;
+            padding: 0.9em 2.75em 0.9em 1em;
+        }
+
+        .faq-item .prose {
+            padding: 0 1em 0.5em;
+        }
+    }
+}

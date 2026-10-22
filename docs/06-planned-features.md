@@ -280,8 +280,9 @@ Raw log of every incoming webhook, for deduplication, debugging, and replay.
 Can start any time after milestone 4:
 
 - Individual pages for each project area (High Park, GE Moreau)
-- Individual pages for each program (leaf collection, wetland restoration, wildfire mitigation, permaculture)
+- Individual pages for each program (leaf collection, wetland restoration, wildfire mitigation, permaculture). Leaf collection is built at `/leaves`.
 - About page
+- FAQ: built at `/faq`
 - Blog / news section for posting updates (supplementing Instagram/LinkedIn)
 
 Project area pages can replace the home page project modals' no-JS fallback once they exist.
