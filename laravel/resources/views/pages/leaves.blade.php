@@ -4,7 +4,7 @@
             <h3>— Leaf Program</h3>
             <h1>Leave the Leaves</h1>
 
-            <div class="prose">
+            <div class="prose lead">
                 <p>
                     Fallen leaves aren't waste. Left on your yard, they help retain ground water, recharge aquifers,
                     and create habitat for wild animals and pollinators right outside your door.

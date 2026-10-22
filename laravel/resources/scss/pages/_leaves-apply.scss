@@ -1,5 +1,7 @@
 // The /leaves/apply page, inside the content page shell (components/_content-page.scss).
 
+@use '../typography' as type;
+
 $green: #2ECF9E;
 $error: #FF8A80;
 
@@ -16,8 +18,7 @@ $error: #FF8A80;
         }
 
         .subtitle {
-            font-size: 18px;
-            color: rgba(255, 255, 255, 0.6);
+            @include type.detail;
             margin: 0 auto 2em;
         }
     }
@@ -31,9 +32,7 @@ $error: #FF8A80;
         }
 
         p {
-            font-size: 18px;
-            line-height: 1.6;
-            color: rgba(255, 255, 255, 0.8);
+            @include type.detail;
             margin-bottom: 1.5em;
         }
     }
@@ -71,8 +70,7 @@ $error: #FF8A80;
         background: rgba(46, 207, 158, 0.1);
         padding: 0.75em 1.25em;
         margin: 0 0 1.5em;
-        font-size: 16px;
-        line-height: 1.5;
+        @include type.detail;
 
         a {
             color: $green;
@@ -112,8 +110,7 @@ $error: #FF8A80;
     }
 
     .hint {
-        font-size: 15px;
-        color: rgba(255, 255, 255, 0.6);
+        @include type.fine-print;
         margin: -0.2em 0 0.5em;
     }
 
@@ -218,9 +215,7 @@ $error: #FF8A80;
         }
 
         p, li {
-            font-size: 16px;
-            line-height: 1.5;
-            color: rgba(255, 255, 255, 0.8);
+            @include type.detail;
         }
 
         li {
@@ -284,9 +279,6 @@ $error: #FF8A80;
                 font-size: 44px;
             }
 
-            .subtitle {
-                font-size: 16px;
-            }
         }
     }
 }

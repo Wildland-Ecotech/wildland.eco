@@ -1,5 +1,7 @@
 // The /leaves page, inside the content page shell (components/_content-page.scss).
 
+@use '../typography' as type;
+
 .leaves-page {
     section {
         text-align: center;
@@ -57,9 +59,7 @@
         }
 
         p {
-            font-size: 17px;
-            line-height: 1.5;
-            color: rgba(255, 255, 255, 0.8);
+            @include type.detail;
             margin: 0.75em 0 0;
         }
     }
@@ -83,15 +83,13 @@
     }
 
     // Links to the application form, after "Donate Your Leaves" and at the
-    // end of the page. Text matches .prose, centered over the button.
+    // end of the page. Detail text, centered over the button.
     .apply-cta {
         margin-top: 2em;
 
         p {
+            @include type.detail;
             max-width: 720px;
-            font-size: 18px;
-            line-height: 1.6;
-            color: rgba(255, 255, 255, 0.8);
             margin: 0 auto 1em;
         }
     }
@@ -115,17 +113,10 @@
             }
         }
 
-        .apply-cta {
-            p {
-                font-size: 16px;
-            }
-        }
-
         .option-card {
             padding: 1.25em;
 
             h2 { font-size: 20px; }
-            p { font-size: 16px; }
         }
     }
 }
@@ -142,7 +133,6 @@
     .leaves-page {
         .option-card {
             h2 { font-size: 26px; }
-            p { font-size: 18px; }
         }
     }
 }

@@ -12,6 +12,7 @@ Review the relevant documentation files in this `docs/` directory before beginni
 - `04-frontend.md` for Blade template structure and UI conventions
 - `06-planned-features.md` for the agreed development plan and design decisions
 - `07-deployment.md` for local development and server setup
+- `08-style-guide.md` for colors, text roles, layout, and writing conventions
 
 This ensures new work builds on existing patterns rather than introducing inconsistencies.
 

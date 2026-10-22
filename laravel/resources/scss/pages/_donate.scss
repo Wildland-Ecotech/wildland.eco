@@ -5,6 +5,8 @@
 // frequency radios sit before the toggle and tier grids in the form, which
 // lets the sibling selector (~) show the tier set for the checked frequency.
 
+@use '../typography' as type;
+
 $frequencies: one-time, monthly, annual;
 
 .donate-page {
@@ -21,9 +23,7 @@ $frequencies: one-time, monthly, annual;
         }
 
         .subtitle {
-            font-family: satoshi;
-            font-size: 18px;
-            color: rgba(255, 255, 255, 0.6);
+            @include type.detail;
             margin: 0 auto 2em;
         }
     }
@@ -229,9 +229,7 @@ $frequencies: one-time, monthly, annual;
     }
 
     .tax-note {
-        font-family: satoshi;
-        font-size: 14px;
-        color: rgba(255, 255, 255, 0.4);
+        @include type.fine-print;
         margin-top: 1em;
     }
 
@@ -241,12 +239,9 @@ $frequencies: one-time, monthly, annual;
         text-align: center;
 
         .story-intro {
-            font-family: satoshi;
-            font-size: 18px;
-            color: rgba(255, 255, 255, 0.7);
+            @include type.detail;
             max-width: 650px;
             margin: 0 auto 2em;
-            line-height: 1.6;
         }
 
         .story-grid {
@@ -273,10 +268,8 @@ $frequencies: one-time, monthly, annual;
             }
 
             p {
-                font-size: 17px;
+                @include type.detail;
                 margin: 0;
-                color: rgba(255, 255, 255, 0.8);
-                line-height: 1.5;
             }
         }
     }
@@ -314,8 +307,7 @@ $frequencies: one-time, monthly, annual;
         margin-bottom: 2em;
 
         p {
-            font-size: 18px;
-            color: rgba(255, 255, 255, 0.7);
+            @include type.detail;
             max-width: 600px;
             margin: 0 auto 1.5em;
         }
@@ -348,7 +340,6 @@ $frequencies: one-time, monthly, annual;
             }
 
             .subtitle {
-                font-size: 16px;
                 margin-bottom: 1.5em;
             }
         }
@@ -390,7 +381,6 @@ $frequencies: one-time, monthly, annual;
                 padding: 1.25em;
 
                 h2 { font-size: 20px; }
-                p { font-size: 16px; }
             }
         }
 
@@ -418,13 +408,8 @@ $frequencies: one-time, monthly, annual;
 
 @media screen and (min-width: 1024px) {
     .donate-page {
-        .donate-section .subtitle {
-            font-size: 20px;
-        }
-
         .story .story-card {
             h2 { font-size: 26px; }
-            p { font-size: 18px; }
         }
 
         .tier-card .amount {

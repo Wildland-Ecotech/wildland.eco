@@ -1,7 +1,9 @@
 // Shell for standalone content pages (`<x-content-page>`): the mountain and
 // firefly backgrounds, the centered content column, section dividers, and
-// the shared body text style (.prose).
+// the shared text column (.prose).
 // Each page adds its own root class for page-specific styles.
+
+@use '../typography' as type;
 
 // How far the fireflies background fades in at its top edge and out at its
 // bottom edge, hiding the hard edges of the image asset (as on the home page)
@@ -72,16 +74,22 @@ $fireflies-fade: 400px;
         padding: 120px 1.5em 0;
     }
 
-    // Readable column of left-aligned body text, used under centered headings
+    // Readable column of left-aligned text, used under centered headings.
+    // Detail text by default; add .lead for a page's key message (see
+    // _typography.scss and docs/08-style-guide.md).
     .prose {
         max-width: 680px;
         margin: 0 auto;
         text-align: left;
 
         p, li {
-            font-size: 18px;
-            line-height: 1.6;
-            color: rgba(255, 255, 255, 0.8);
+            @include type.detail;
+        }
+
+        &.lead {
+            p, li {
+                @include type.lead;
+            }
         }
 
         li {
@@ -110,12 +118,6 @@ $fireflies-fade: 400px;
     .content-page {
         .page-content {
             padding: 100px 0.75em 0;
-        }
-
-        .prose {
-            p, li {
-                font-size: 16px;
-            }
         }
     }
 }

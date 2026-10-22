@@ -18,6 +18,7 @@ All paths are relative to `laravel/`.
 | `resources/views/pages/*.blade.php` | One view per page |
 | `resources/scss/app.scss` | Sass entry point; `@use`s every partial |
 | `resources/scss/_fonts.scss`, `_animations.scss`, `_base.scss` | Font faces, shared keyframes, global element and button styles |
+| `resources/scss/_typography.scss` | Text role mixins (Lead, Detail, Fine print) from the [Style Guide](08-style-guide.md) |
 | `resources/scss/components/`, `resources/scss/pages/` | One partial per component or page |
 | `resources/js/app.js` | JavaScript entry point; initializes each enhancement |
 | `resources/js/*.js` | One module per enhancement, attached to markup through `data-*` attributes |
@@ -31,6 +32,7 @@ All paths are relative to `laravel/`.
 - **Style scoping:** Sass does not scope styles to a component. Each component or page partial nests all of its rules under its root class (for example, `.menu-overlay .links`), so generic class names cannot leak between components.
 - **Keyframes are global.** Give each one a distinct name. Shared animations live in `_animations.scss`.
 - **JavaScript hooks** use `data-*` attributes (`data-menu-toggle`, `data-modal-open`), not styling classes, so markup and styles can change without breaking scripts. Each module does nothing when its elements are not on the page.
+- **Continuous animations pause while off screen.** Anything that animates every frame uses `watchOnScreen()` from `on-screen.js` (an `IntersectionObserver` that reports elements 200px before they scroll into view) to stop while nobody can see it, so it never competes with scrolling. Elements that are not displayed, such as inside a closed modal, count as off screen.
 - **Progressive enhancement:** build the no-JavaScript version first, then enhance it.
   - Elements that only make sense with JavaScript start with the `hidden` attribute.
   - If CSS gives such an element a `display` value, restate `&[hidden] { display: none; }`.
@@ -39,31 +41,14 @@ All paths are relative to `laravel/`.
 
 ## Design System
 
-### Fonts
-
-- **Clash Display** (Semibold) — Headings (`clash`)
-- **Red Hat Display** (Bold) — Section numbers, amounts (`redhat`)
-- **Satoshi** (Medium) — Body text, buttons, UI elements (`satoshi`)
-
-### Color Scheme
-
-- **Page background:** `#010902`
-- **Green accent:** `#2ECF9E`
-- **Button fill:** `rgba(46, 207, 158, 0.25)`
-- **Dark transparent:** `rgba(0, 0, 0, 0.3)` to `rgba(0, 0, 0, 0.5)`
-- **Text primary:** `#fff`
-- **Text secondary:** `rgba(255, 255, 255, 0.6)` to `rgba(255, 255, 255, 0.8)`
-
-### Buttons
-
-`.button` is the shared button style in `_base.scss`, with modifiers: `.full` (filled green), `.dark` (dark transparent), and `.wide` (90% width, used in the accordion and project cards).
+Fonts, colors, text roles, layout, buttons and links, motion, and writing are in the [Style Guide](08-style-guide.md). Text sizes and colors come from the roles in `resources/scss/_typography.scss`; base element styles and the shared `.button` (with `.full`, `.dark`, and `.wide` modifiers) are in `_base.scss`.
 
 ## Pages
 
 ### Home (`/`) — `pages/home.blade.php`
 
 - Illustrated mountain background with a firefly forest transition
-- Social media banner with a rotating rainbow border (`rainbow-border.js`); without JavaScript the border cycles colors in CSS
+- Social media banner with a rotating rainbow border (`rainbow-border.js`), drawn only while the banner is on screen; without JavaScript the border cycles colors in CSS
 - Three sections: Our Mission, What We Do (programs accordion), Our Projects (project cards that open modals)
 - The Collecting Leaves program ends with a plain text link to `/leaves` ("Learn more about leaf collection"), styled as a link rather than a button so it isn't mistaken for the buttons that open sections
 - Footer, with its Donate link hidden until donations are enabled (milestone 6)
@@ -84,7 +69,7 @@ All paths are relative to `laravel/`.
 - "Donate Your Leaves" for people who rake anyway, with Drop-Off (marked Preferred) and Pickup cards
 - Leaf guidelines (paper bags and compostable yard waste only), and Privacy: contact details stay private, and which details about the leaves may be shared for grants and outreach
 - "Apply to Donate Leaves" buttons after the "Donate Your Leaves" text (kept out of the opening card, whose message is not to rake) and after the Privacy section
-- Body text uses one style (`.prose`: 18px, a 680px column); only section labels, headings, and buttons are centered
+- The opening card's text is Lead text (`.prose.lead`); everything below it is Detail text. Only section labels, headings, and buttons are centered.
 
 ### Apply to Donate Leaves (`/leaves/apply`) — `pages/leaves-apply.blade.php`
 
@@ -118,7 +103,7 @@ Fixed bar with the text wordmark "Wildland **Ecotech**" and the menu button.
 
 ### Menu Button (`menu-button`)
 
-A link to `/menu`. With JavaScript (`menu.js`), it toggles the menu overlay instead and keeps `aria-expanded` in sync.
+A 44px square link to `/menu` with a three-bar icon drawn as an inline SVG, centered in the button; a text character such as ≡ sits differently in each font. With JavaScript (`menu.js`), it toggles the menu overlay instead and keeps `aria-expanded` in sync.
 
 ### Menu Overlay (`menu-overlay`)
 
@@ -137,7 +122,7 @@ Gradient footer with decorative bubbles. Props with defaults:
 
 ### Content Page (`content-page`)
 
-Shell for standalone content pages such as `/donate`: the mountain and firefly backgrounds (the fireflies image fades in and out at its edges with a mask, as on the home page), a centered content column wrapped in Disappearing Content, and the page's footer in a `footer` slot. Pages add their own root class for their styles (`<x-content-page class="donate-page">`). `_content-page.scss` also provides `.section-divider`, the gradient line between sections, and `.prose`, the shared body text style: 18px (16px on phones), left-aligned in a 680px column under centered headings.
+Shell for standalone content pages such as `/donate`: the mountain and firefly backgrounds (the fireflies image fades in and out at its edges with a mask, as on the home page), a centered content column wrapped in Disappearing Content, and the page's footer in a `footer` slot. Pages add their own root class for their styles (`<x-content-page class="donate-page">`). `_content-page.scss` also provides `.section-divider`, the gradient line between sections, and `.prose`, a left-aligned 680px text column under centered headings. Text in `.prose` is Detail text, or Lead text with `.prose.lead` (see [Text Roles](08-style-guide.md#text-roles)).
 
 ### Disappearing Content (`disappearing-content`)
 
@@ -151,7 +136,7 @@ Dialog opened by links to `#id`. Props: `id`, `title`, `closeHref` (where the cl
 
 Image clipped to an organic shape, with two gradient layers rotating behind it. Prop: `type` (shape 1–10); when set, the animation never shrinks below that shape. The background layers' shapes, speeds, and directions are picked randomly on each request.
 
-`blob-shapes` holds the 10 SVG clip-path definitions and is rendered once per page by the first blob (`@once`). Without JavaScript, each blob keeps its static shape. With JavaScript, `blob.js` reads the outlines from those definitions, samples them into radii around the center, and morphs between random shapes; blobs that are not displayed, such as inside closed modals, are skipped.
+`blob-shapes` holds the 10 SVG clip-path definitions and is rendered once per page by the first blob (`@once`). Without JavaScript, each blob keeps its static shape. With JavaScript, `blob.js` reads the outlines from those definitions, samples them into radii around the center, and morphs between random shapes. While a blob is off screen or not displayed (such as inside a closed modal), its morphing stops and its spinning background layers pause (`.is-paused`), and the morph resumes where it left off.
 
 ### Accordion
 

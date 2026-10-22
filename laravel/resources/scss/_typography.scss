@@ -1,0 +1,43 @@
+// Text roles from the style guide (docs/08-style-guide.md). Every piece of
+// text uses one role, so text looks the same wherever it appears:
+//
+//   Lead        The key message people should take away: home page sections
+//               and each page's opening card. Paragraphs and lists get this
+//               by default (_base.scss).
+//   Detail      Supporting information: cards, guidelines, FAQ answers,
+//               form introductions and terms, subtitles.
+//   Fine print  Form hints, badges, footnotes, and legal text.
+//
+// Partials use these as mixins (`@use '../typography' as type;` then
+// `@include type.detail;`) rather than setting their own sizes and colors.
+
+$lead-color: #fff;
+$detail-color: rgba(255, 255, 255, 0.75);
+$fine-print-color: rgba(255, 255, 255, 0.6);
+
+// Width at which text steps up to its desktop size, matching _base.scss
+$desktop: 1024px;
+
+@mixin lead {
+    font-size: 21px;
+    color: $lead-color;
+
+    @media screen and (min-width: $desktop) {
+        font-size: 24px;
+    }
+}
+
+@mixin detail {
+    font-size: 18px;
+    line-height: 1.6;
+    color: $detail-color;
+
+    @media screen and (min-width: $desktop) {
+        font-size: 20px;
+    }
+}
+
+@mixin fine-print {
+    font-size: 15px;
+    color: $fine-print-color;
+}

@@ -37,10 +37,11 @@ Technical documentation lives in [docs/](docs/):
 - **[Database Schema](docs/01-database-schema.md)** — Tables, relationships, and cascade behavior
 - **[Services & Commands](docs/02-services-and-commands.md)** — Service classes and artisan commands
 - **[Routes & Controllers](docs/03-routes-and-controllers.md)** — Routes, controllers, and request flows
-- **[Frontend](docs/04-frontend.md)** — Design system, pages, and components
+- **[Frontend](docs/04-frontend.md)** — Page structure and components
 - **[AI Development Notes](docs/05-ai-development-notes.md)** — Conventions for AI-assisted development
 - **[Planned Features](docs/06-planned-features.md)** — Development plan and design decisions
 - **[Deployment](docs/07-deployment.md)** — Local development and server setup
+- **[Style Guide](docs/08-style-guide.md)** — Colors, text roles, layout, and writing conventions
 
 Organizational documentation lives in [docs/organization/](docs/organization/):
 

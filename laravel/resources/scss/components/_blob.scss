@@ -13,6 +13,11 @@
         animation: blob-spin var(--spin-duration) linear infinite var(--spin-direction);
     }
 
+    // Set by resources/js/blob.js while the blob is off screen
+    &.is-paused .blob-bg {
+        animation-play-state: paused;
+    }
+
     .blob-bg-1 {
         background: linear-gradient(135deg, #2F742D, #89940E);
     }

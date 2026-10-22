@@ -5,6 +5,12 @@
 // grows to the union of the two shapes before shrinking into the next
 // one. Blobs with data-blob-floor never shrink below their base shape.
 // Without JavaScript, blobs keep their static clip-path shape.
+//
+// While a blob is off screen (including inside a closed modal), its morphing
+// stops and its spinning background layers pause (.is-paused in _blob.scss),
+// so the animations never compete with scrolling.
+
+import { watchOnScreen } from './on-screen';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const SHAPE_COUNT = 10;
@@ -89,11 +95,22 @@ function animateBlob(element, allRadii) {
     pickNewTarget();
     let morphStart = performance.now();
 
+    // Blobs start paused until they are reported on screen. pausedAt lets a
+    // morph continue from where it stopped instead of jumping ahead.
+    let onScreen = false;
+    let frame = null;
+    let pausedAt = morphStart;
+
     function animate(time) {
-        // Skip work while the blob is not displayed, such as inside a closed modal
-        if (element.getClientRects().length === 0) {
-            requestAnimationFrame(animate);
+        if (!onScreen) {
+            frame = null;
+            pausedAt = time;
             return;
+        }
+
+        if (pausedAt !== null) {
+            morphStart += time - pausedAt;
+            pausedAt = null;
         }
 
         const elapsed = time - morphStart;
@@ -125,10 +142,19 @@ function animateBlob(element, allRadii) {
             morphStart = time;
         }
 
-        requestAnimationFrame(animate);
+        frame = requestAnimationFrame(animate);
     }
 
-    requestAnimationFrame(animate);
+    const container = element.closest('.blob-container') ?? element;
+
+    watchOnScreen(container, (visible) => {
+        onScreen = visible;
+        container.classList.toggle('is-paused', !visible);
+
+        if (visible && frame === null) {
+            frame = requestAnimationFrame(animate);
+        }
+    });
 }
 
 export function initBlobs() {

@@ -4,6 +4,11 @@
 //
 // The canvas is positioned and sized in CSS to extend BORDER_WIDTH past
 // each edge of the element (see .social-cta canvas in _home.scss).
+//
+// Drawing stops while the element is off screen, so the animation never
+// competes with scrolling further down the page.
+
+import { watchOnScreen } from './on-screen';
 
 const BORDER_WIDTH = 4;
 const RADIUS = 16;
@@ -77,10 +82,21 @@ function initRainbowBorder(element) {
         roundedRect(inset, inset, w - inset * 2, h - inset * 2, RADIUS);
         ctx.stroke();
 
-        requestAnimationFrame(draw);
+        frame = onScreen ? requestAnimationFrame(draw) : null;
     }
 
-    requestAnimationFrame(draw);
+    // The angle comes from the frame time, so the rotation picks up where it
+    // would have been when drawing resumes
+    let onScreen = false;
+    let frame = null;
+
+    watchOnScreen(element, (visible) => {
+        onScreen = visible;
+
+        if (visible && frame === null) {
+            frame = requestAnimationFrame(draw);
+        }
+    });
 }
 
 export function initRainbowBorders() {
