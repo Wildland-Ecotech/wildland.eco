@@ -1,5 +1,6 @@
 // Shell for standalone content pages (`<x-content-page>`): the mountain and
-// firefly backgrounds, the centered content column, and section dividers.
+// firefly backgrounds, the centered content column, section dividers, and
+// the shared body text style (.prose).
 // Each page adds its own root class for page-specific styles.
 
 // How far the fireflies background fades in at its top edge and out at its
@@ -71,6 +72,32 @@ $fireflies-fade: 400px;
         padding: 120px 1.5em 0;
     }
 
+    // Readable column of left-aligned body text, used under centered headings
+    .prose {
+        max-width: 680px;
+        margin: 0 auto;
+        text-align: left;
+
+        p, li {
+            font-size: 18px;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        li {
+            margin: 0.5em 0;
+        }
+
+        strong {
+            color: #fff;
+        }
+
+        a {
+            color: #2ECF9E;
+            text-decoration: underline;
+        }
+    }
+
     .section-divider {
         width: 100%;
         height: 1px;
@@ -83,6 +110,12 @@ $fireflies-fade: 400px;
     .content-page {
         .page-content {
             padding: 100px 0.75em 0;
+        }
+
+        .prose {
+            p, li {
+                font-size: 16px;
+            }
         }
     }
 }

@@ -1,6 +1,16 @@
 // Fades content out as it scrolls up under the fixed top nav, using a
 // mask image recalculated on scroll and resize. Without JavaScript the
 // content simply scrolls under the nav.
+//
+// The fade is positioned from the top of the content, which stays put when
+// something below it changes height (opening a <details> element, showing a
+// form field). The mask therefore stays correct without being recalculated,
+// and never flickers while the page grows or shrinks.
+
+// Distance from the top of the window where content is fully faded out, and
+// where it is fully visible again, in pixels
+const FADED_AT = 65;
+const VISIBLE_AT = 150;
 
 export function initDisappearingContent() {
     const elements = document.querySelectorAll('[data-disappearing-content]');
@@ -11,14 +21,12 @@ export function initDisappearingContent() {
 
     function update() {
         elements.forEach((element) => {
-            const box = element.getBoundingClientRect();
-            const bottom = box.height + box.top;
+            const top = element.getBoundingClientRect().top;
 
             const mask = `linear-gradient(
-                0deg,
-                rgba(0, 0, 0, 1),
-                rgba(0, 0, 0, 1) ${bottom - 150}px,
-                transparent ${bottom - 65}px
+                to bottom,
+                transparent ${FADED_AT - top}px,
+                rgba(0, 0, 0, 1) ${VISIBLE_AT - top}px
             )`;
 
             element.style.setProperty('mask-image', mask);

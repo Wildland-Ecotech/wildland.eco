@@ -95,6 +95,12 @@ All paths are relative to `laravel/`.
 - Proof-of-work spam protection (`proof-of-work.js`, attached with `data-proof-of-work`): solving starts when the page loads, and if the form is submitted first, the button shows "Verifying…" until it finishes. This is the one page that needs JavaScript to submit: without it, a `<noscript>` notice gives the email address to apply by instead. The browser's `crypto.subtle` is only available over HTTPS and on `localhost`.
 - After applying, the page shows a thank-you message for drop-off or pickup instead of the form
 
+### FAQ (`/faq`) — `pages/faq.blade.php`
+
+- Built on the Content Page component
+- Each question is a native `<details>` element with an `id` for linking (such as `/faq#get-involved`), so questions open and close without JavaScript and several can be open at once. A plus sign turns into a minus sign when a question is open.
+- Answers use `.prose`
+
 ### Menu (`/menu`) — `pages/menu.blade.php`
 
 A full-page menu for visitors without JavaScript, with the same links as the menu overlay.
@@ -130,11 +136,11 @@ Gradient footer with decorative bubbles. Props with defaults:
 
 ### Content Page (`content-page`)
 
-Shell for standalone content pages such as `/donate`: the mountain and firefly backgrounds (the fireflies image fades in and out at its edges with a mask, as on the home page), a centered content column wrapped in Disappearing Content, and the page's footer in a `footer` slot. Pages add their own root class for their styles (`<x-content-page class="donate-page">`). `_content-page.scss` also provides `.section-divider`, the gradient line between sections.
+Shell for standalone content pages such as `/donate`: the mountain and firefly backgrounds (the fireflies image fades in and out at its edges with a mask, as on the home page), a centered content column wrapped in Disappearing Content, and the page's footer in a `footer` slot. Pages add their own root class for their styles (`<x-content-page class="donate-page">`). `_content-page.scss` also provides `.section-divider`, the gradient line between sections, and `.prose`, the shared body text style: 18px (16px on phones), left-aligned in a 680px column under centered headings.
 
 ### Disappearing Content (`disappearing-content`)
 
-Wraps page content so it fades out as it scrolls under the top nav. `disappearing-content.js` recalculates a mask image on scroll and resize.
+Wraps page content so it fades out as it scrolls under the top nav. `disappearing-content.js` recalculates a mask image on scroll and resize. The fade is positioned from the top of the content, so it stays correct when something below changes height (opening a `<details>` element, showing a form field) without being recalculated, and never flickers.
 
 ### Modal (`modal`)
 

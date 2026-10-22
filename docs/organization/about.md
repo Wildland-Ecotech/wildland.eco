@@ -59,6 +59,12 @@ The organization maintains:
 
 ## Partnerships and Grants
 
+### Grants Received
+
+- **2023–present:** Colorado State Forest Service Restoring Colorado's Forests Fund
+- **2026:** United We Om Karma Project (below)
+- **2026:** Colorado Department of Agriculture Agrivoltaics Research and Demonstration Grant
+
 ### United We Om (Karma Project Grant)
 
 Selected from 500+ applicants for a $2,500 micro-grant funding:

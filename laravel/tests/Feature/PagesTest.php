@@ -52,7 +52,7 @@ class PagesTest extends TestCase
 
     public function test_no_page_links_to_donate_page_until_payments_are_integrated(): void
     {
-        foreach (['/', '/menu', '/donate', '/leaves', '/leaves/apply'] as $uri) {
+        foreach (['/', '/menu', '/donate', '/leaves', '/leaves/apply', '/faq'] as $uri) {
             $this->get($uri)
                 ->assertOk()
                 ->assertDontSee('href="' . route('donate') . '"', false);
@@ -128,6 +128,26 @@ class PagesTest extends TestCase
         $this->assertGreaterThan(strpos($content, 'id="donate-leaves"'), $first);
         $this->assertLessThan(strpos($content, 'id="drop-off"'), $first);
         $this->assertGreaterThan(strpos($content, 'id="privacy"'), strrpos($content, 'href="' . route('leaves.apply') . '"'));
+    }
+
+    public function test_faq_questions_open_without_javascript(): void
+    {
+        $this->get('/faq')
+            ->assertOk()
+            ->assertSee('Frequently Asked Questions')
+            ->assertSee('<details class="faq-item" id="nonprofit">', false)
+            ->assertSee('<summary>Where else can you learn about our work?</summary>', false);
+    }
+
+    public function test_faq_uses_the_agreed_names(): void
+    {
+        $this->get('/faq')
+            ->assertOk()
+            ->assertSee('Wildland Ecology Technologies (“Wildland Ecotech”)', false)
+            ->assertSee('Our EIN is 33-3738514.')
+            ->assertSee('Rachel Shelton')
+            ->assertDontSee('Rachel Fish')
+            ->assertDontSee('WET');
     }
 
     public function test_donate_page_footer_links_home_instead_of_to_donate(): void

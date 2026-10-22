@@ -18,27 +18,6 @@
         }
     }
 
-    // Readable column of left-aligned text under centered headings
-    .prose {
-        max-width: 680px;
-        margin: 0 auto;
-        text-align: left;
-
-        p, li {
-            font-size: 18px;
-            line-height: 1.6;
-            color: rgba(255, 255, 255, 0.8);
-        }
-
-        li {
-            margin: 0.5em 0;
-        }
-
-        strong {
-            color: #fff;
-        }
-    }
-
     // Drop-off and pickup
     .options {
         display: grid;
@@ -136,9 +115,8 @@
             }
         }
 
-        .prose,
         .apply-cta {
-            p, li {
+            p {
                 font-size: 16px;
             }
         }
