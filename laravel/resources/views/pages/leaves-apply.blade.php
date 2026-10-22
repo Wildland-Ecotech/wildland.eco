@@ -31,15 +31,26 @@
                     Tell us about your leaves, and we'll be in touch once we've reviewed your application.
                 </p>
 
-                <form class="apply-form" method="POST" action="{{ route('leaves.apply.store') }}" novalidate>
+                <form class="apply-form" method="POST" action="{{ route('leaves.apply.store') }}" novalidate data-proof-of-work>
                     @csrf
+
+                    {{-- Spam protection solved in the browser; see resources/js/proof-of-work.js --}}
+                    <input type="hidden" name="pow_challenge" value="{{ $proofOfWorkChallenge }}" data-proof-of-work-challenge>
+                    <input type="hidden" name="pow_nonce" value="" data-proof-of-work-nonce>
+
+                    <noscript>
+                        <p class="js-notice">
+                            To protect against spam, this form needs JavaScript. Please turn it on,
+                            or email us at <a href="mailto:contact@wildland.eco">contact@wildland.eco</a> to apply.
+                        </p>
+                    </noscript>
 
                     @if ($errors->any())
                         <div class="error-summary" role="alert">
                             <p>Please fix the following and try again:</p>
 
                             <ul>
-                                @foreach ($errors->all() as $error)
+                                @foreach ($errors->unique() as $error)
                                     <li>{{ $error }}</li>
                                 @endforeach
                             </ul>
@@ -202,7 +213,7 @@
                         @enderror
                     </div>
 
-                    <button type="submit" class="submit-button">Send Application</button>
+                    <button type="submit" class="submit-button" data-proof-of-work-button>Send Application</button>
                 </form>
             @endif
         </section>

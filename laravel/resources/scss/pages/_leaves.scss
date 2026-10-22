@@ -14,13 +14,7 @@
         margin-bottom: 4em;
 
         h1 {
-            margin-bottom: 0.1em;
-        }
-
-        .subtitle {
-            font-size: 18px;
-            color: rgba(255, 255, 255, 0.6);
-            margin: 0 auto 1.5em;
+            margin-bottom: 0.5em;
         }
     }
 
@@ -109,13 +103,16 @@
         }
     }
 
-    // Links to the application form at the top and bottom of the page
+    // Links to the application form, after "Donate Your Leaves" and at the
+    // end of the page. Text matches .prose, centered over the button.
     .apply-cta {
         margin-top: 2em;
 
         p {
+            max-width: 720px;
             font-size: 18px;
-            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.8);
             margin: 0 auto 1em;
         }
     }
@@ -137,13 +134,10 @@
             h1 {
                 font-size: 48px;
             }
-
-            .subtitle {
-                font-size: 16px;
-            }
         }
 
-        .prose {
+        .prose,
+        .apply-cta {
             p, li {
                 font-size: 16px;
             }
@@ -168,10 +162,6 @@
 
 @media screen and (min-width: 1024px) {
     .leaves-page {
-        .intro .subtitle {
-            font-size: 20px;
-        }
-
         .option-card {
             h2 { font-size: 26px; }
             p { font-size: 18px; }

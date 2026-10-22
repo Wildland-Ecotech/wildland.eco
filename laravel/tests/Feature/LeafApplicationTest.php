@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\LeafApplicationController;
+use App\Http\Requests\StoreLeafApplicationRequest;
 use App\Models\LeafApplication;
+use App\Services\ProofOfWork;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -24,7 +26,31 @@ class LeafApplicationTest extends TestCase
     }
 
     /**
-     * A valid application, with any fields overridden.
+     * Find a nonce for a challenge, as resources/js/proof-of-work.js does.
+     */
+    private function solve(string $challenge): string
+    {
+        $prefix = explode('.', $challenge)[2];
+
+        for ($nonce = 0; ! str_starts_with(hash('sha256', "{$challenge}:{$nonce}"), $prefix); $nonce++);
+
+        return (string) $nonce;
+    }
+
+    /**
+     * A freshly issued and solved proof of work.
+     *
+     * @return array{pow_challenge: string, pow_nonce: string}
+     */
+    private function proofOfWork(): array
+    {
+        $challenge = app(ProofOfWork::class)->issue();
+
+        return ['pow_challenge' => $challenge, 'pow_nonce' => $this->solve($challenge)];
+    }
+
+    /**
+     * A valid application with a solved proof of work, with any fields overridden.
      *
      * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
@@ -43,6 +69,7 @@ class LeafApplicationTest extends TestCase
             'questions' => '',
             'terms' => '1',
             'website' => '',
+            ...$this->proofOfWork(),
         ], $overrides);
     }
 
@@ -53,7 +80,10 @@ class LeafApplicationTest extends TestCase
             ->assertSee('action="' . route('leaves.apply.store') . '"', false)
             ->assertSee('id="type-drop-off" name="type" value="drop_off" checked', false)
             ->assertSee('name="website"', false)
-            ->assertSee('min="2026-10-22"', false);
+            ->assertSee('min="2026-10-22"', false)
+            ->assertSee('name="pow_challenge"', false)
+            ->assertSee('data-proof-of-work', false)
+            ->assertSee('<noscript>', false);
     }
 
     public function test_application_with_bags_ready_now_is_saved(): void
@@ -194,5 +224,73 @@ class LeafApplicationTest extends TestCase
         }
 
         $this->post(route('leaves.apply.store'), $this->application())->assertSessionHasNoErrors();
+    }
+
+    public function test_missing_proof_of_work_is_rejected(): void
+    {
+        $this->from(route('leaves.apply'))
+            ->followingRedirects()
+            ->post(route('leaves.apply.store'), $this->application(['pow_nonce' => '']))
+            ->assertSee(StoreLeafApplicationRequest::PROOF_OF_WORK_MESSAGE);
+
+        $this->assertSame(0, LeafApplication::count());
+    }
+
+    public function test_wrong_nonce_is_rejected(): void
+    {
+        $proofOfWork = $this->proofOfWork();
+        $wrongNonce = (string) ((int) $proofOfWork['pow_nonce'] + 1);
+
+        // The next nonce could also solve it, rarely; skip ahead until it doesn't
+        while (str_starts_with(hash('sha256', "{$proofOfWork['pow_challenge']}:{$wrongNonce}"), explode('.', $proofOfWork['pow_challenge'])[2])) {
+            $wrongNonce++;
+        }
+
+        $this->post(route('leaves.apply.store'), $this->application([
+            'pow_challenge' => $proofOfWork['pow_challenge'],
+            'pow_nonce' => (string) $wrongNonce,
+        ]))->assertSessionHasErrors('pow_nonce');
+
+        $this->assertSame(0, LeafApplication::count());
+    }
+
+    public function test_challenge_can_only_be_used_once(): void
+    {
+        $proofOfWork = $this->proofOfWork();
+
+        $this->post(route('leaves.apply.store'), $this->application($proofOfWork))->assertSessionHasNoErrors();
+        $this->post(route('leaves.apply.store'), $this->application($proofOfWork))->assertSessionHasErrors('pow_nonce');
+
+        $this->assertSame(1, LeafApplication::count());
+    }
+
+    public function test_expired_challenge_is_rejected(): void
+    {
+        $proofOfWork = $this->proofOfWork();
+
+        $this->travel(ProofOfWork::LIFETIME + 60)->seconds();
+
+        $this->post(route('leaves.apply.store'), $this->application($proofOfWork))
+            ->assertSessionHasErrors('pow_nonce');
+    }
+
+    public function test_challenges_require_the_configured_prefix(): void
+    {
+        $prefix = explode('.', app(ProofOfWork::class)->issue())[2];
+
+        $this->assertSame(str_repeat(ProofOfWork::CHARACTER, ProofOfWork::DIFFICULTY), $prefix);
+        $this->assertSame('dddd', $prefix);
+    }
+
+    public function test_challenge_with_changed_prefix_is_rejected(): void
+    {
+        [$random, $issuedAt, , $signature] = explode('.', app(ProofOfWork::class)->issue());
+        // An empty prefix would accept any hash
+        $easier = "{$random}.{$issuedAt}..{$signature}";
+
+        $this->post(route('leaves.apply.store'), $this->application([
+            'pow_challenge' => $easier,
+            'pow_nonce' => '0',
+        ]))->assertSessionHasErrors('pow_nonce');
     }
 }

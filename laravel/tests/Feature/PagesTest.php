@@ -123,7 +123,10 @@ class PagesTest extends TestCase
         $content = $this->get('/leaves')->assertOk()->getContent();
 
         $this->assertSame(2, substr_count($content, 'href="' . route('leaves.apply') . '"'));
-        $this->assertLessThan(strpos($content, 'id="donate-leaves"'), strpos($content, 'href="' . route('leaves.apply') . '"'));
+        // The first is in "Donate Your Leaves", before the drop-off and pickup cards
+        $first = strpos($content, 'href="' . route('leaves.apply') . '"');
+        $this->assertGreaterThan(strpos($content, 'id="donate-leaves"'), $first);
+        $this->assertLessThan(strpos($content, 'id="drop-off"'), $first);
         $this->assertGreaterThan(strpos($content, 'id="privacy"'), strrpos($content, 'href="' . route('leaves.apply') . '"'));
     }
 

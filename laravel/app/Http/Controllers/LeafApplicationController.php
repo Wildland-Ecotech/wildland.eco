@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreLeafApplicationRequest;
 use App\Models\LeafApplication;
+use App\Services\ProofOfWork;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\View\View;
@@ -22,11 +23,12 @@ class LeafApplicationController extends Controller
     /**
      * Show the application form, or the thank-you message after applying.
      */
-    public function create(): View
+    public function create(ProofOfWork $proofOfWork): View
     {
         return view('pages.leaves-apply', [
             // The earliest "ready by" date the form accepts
             'earliestReadyDate' => StoreLeafApplicationRequest::today()->addDay()->toDateString(),
+            'proofOfWorkChallenge' => $proofOfWork->issue(),
         ]);
     }
 

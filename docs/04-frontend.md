@@ -82,7 +82,8 @@ All paths are relative to `laravel/`.
 - Leads with the program's primary message, "Leave the Leaves": don't rake, and let yards grow back into meadows
 - "Donate Your Leaves" for people who rake anyway, with Drop-Off (marked Preferred) and Pickup cards
 - Leaf guidelines (paper bags and compostable yard waste only), and Privacy: contact details stay private, and which details about the leaves may be shared for grants and outreach
-- "Apply to Donate Leaves" buttons at the end of the opening card and after the Privacy section
+- "Apply to Donate Leaves" buttons after the "Donate Your Leaves" text (kept out of the opening card, whose message is not to rake) and after the Privacy section
+- Body text uses one style (`.prose`: 18px, a 680px column); only section labels, headings, and buttons are centered
 
 ### Apply to Donate Leaves (`/leaves/apply`) — `pages/leaves-apply.blade.php`
 
@@ -91,6 +92,7 @@ All paths are relative to `laravel/`.
 - The "when will they be ready" date is hidden with `:has()` while "Yes, they're ready now" is checked. Browsers without `:has()` always show it, and the server ignores it when the bags are ready.
 - Validation errors appear in a red summary above the form and under each field, and every field keeps its input.
 - Terms with a required "Yes, I agree" checkbox, and an off-screen `website` field as a spam trap
+- Proof-of-work spam protection (`proof-of-work.js`, attached with `data-proof-of-work`): solving starts when the page loads, and if the form is submitted first, the button shows "Verifying…" until it finishes. This is the one page that needs JavaScript to submit: without it, a `<noscript>` notice gives the email address to apply by instead. The browser's `crypto.subtle` is only available over HTTPS and on `localhost`.
 - After applying, the page shows a thank-you message for drop-off or pickup instead of the form
 
 ### Menu (`/menu`) — `pages/menu.blade.php`

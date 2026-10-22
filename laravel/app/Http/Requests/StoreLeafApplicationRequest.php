@@ -3,9 +3,11 @@
 namespace App\Http\Requests;
 
 use App\Models\LeafApplication;
+use App\Services\ProofOfWork;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 /**
  * Validates an application to donate leaves from /leaves/apply.
@@ -17,6 +19,12 @@ class StoreLeafApplicationRequest extends FormRequest
      * rather than the server's UTC date, which changes in the evening.
      */
     public const TIMEZONE = 'America/Denver';
+
+    /**
+     * Shown when the proof of work is missing or invalid, usually because
+     * JavaScript is off or the page was open for more than two hours.
+     */
+    public const PROOF_OF_WORK_MESSAGE = 'We could not verify your browser. Please try again with JavaScript turned on, or email us at contact@wildland.eco to apply.';
 
     /**
      * Today's date where the leaf program runs.
@@ -68,6 +76,30 @@ class StoreLeafApplicationRequest extends FormRequest
             'terms' => ['accepted'],
             // Hidden from people; spam bots fill in every field
             'website' => ['prohibited'],
+            // Proof of work, solved by resources/js/proof-of-work.js; checked in after()
+            'pow_challenge' => ['required', 'string', 'max:255'],
+            'pow_nonce' => ['required', 'string', 'max:16'],
+        ];
+    }
+
+    /**
+     * Check the proof of work once its fields are present. A challenge is
+     * used up even if other fields fail; the form issues a new one.
+     *
+     * @return array<int, callable>
+     */
+    public function after(ProofOfWork $proofOfWork): array
+    {
+        return [
+            function (Validator $validator) use ($proofOfWork) {
+                if ($validator->errors()->hasAny(['pow_challenge', 'pow_nonce'])) {
+                    return;
+                }
+
+                if (! $proofOfWork->verify($this->input('pow_challenge'), $this->input('pow_nonce'))) {
+                    $validator->errors()->add('pow_nonce', self::PROOF_OF_WORK_MESSAGE);
+                }
+            },
         ];
     }
 
@@ -104,6 +136,8 @@ class StoreLeafApplicationRequest extends FormRequest
             'ready_date.after' => 'Choose a date after today, or choose that your bags are ready now.',
             'terms.accepted' => 'Please agree to the terms to apply.',
             'website.prohibited' => 'Something went wrong. Please try again.',
+            'pow_challenge.required' => self::PROOF_OF_WORK_MESSAGE,
+            'pow_nonce.required' => self::PROOF_OF_WORK_MESSAGE,
         ];
     }
 }

@@ -4,10 +4,6 @@
             <h3>— Leaf Program</h3>
             <h1>Leave the Leaves</h1>
 
-            <p class="subtitle">
-                The best thing you can do with fallen leaves is leave them where they fall.
-            </p>
-
             <div class="prose">
                 <p>
                     Fallen leaves aren't waste. Left on your yard, they help retain ground water, recharge aquifers,
@@ -19,11 +15,6 @@
                     and only mow walking paths. When we restore the habitat around our homes, and everywhere else
                     in our lives, we take climate change into our own hands.
                 </p>
-            </div>
-
-            <div class="apply-cta">
-                <p>Raking anyway? Donate your leaves to restore habitat instead of sending them to the landfill.</p>
-                <a class="button full" href="{{ route('leaves.apply') }}">Apply to Donate Leaves</a>
             </div>
         </section>
 
@@ -45,6 +36,10 @@
                     they help retain moisture, regenerate soil, prevent erosion, and rebuild the forest floor in
                     areas devastated by wildfire.
                 </p>
+            </div>
+
+            <div class="apply-cta">
+                <a class="button full" href="{{ route('leaves.apply') }}">Apply to Donate Leaves</a>
             </div>
 
             <div class="options">
