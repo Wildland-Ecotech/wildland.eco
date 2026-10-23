@@ -6,7 +6,7 @@ The planned donation schema is described in [Planned Features](06-planned-featur
 
 ## Current Tables
 
-Laravel's default migrations were removed so that every migration in this project is generated with `php artisan make:migration` and carries the timestamp of when it was created (see [Migration Generation](05-ai-development-notes.md#migration-generation)). The users table and the framework tables for sessions, cache, queues, and password resets will be generated when the features that need them are built.
+Laravel's default migrations were removed so that every migration in this project is generated with `php artisan make:migration` and carries the timestamp of when it was created (see [Migration Generation](05-ai-development-notes.md#migration-generation)). The users table and the framework tables for the cache and queues are added with the donation schema (milestone 5); the session and password reset tables come with accounts (milestone 9).
 
 ### leaf_applications
 
@@ -33,6 +33,6 @@ Until the framework tables exist, local development uses drivers that do not nee
 
 | Setting | Value | Switches to `database` when |
 |---------|-------|-----------------------------|
-| `SESSION_DRIVER` | `file` | Accounts are built (milestone 8) |
+| `SESSION_DRIVER` | `file` | Accounts are built (milestone 9) |
 | `CACHE_STORE` | `file` | The cache table is added (milestone 5) |
 | `QUEUE_CONNECTION` | `sync` | The queue tables are added (milestone 5) |

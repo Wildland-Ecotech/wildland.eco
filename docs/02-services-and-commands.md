@@ -1,6 +1,6 @@
 # Services & Commands
 
-Planned services and commands (payment gateway sync, history import, receipts) are described in [Planned Features](06-planned-features.md).
+Planned services and commands (payment gateway sync, history import, receipts, reporting) are described in [Planned Features](06-planned-features.md).
 
 ## Services
 
@@ -20,7 +20,7 @@ Document each service class and artisan command here as it is added: its purpose
 
 ### leaves:applications (`app/Console/Commands/ListLeafApplications.php`)
 
-Lists leaf program applications from `/leaves/apply`, oldest first, for reviewing them until the administrator pages are built (milestone 9). Times are shown in Fort Collins time.
+Lists leaf program applications from `/leaves/apply`, oldest first, for reviewing them until the administrator pages are built (milestone 10). Times are shown in Fort Collins time.
 
 | Option | Default | Effect |
 |--------|---------|--------|

@@ -200,6 +200,8 @@ All status and type fields use string columns instead of database enum types (My
 
 Money is stored as integer cents (`amount_cents`) with a separate `currency` column, never as floats or decimals.
 
+Never hard-delete data in normal operation. Tables holding people and money use soft deletes (a nullable `deleted_at` column and Eloquent's `SoftDeletes`), foreign keys restrict deletes so the database refuses to remove a referenced row, and append-only logs are never deleted. Lookups by a gateway ID include soft-deleted rows, so imports never duplicate them. A user with transaction history cannot be deleted at all. See [Deletion](06-planned-features.md#deletion).
+
 ## Database Connections
 
 This project uses PostgreSQL 17 + PostGIS 3.5.
