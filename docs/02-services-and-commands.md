@@ -16,6 +16,10 @@ Raising `DIFFICULTY` by one makes the work 16 times harder for people as well as
 
 Document each service class and artisan command here as it is added: its purpose, inputs, side effects, and how to run it.
 
+## Scheduled Tasks
+
+Tasks are scheduled in `routes/console.php` and run by the `scheduler` container (see [Deployment](07-deployment.md)). None are scheduled yet; the nightly payment sync comes with the Stripe integration (milestone 6).
+
 ## Artisan Commands
 
 ### leaves:applications (`app/Console/Commands/ListLeafApplications.php`)

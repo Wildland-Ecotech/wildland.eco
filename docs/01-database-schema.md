@@ -6,7 +6,7 @@ The planned donation schema is described in [Planned Features](06-planned-featur
 
 ## Current Tables
 
-Laravel's default migrations were removed so that every migration in this project is generated with `php artisan make:migration` and carries the timestamp of when it was created (see [Migration Generation](05-ai-development-notes.md#migration-generation)). Framework tables are generated with their own Artisan commands (see [Framework Tables](#framework-tables)). The queue tables are added with the queue worker (milestone 5); the session and password reset tables come with accounts (milestone 9).
+Laravel's default migrations were removed so that every migration in this project is generated with `php artisan make:migration` and carries the timestamp of when it was created (see [Migration Generation](05-ai-development-notes.md#migration-generation)). Framework tables are generated with their own Artisan commands (see [Framework Tables](#framework-tables)); the session and password reset tables come with accounts (milestone 9).
 
 ### users
 
@@ -180,11 +180,13 @@ Requests to donate leaves to the leaf program, by drop-off or pickup. Model: `Ap
 
 ## Framework Tables
 
-Tables Laravel's own features use, generated unchanged from the framework's stubs. They hold no personal data.
+Tables Laravel's own features use, generated unchanged from the framework's stubs. They hold no personal data of their own, though a queued job's payload can include the records it works on.
 
 | Tables | Generated with | Used by |
 |--------|----------------|---------|
-| `cache`, `cache_locks` | `php artisan make:cache-table` | The `database` cache store: proof-of-work challenges already used, and later `queue:restart` signals and rate limits |
+| `cache`, `cache_locks` | `php artisan make:cache-table` | The `database` cache store: proof-of-work challenges already used, `queue:restart` signals, and later rate limits |
+| `jobs` | `php artisan make:queue-table` | The `database` queue: jobs waiting for the queue worker |
+| `failed_jobs` | `php artisan make:queue-failed-table` | Jobs that failed, kept for `queue:retry` (see [Operating a Server](07-deployment.md#operating-a-server)) |
 
 ## Framework Drivers
 
@@ -193,7 +195,7 @@ The drivers set in `laravel/.env.example`. A driver switches to `database` once 
 | Setting | Value | Notes |
 |---------|-------|-------|
 | `CACHE_STORE` | `database` | Uses the `cache` and `cache_locks` tables |
-| `QUEUE_CONNECTION` | `sync` | Switches to `database` when the queue tables and worker are added (milestone 5) |
+| `QUEUE_CONNECTION` | `database` | Uses the `jobs` and `failed_jobs` tables; the `queue` container runs the jobs |
 | `SESSION_DRIVER` | `file` | Switches to `database` when accounts are built (milestone 9) |
 
 Tests use in-memory stores instead (`array` for the cache and sessions, `sync` for the queue), set in `phpunit.xml`.

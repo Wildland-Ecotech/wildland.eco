@@ -25,7 +25,7 @@ The development plan for the wildland.eco Laravel platform: accepting donations,
 | 2 | Consolidate documentation and record this plan | Done |
 | 3 | Convert the site to Blade, SCSS, and vanilla JS | Done |
 | 4 | New production server, webhook deploys, launch at parity | Launched; backups deferred |
-| 5 | Donation database schema and models | In progress |
+| 5 | Donation database schema and models | Done |
 | 6 | Stripe Checkout, webhooks, and history import | Planned |
 | 7 | Donation receipts and transactional email | Planned |
 | 8 | Reporting commands, end-to-end testing in Stripe test mode, then go live | Planned |
@@ -70,11 +70,11 @@ Launched: wildland.eco is served by the production server, and both servers depl
 - **Retire the old static server** once DNS has fully propagated.
 - **Future hardening:** deploy only release tags signed with a maintainer's hardware key (YubiKey), verified on the server against an allowed-signers file that never leaves the server. A compromised GitHub account then cannot deploy code to production.
 
-The queue worker and scheduler containers are added in milestone 5, when the queue tables exist; the deploy script then also restarts the queue worker.
+The queue worker and scheduler containers were added in milestone 5, with the queue tables; the deploy script also restarts the queue worker.
 
 ### 5. Database Schema
 
-See [Planned Schema](#planned-schema). Includes the users table, models, relationships, factories, soft deletes and the rules in [Deletion](#deletion), and creating the General Fund designation in its migration, since deploys run migrations but never seeders. The framework tables for the cache and queue are generated in this milestone, and local development switches `CACHE_STORE` and `QUEUE_CONNECTION` to `database`. Servers keep their existing `laravel/.env`, so once the merge has deployed the tables, staging and production switch both settings to `database` by hand (see [Server Settings](07-deployment.md#server-settings)). The session and password reset tables come with accounts (milestone 9).
+Done. The tables are documented in [Database Schema](01-database-schema.md), and the queue worker and scheduler in [Deployment](07-deployment.md). See [Planned Schema](#planned-schema) for the original plan. Includes the users table, models, relationships, factories, soft deletes and the rules in [Deletion](#deletion), and creating the General Fund designation in its migration, since deploys run migrations but never seeders. The framework tables for the cache and queue were generated in this milestone, with `queue` and `scheduler` containers running in every environment, and local development switches `CACHE_STORE` and `QUEUE_CONNECTION` to `database`. Servers keep their existing `laravel/.env`, so once the merge has deployed the tables, staging and production switch both settings to `database` by hand (see [Server Settings](07-deployment.md#server-settings)). The session and password reset tables come with accounts (milestone 9).
 
 The test database was set up ahead of this milestone, for the leaf program's application form: the `db-test` service is a separate PostgreSQL + PostGIS database matching production, replacing the in-memory SQLite database that Laravel's default `phpunit.xml` configured. Tests never run against SQLite or the development database (see [Running Tests](07-deployment.md#running-tests)).
 

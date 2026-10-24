@@ -2,19 +2,44 @@
 # production). Differences between environments live only in the root .env
 # and laravel/.env files.
 
+# The PHP container shared by app, queue, and scheduler: the same image, code,
+# and user, so all three run the same Laravel application
+x-php: &php
+  build:
+    context: .
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  working_dir: /var/www/laravel
+  user: "${UID:-1000}:${GID:-1000}"
+  volumes:
+    - ./:/var/www
+  networks:
+    - app-network
+
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    <<: *php
     container_name: ${APP_NAME}-app
-    restart: unless-stopped
-    working_dir: /var/www/laravel
-    user: "${UID:-1000}:${GID:-1000}"
-    volumes:
-      - ./:/var/www
-    networks:
-      - app-network
+
+  # Runs queued jobs, such as processing payment gateway webhooks. Exits
+  # after an hour, or when a deploy runs `php artisan queue:restart`, and
+  # Docker starts it again with the current code and configuration.
+  queue:
+    <<: *php
+    container_name: ${APP_NAME}-queue
+    command: php artisan queue:work --sleep=3 --max-time=3600
+    depends_on:
+      - db
+
+  # Runs the tasks scheduled in laravel/routes/console.php, such as the
+  # nightly payment sync. Each minute's run is a new process, so it always
+  # uses the current code.
+  scheduler:
+    <<: *php
+    container_name: ${APP_NAME}-scheduler
+    command: php artisan schedule:work
+    depends_on:
+      - db
 
   nginx:
     image: nginx:alpine

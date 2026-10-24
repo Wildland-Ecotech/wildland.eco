@@ -65,6 +65,12 @@ deploy_commit() {
     log "Caching configuration, routes, and views"
     docker compose exec -T app php artisan optimize
 
+    # The queue worker keeps the code it started with in memory. It exits
+    # after finishing its current job, and Docker starts it again with the
+    # new code and the configuration cached above.
+    log "Restarting the queue worker"
+    docker compose exec -T app php artisan queue:restart
+
     log "Deployed $(git log -1 --format='%h')"
 }
 
