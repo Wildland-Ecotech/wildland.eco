@@ -63,4 +63,24 @@ class Designation extends Model
     {
         return $this->hasMany(Checkout::class);
     }
+
+    /**
+     * Recurring gifts directed to this designation.
+     *
+     * @return HasMany<Subscription, $this>
+     */
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
+    /**
+     * Payments directed to this designation, including failed ones.
+     *
+     * @return HasMany<Donation, $this>
+     */
+    public function donations(): HasMany
+    {
+        return $this->hasMany(Donation::class);
+    }
 }

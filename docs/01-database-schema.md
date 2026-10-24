@@ -23,6 +23,8 @@ Donors and administrators. Model: `App\Models\User`. Donors are created automati
 | created_at, updated_at | |
 | deleted_at | Nullable; soft deletes (see [Deletion](06-planned-features.md#deletion)) |
 
+A user with **transaction history** cannot be deleted, soft or hard: `delete()` and `forceDelete()` throw a `LogicException`. `hasTransactionHistory()` is true when the user has any received donation (`succeeded`, `refunded`, or `partially_refunded`), including a soft-deleted one. Soft-deleting a user without it, such as a spam account from a carding attack, also soft-deletes their donations (all failed or pending), checkouts, and subscriptions, keeping them out of reports. Restoring the user does not restore those. Hard deletes are deliberate one-offs, which foreign keys refuse while any related row remains.
+
 ### designations
 
 What a donor directed their gift toward (see [Designations](06-planned-features.md#designations)). Model: `App\Models\Designation`.
@@ -37,7 +39,7 @@ What a donor directed their gift toward (see [Designations](06-planned-features.
 | created_at, updated_at | |
 | deleted_at | Nullable; soft deletes |
 
-The **General Fund** (`general-fund`, unrestricted) is inserted by the table's migration rather than a seeder, because deploys run migrations but never seeders. `Designation::generalFund()` returns it. Checkouts created without a designation are assigned it automatically (`App\Models\Concerns\BelongsToDesignation`), including payments imported from outside our donation flow; subscriptions and donations will use the same trait.
+The **General Fund** (`general-fund`, unrestricted) is inserted by the table's migration rather than a seeder, because deploys run migrations but never seeders. `Designation::generalFund()` returns it. Checkouts, subscriptions, and donations created without a designation are assigned it automatically (`App\Models\Concerns\BelongsToDesignation`), including payments imported from outside our donation flow.
 
 ### gateway_customers
 
@@ -69,9 +71,92 @@ Every attempt to donate, recorded when the donor submits the donate form, includ
 | created_at, updated_at | |
 | deleted_at | Nullable; soft deletes |
 
+### subscriptions
+
+Recurring gifts, synced from the payment gateway. Model: `App\Models\Subscription`.
+
+| Column | Notes |
+|--------|-------|
+| user_id, designation_id | Foreign keys; restrict deletes. The designation defaults to the General Fund |
+| gateway, gateway_subscription_id | Unique together, including among soft-deleted rows |
+| amount_cents | Integer |
+| currency | Lowercase ISO code as the gateway sends it, default `usd` |
+| interval | String: `month` or `year` (`Subscription::INTERVALS`) |
+| status | String: `incomplete`, `active`, `past_due`, `unpaid`, `paused`, or `canceled` (`Subscription::STATUSES`). Indexed |
+| started_at, current_period_end, cancel_at, canceled_at | Nullable timestamps |
+| gateway_data | Nullable JSONB copy of the latest gateway object |
+| created_at, updated_at | |
+| deleted_at | Nullable; soft deletes |
+
+### donations
+
+One row per payment, one-time or from a recurring gift, including failed payments. Model: `App\Models\Donation`.
+
+| Column | Notes |
+|--------|-------|
+| user_id, designation_id | Foreign keys; restrict deletes. The designation defaults to the General Fund |
+| subscription_id | Nullable foreign key; set for payments of a recurring gift |
+| checkout_id | Nullable foreign key; set for payments started on our donate page |
+| gateway, gateway_payment_id | Unique together, including among soft-deleted rows; the Stripe PaymentIntent. A payment received through several webhook events, a retried webhook, or a re-import is one row |
+| gateway_invoice_id | Nullable; set for subscription payments. Indexed |
+| amount_cents | Integer |
+| fee_cents | Nullable integer; the gateway's processing fee, once known |
+| refunded_cents | Integer, default 0 |
+| currency | Lowercase ISO code as the gateway sends it, default `usd` |
+| status | String: `pending`, `succeeded`, `failed`, `refunded`, or `partially_refunded` (`Donation::STATUSES`). Indexed |
+| paid_at | Nullable timestamp |
+| gateway_data | Nullable JSONB copy of the latest gateway object |
+| created_at, updated_at | |
+| deleted_at | Nullable; soft deletes |
+
+A **received** payment is one we actually collected, even if it was refunded later: `succeeded`, `refunded`, or `partially_refunded` (`Donation::RECEIVED_STATUSES`, the `received()` scope, and `wasReceived()`). Received payments make up a user's transaction history.
+
+### subscription_events
+
+The history of each recurring gift in our own vocabulary, independent of the gateway. Model: `App\Models\SubscriptionEvent`. Append-only: there is no `deleted_at`, and the model throws a `LogicException` on any update or delete.
+
+| Column | Notes |
+|--------|-------|
+| subscription_id | Foreign key; restricts deletes. `$subscription->events` lists them oldest first |
+| type | String: `created`, `renewed`, `payment_failed`, `amount_changed`, `paused`, `resumed`, `canceled`, or `reactivated` (`SubscriptionEvent::TYPES`) |
+| source | String: `webhook`, `import`, `admin`, or `donor` (`SubscriptionEvent::SOURCES`) |
+| source_reference | The event, invoice, or action that caused it. Unique together with `subscription_id` and `type`, so sync code records events with `firstOrCreate()` on those three columns and a re-import never duplicates history |
+| occurred_at | Timestamp |
+| data | Nullable JSONB |
+| created_at, updated_at | |
+
+### webhook_events
+
+Every incoming payment gateway webhook, stored before it is processed on the queue, for deduplication, debugging, and replay. Model: `App\Models\WebhookEvent`. Append-only: only the processing status changes after an event is stored, there is no `deleted_at`, and the model throws a `LogicException` on delete.
+
+| Column | Notes |
+|--------|-------|
+| gateway, event_id | Unique together, so a redelivered event is stored once |
+| type | The gateway's event type, such as `checkout.session.completed`. Indexed |
+| payload | JSONB; the event as received |
+| processed_at | Nullable timestamp; set once processing succeeds (`isProcessed()`) |
+| attempts | Integer, default 0 |
+| error | Nullable text; the last processing failure |
+| created_at, updated_at | |
+
+### donation_receipts
+
+Tax receipts sent to donors. Model: `App\Models\DonationReceipt`. The receipt number format and the receipt email are built in milestone 7.
+
+| Column | Notes |
+|--------|-------|
+| user_id | Foreign key; restricts deletes |
+| donation_id | Nullable foreign key; set for single-gift receipts |
+| receipt_number | Unique, including among soft-deleted receipts, so a number is never reused |
+| type | String: `single` or `annual_summary` (`DonationReceipt::TYPES`) |
+| tax_year, amount_cents | Integers |
+| sent_at | Nullable timestamp |
+| created_at, updated_at | |
+| deleted_at | Nullable; soft deletes |
+
 ### Finding Records by Gateway ID
 
-Models synced from a payment gateway use `App\Models\Concerns\HasGatewayId`. `findByGatewayId($gateway, $id)` looks a record up by the gateway's own ID, including soft-deleted rows, so receiving the same object again updates its record without restoring it and never creates a duplicate (see [Payment Sync and Import](06-planned-features.md#payment-sync-and-import)). Each model names its ID column in `GATEWAY_ID_COLUMN`: `gateway_customer_id` for gateway customers and `gateway_session_id` for checkouts.
+Models synced from a payment gateway use `App\Models\Concerns\HasGatewayId`. `findByGatewayId($gateway, $id)` looks a record up by the gateway's own ID, including soft-deleted rows, so receiving the same object again updates its record without restoring it and never creates a duplicate (see [Payment Sync and Import](06-planned-features.md#payment-sync-and-import)). Each model names its ID column in `GATEWAY_ID_COLUMN`: `gateway_customer_id` for gateway customers, `gateway_session_id` for checkouts, `gateway_subscription_id` for subscriptions, and `gateway_payment_id` for donations.
 
 ### leaf_applications
 
