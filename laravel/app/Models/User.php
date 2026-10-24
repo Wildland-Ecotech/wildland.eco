@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -64,5 +65,25 @@ class User extends Authenticatable
         return Attribute::make(
             set: fn (string $value) => mb_strtolower(trim($value)),
         );
+    }
+
+    /**
+     * The donor's customer records at payment gateways.
+     *
+     * @return HasMany<GatewayCustomer, $this>
+     */
+    public function gatewayCustomers(): HasMany
+    {
+        return $this->hasMany(GatewayCustomer::class);
+    }
+
+    /**
+     * The donor's attempts to donate, including ones never paid.
+     *
+     * @return HasMany<Checkout, $this>
+     */
+    public function checkouts(): HasMany
+    {
+        return $this->hasMany(Checkout::class);
     }
 }

@@ -74,7 +74,7 @@ The queue worker and scheduler containers are added in milestone 5, when the que
 
 ### 5. Database Schema
 
-See [Planned Schema](#planned-schema). Includes the users table, models, relationships, factories, soft deletes and the rules in [Deletion](#deletion), and seeding the General Fund designation. The framework tables for the cache and queue are generated in this milestone, and local development switches `CACHE_STORE` and `QUEUE_CONNECTION` to `database`. The session and password reset tables come with accounts (milestone 9).
+See [Planned Schema](#planned-schema). Includes the users table, models, relationships, factories, soft deletes and the rules in [Deletion](#deletion), and creating the General Fund designation in its migration, since deploys run migrations but never seeders. The framework tables for the cache and queue are generated in this milestone, and local development switches `CACHE_STORE` and `QUEUE_CONNECTION` to `database`. Servers keep their existing `laravel/.env`, so once the merge has deployed the tables, staging and production switch both settings to `database` by hand (see [Server Settings](07-deployment.md#server-settings)). The session and password reset tables come with accounts (milestone 9).
 
 The test database was set up ahead of this milestone, for the leaf program's application form: the `db-test` service is a separate PostgreSQL + PostGIS database matching production, replacing the in-memory SQLite database that Laravel's default `phpunit.xml` configured. Tests never run against SQLite or the development database (see [Running Tests](07-deployment.md#running-tests)).
 
@@ -168,7 +168,7 @@ The goal is the least possible friction before a donor has committed, without ex
 - **History importer** (`artisan` command): walks Stripe's customers, subscriptions, invoices, and payments for a date range and runs them through the same sync functions. Stripe only keeps its event log for about 30 days, so history is rebuilt from current objects rather than replayed events; older subscriptions get their key milestones (started, canceled) rather than every change.
 - **Nightly sync** re-runs the importer for recent days to catch any missed webhook.
 - **Existing Payment Link donations** have no checkout record or metadata from our system. They are imported like any other payment: matched to a user by email (some may not have a Stripe Customer), and assigned to the General Fund.
-- **Test and live mode** never mix. Each environment uses one set of Stripe keys and imports only that mode's data; every synced record stores `livemode`, and records from the wrong mode are rejected. Production holds live data only.
+- **Test and live mode** never mix. Each environment has its own database and one set of Stripe keys: local development and staging use test mode, and production uses live mode only. Records don't store a mode, since every row in a database comes from that environment's mode. Instead, sync and import compare the `livemode` flag on every Stripe object and webhook event with the mode the server is configured for, and reject a mismatch as an error instead of saving it.
 - **Webhook events handled:** Checkout Session completed and expired; invoice paid and payment failed; payment succeeded and failed; charge refunded; subscription created, updated, and deleted; customer updated. Exact event names and payload fields are confirmed against the pinned Stripe API version during implementation.
 
 ## Designations
@@ -216,13 +216,12 @@ Money is stored as integer cents with a `currency` column. Status and type field
 
 ### gateway_customers
 
-Links a user to one or more customer records at a payment gateway (a donor may have several in Stripe, and separate test and live records).
+Links a user to one or more customer records at a payment gateway (a donor may have several in Stripe).
 
 | Column | Notes |
 |--------|-------|
 | user_id | Foreign key |
 | gateway, gateway_customer_id | Unique together |
-| livemode | Boolean |
 | deleted_at | Nullable; soft deletes |
 
 ### checkouts
@@ -237,7 +236,6 @@ Every attempt to donate, including ones never paid.
 | frequency | `one_time`, `monthly`, `annual` |
 | status | `started`, `completed`, `expired` |
 | gateway, gateway_session_id | Session ID unique together with gateway |
-| livemode | Boolean |
 | expires_at, completed_at, reminder_sent_at | Nullable timestamps |
 | deleted_at | Nullable; soft deletes |
 
@@ -251,7 +249,6 @@ Every attempt to donate, including ones never paid.
 | interval | `month`, `year` |
 | status | `incomplete`, `active`, `past_due`, `unpaid`, `paused`, `canceled` |
 | started_at, current_period_end, cancel_at, canceled_at | Nullable timestamps |
-| livemode | Boolean |
 | gateway_data | JSONB copy of the latest gateway object |
 | deleted_at | Nullable; soft deletes |
 
@@ -268,7 +265,6 @@ One row per payment, one-time or recurring.
 | amount_cents, fee_cents, refunded_cents, currency | Fee nullable; refunded defaults to 0 |
 | status | `pending`, `succeeded`, `failed`, `refunded`, `partially_refunded` |
 | paid_at | Nullable timestamp |
-| livemode | Boolean |
 | gateway_data | JSONB copy of the latest gateway object |
 | deleted_at | Nullable; soft deletes |
 
@@ -292,7 +288,7 @@ Raw log of every incoming webhook, for deduplication, debugging, and replay. App
 | Column | Notes |
 |--------|-------|
 | gateway, event_id | Unique together |
-| type, livemode | |
+| type | |
 | payload | JSONB |
 | processed_at, attempts, error | Processing status |
 
