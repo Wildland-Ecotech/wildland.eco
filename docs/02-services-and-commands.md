@@ -20,7 +20,7 @@ Document each service class and artisan command here as it is added: its purpose
 
 ### leaves:applications (`app/Console/Commands/ListLeafApplications.php`)
 
-Lists leaf program applications from `/leaves/apply`, oldest first, for reviewing them until the administrator pages are built (milestone 10). Times are shown in Fort Collins time.
+Lists leaf program applications from `/leaves/apply`, oldest first, for reviewing them until the administrator pages are built (milestone 10). Times are shown in Fort Collins time. Soft-deleted applications are not listed.
 
 | Option | Default | Effect |
 |--------|---------|--------|

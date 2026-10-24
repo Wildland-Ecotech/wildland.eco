@@ -26,6 +26,7 @@ Requests to donate leaves to the leaf program, by drop-off or pickup. Model: `Ap
 | questions | Nullable text |
 | terms_accepted_at | Timestamp; when the donor agreed to the program's terms |
 | created_at, updated_at | |
+| deleted_at | Nullable; soft deletes. Deleted applications are kept but hidden, including from `leaves:applications` (see [Deletion](06-planned-features.md#deletion)) |
 
 ## Framework Drivers
 

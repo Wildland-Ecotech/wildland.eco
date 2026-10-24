@@ -174,7 +174,10 @@ docker compose exec app php artisan make:migration create_second_table
 
 Every public page must render and work without JavaScript. Pages are rendered on the server with Blade, and JavaScript only enhances them (animations, live labels, overlays). Forms are real HTML forms that submit to the server and are validated there. Features that cannot work without JavaScript, such as the canvas border animation, need a CSS fallback.
 
-The one agreed exception is proof-of-work spam protection on public forms, starting with the leaf application form: submitting requires JavaScript to solve the challenge. Such pages still render without JavaScript and show a `<noscript>` notice with another way to reach us (see [Frontend](04-frontend.md#apply-to-donate-leaves-leavesapply--pagesleaves-applybladephp)).
+There are two agreed exceptions:
+
+- **Proof-of-work spam protection** on public forms, starting with the leaf application form: submitting requires JavaScript to solve the challenge. Such pages still render without JavaScript and show a `<noscript>` notice with another way to reach us (see [Frontend](04-frontend.md#apply-to-donate-leaves-leavesapply--pagesleaves-applybladephp)).
+- **Payment.** Stripe's payment pages and fields use JavaScript for fraud detection, and we don't control them, so completing a payment requires it and has no fallback. Our own pages, including the donate page, still render without JavaScript.
 
 Do not add a runtime Node.js process (for example, server-side rendering) to production. Node is only used to build assets.
 

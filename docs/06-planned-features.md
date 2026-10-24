@@ -126,7 +126,7 @@ After launch. Stripe Checkout and the no-code Customer Portal are a quick MVP so
 
 - Payment fields on our own donate page, built with Stripe's embeddable payment components (confirmed against the pinned API version when built), in place of the redirect to Stripe Checkout.
 - Donors manage recurring gifts from the member dashboard (milestone 9): update their payment method, change the amount, or cancel, replacing the Customer Portal. Until then, donors change an amount by canceling and starting a new gift.
-- Stripe's payment fields need JavaScript. Following [Progressive Enhancement](05-ai-development-notes.md#progressive-enhancement), visitors without JavaScript still give through Stripe Checkout, which remains the fallback.
+- Stripe's payment fields need JavaScript, which Stripe uses for fraud detection, so paying has no fallback without it; this is an agreed exception to [Progressive Enhancement](05-ai-development-notes.md#progressive-enhancement).
 - The `PaymentGateway` interface and gateway-neutral columns keep this a change to the donation pages, not to the schema or the sync code.
 
 ## Donation Flow
@@ -184,7 +184,8 @@ For the MVP, all gifts go to the General Fund and the donate page has no selecto
 - **Soft deletes.** Tables holding people and money have a nullable `deleted_at` column and use Eloquent's soft deletes: `users`, `designations`, `gateway_customers`, `checkouts`, `subscriptions`, `donations`, `donation_receipts`, and `leaf_applications`. Soft-deleted rows stay in the database and are hidden from normal queries.
 - **Append-only logs are never deleted.** `subscription_events` and `webhook_events` record what happened and have no `deleted_at`.
 - **Foreign keys restrict deletes.** The database refuses to hard-delete a row that another row references, as a safeguard behind the application rules.
-- **Users with transaction history cannot be deleted**, soft or hard. Transaction history means a payment we actually received: a one-time or recurring donation that succeeded, including one refunded later. Failed payments, unpaid checkouts, and subscriptions that never collected a payment do not count. A user without any, such as a spam account, can be soft-deleted, and their email address stays reserved by the soft-deleted row.
+- **Users with transaction history cannot be deleted**, soft or hard. Transaction history means a payment we actually received: a one-time or recurring donation that succeeded, including one refunded later. Refunds are kept for accounting, and a refunded payment still counts. Failed payments, unpaid checkouts, and subscriptions that never collected a payment do not count. A user without any, such as a spam account, can be soft-deleted, and their email address stays reserved by the soft-deleted row.
+- **Failed payments are recorded**, but they do not protect an account from deletion. Donation forms are a common target of carding attacks, where stolen card numbers are tested with small gifts, leaving an account full of failed payments. Soft-deleting such an account soft-deletes its failed donations, checkouts, and subscriptions with it, so they stay out of reports such as the failed payment rate.
 - **Hard deletes** happen only when absolutely necessary, as a deliberate one-off action rather than a feature of the site.
 
 ## Planned Schema
