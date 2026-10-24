@@ -25,7 +25,7 @@ The development plan for the wildland.eco Laravel platform: accepting donations,
 | 2 | Consolidate documentation and record this plan | Done |
 | 3 | Convert the site to Blade, SCSS, and vanilla JS | Done |
 | 4 | New production server, webhook deploys, launch at parity | Launched; backups deferred |
-| 5 | Donation database schema and models | Next |
+| 5 | Donation database schema and models | In progress |
 | 6 | Stripe Checkout, webhooks, and history import | Planned |
 | 7 | Donation receipts and transactional email | Planned |
 | 8 | Reporting commands, end-to-end testing in Stripe test mode, then go live | Planned |
@@ -108,7 +108,7 @@ After launch. See [Accounts](#accounts). The dashboard shows donation history, a
 
 ### 10. Administrator Pages
 
-After launch. Role-gated pages for admins and board members: donor search, donation and subscription lists with filters, a donor detail page with full history, CSV export, and the reports below. Refunds are issued from the Stripe dashboard and synced back automatically. Administrators can soft-delete spam accounts that have no transaction history (see [Deletion](#deletion)).
+After launch. Pages for users with the `admin` role, which board members are given too: donor search, donation and subscription lists with filters, a donor detail page with full history, CSV export, and the reports below. Refunds are issued from the Stripe dashboard and synced back automatically. Administrators can soft-delete spam accounts that have no transaction history (see [Deletion](#deletion)).
 
 **Reports:**
 
@@ -149,7 +149,7 @@ The goal is the least possible friction before a donor has committed, without ex
 - **Verification by email link.** Receipt emails include a signed link that verifies the address and signs the donor in. If a password was set before verification, verifying clears it and the verified owner sets their own.
 - **Email login links.** Donors can always sign in with a one-time link sent by email, so a password is never required. The request form always responds the same way, whether or not an account exists, so it cannot be used to find out who has donated.
 - **Existing accounts.** If the email already belongs to a verified account, the thank-you page asks the donor to sign in instead of offering a password.
-- **Roles:** `donor`, `admin`, `board_member`.
+- **Roles:** `donor` and `admin`. Board members are given `admin`; a separate role is added only once board members need different permissions.
 - Authentication uses Laravel Fortify, with views written in the site's own design.
 
 ## Abandoned Checkouts
@@ -200,7 +200,7 @@ Money is stored as integer cents with a `currency` column. Status and type field
 | email | Unique; stored lowercase, so finding a donor by email is case-insensitive |
 | email_verified_at | Nullable timestamp |
 | password | Nullable; donors can always sign in with an email link |
-| role | String, default `donor` (`donor`, `admin`, `board_member`) |
+| role | String, default `donor` (`donor`, `admin`) |
 | remember_token | Nullable |
 | deleted_at | Nullable; soft deletes |
 

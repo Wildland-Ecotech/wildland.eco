@@ -6,7 +6,22 @@ The planned donation schema is described in [Planned Features](06-planned-featur
 
 ## Current Tables
 
-Laravel's default migrations were removed so that every migration in this project is generated with `php artisan make:migration` and carries the timestamp of when it was created (see [Migration Generation](05-ai-development-notes.md#migration-generation)). The users table and the framework tables for the cache and queues are added with the donation schema (milestone 5); the session and password reset tables come with accounts (milestone 9).
+Laravel's default migrations were removed so that every migration in this project is generated with `php artisan make:migration` and carries the timestamp of when it was created (see [Migration Generation](05-ai-development-notes.md#migration-generation)). The framework tables for the cache and queues are added with the donation schema (milestone 5); the session and password reset tables come with accounts (milestone 9).
+
+### users
+
+Donors and administrators. Model: `App\Models\User`. Donors are created automatically from the email address entered on the donate page, with no password. The table holds donors' personal contact details; never copy its rows into the repository, issues, or chat.
+
+| Column | Notes |
+|--------|-------|
+| name | Nullable |
+| email | Unique, including among soft-deleted users, so a deleted account keeps its address reserved. Stored lowercase by the model, so finding a user by email is case-insensitive |
+| email_verified_at | Nullable timestamp |
+| password | Nullable; hashed by the model. Donors can always sign in with an email link once accounts are built |
+| role | String, default `donor`: `donor` or `admin` (`User::ROLES`). Board members are given `admin` until they need different permissions. Not mass assignable, so form input can never change it |
+| remember_token | Nullable |
+| created_at, updated_at | |
+| deleted_at | Nullable; soft deletes (see [Deletion](06-planned-features.md#deletion)) |
 
 ### leaf_applications
 
