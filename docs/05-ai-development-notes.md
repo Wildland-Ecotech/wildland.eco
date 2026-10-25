@@ -126,10 +126,11 @@ docker compose exec app php artisan test
 
 When a commit changes how the servers run, its QA steps say what happens when it is deployed and what, if anything, the developer must do on the servers. See [Deployment](07-deployment.md).
 
-- **Applied by the next deploy:** application code, Docker images and their build files (`docker compose build` rebuilds changed images and `up` recreates only the changed containers), `docker-compose.yml`, and Caddyfiles (reloaded on every deploy).
-- **Need a manual step:** systemd units are copied onto the host, so re-run `sudo deploy/setup.sh`; changes to a server's `.env` files need a manual deploy (`sudo systemctl start wildland-deploy`).
+- **Applied by the next deploy:** application code, Docker images and their build files, `docker-compose.yml`, and Caddyfiles (reloaded on every deploy). Each deploy builds new images with the commit's code baked in while the old containers keep running, then replaces the containers (see [Images](07-deployment.md#images)).
+- **Need a manual step:** systemd units are copied onto the host, so re-run `sudo deploy/setup.sh`; changes to a server's `.env` files need a manual deploy (`sudo systemctl start wildland-deploy`), since containers read `laravel/.env` when they start.
 - **Configuration a container reads only at startup** is copied into its image rather than mounted, so changing it rebuilds the image and recreates the container.
-- **Changes to the deploy process itself** are first deployed by the old version. Describe how that first deploy behaves.
+- **Nothing from the clone is mounted into the app, queue, scheduler, or nginx containers on servers**; only `docker-compose.dev.yml`, which servers never load, mounts the code. Services needed only locally belong in that file.
+- **Changes to the deploy script** take effect on their own deploy: the running script restarts with the new version after checking out the commit.
 
 Server rules that must hold:
 

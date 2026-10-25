@@ -29,7 +29,7 @@ docker compose run --rm node npm ci
 docker compose run --rm node npm run build
 ```
 
-Set a real `DB_PASSWORD` in both `.env` files first. The site will be available at `http://localhost:8080`. See [Deployment](docs/07-deployment.md) for details, including hot reloading.
+Set a real `DB_PASSWORD` in both `.env` files first. The site will be available at `http://localhost:8080`. The root `.env` loads `docker-compose.dev.yml`, which mounts your working copy into the containers. See [Deployment](docs/07-deployment.md) for details, including hot reloading.
 
 ## Documentation
 

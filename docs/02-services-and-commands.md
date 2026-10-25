@@ -76,7 +76,7 @@ Objects are read as arrays (`toArray()` and Laravel's `data_get()`), because rea
 
 ### StripeEventProcessor (`app/Payments/Stripe/StripeEventProcessor.php`)
 
-Processes a stored Stripe webhook event by calling the `StripeSync` function for the object it is about. `EVENTS` lists every event type Stripe sends us, mapped to its sync function. It must match `STRIPE_EVENTS` in `docker-compose.yml` (a test checks this) and the events the server webhook endpoints subscribe to. Events without a sync function yet, and any other event, are accepted and marked processed without changes.
+Processes a stored Stripe webhook event by calling the `StripeSync` function for the object it is about. `EVENTS` lists every event type Stripe sends us, mapped to its sync function. It must match `STRIPE_EVENTS` in `docker-compose.dev.yml` (a test checks this) and the events the server webhook endpoints subscribe to. Events without a sync function yet, and any other event, are accepted and marked processed without changes.
 
 ### ProcessWebhookEvent (`app/Jobs/ProcessWebhookEvent.php`)
 
