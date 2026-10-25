@@ -71,6 +71,11 @@ deploy_commit() {
     log "Restarting the queue worker"
     docker compose exec -T app php artisan queue:restart
 
+    # Fails the deploy if the Stripe keys don't match this site's mode:
+    # live mode only on https://wildland.eco, test mode everywhere else
+    log "Checking the Stripe configuration"
+    docker compose exec -T app php artisan stripe:check
+
     log "Deployed $(git log -1 --format='%h')"
 }
 
@@ -80,6 +85,12 @@ deploy() {
 
     if [[ -z "$branch" ]]; then
         log "DEPLOY_BRANCH is not set in .env; refusing to deploy"
+        exit 1
+    fi
+
+    # The Stripe CLI is for local development only
+    if [[ ",$(env_value COMPOSE_PROFILES)," == *",stripe,"* ]]; then
+        log "COMPOSE_PROFILES includes stripe, which is for local development only; refusing to deploy"
         exit 1
     fi
 

@@ -11,6 +11,14 @@ x-php: &php
   restart: unless-stopped
   working_dir: /var/www/laravel
   user: "${UID:-1000}:${GID:-1000}"
+  environment:
+    # The container user has no home directory; this gives Tinker and
+    # Composer somewhere writable for their settings and caches
+    HOME: /tmp
+    # The Stripe SDK turns notices from Stripe into PHP warnings, which
+    # Laravel throws as exceptions, failing API calls that succeeded. The SDK
+    # reads this from the process environment, not laravel/.env.
+    STRIPE_SUPPRESS_NOTICES: "true"
   volumes:
     - ./:/var/www
   networks:
@@ -104,6 +112,47 @@ services:
       npm_config_cache: /tmp/.npm
     volumes:
       - ./:/var/www
+
+  # Local development only, never on servers (deploy/deploy.sh refuses to
+  # deploy with this profile). Forwards Stripe test mode events to the
+  # webhook endpoint, using STRIPE_SECRET from laravel/.env. Start it when
+  # testing payments, and copy the signing secret it prints (whsec_) into
+  # STRIPE_WEBHOOK_SECRET:
+  #   docker compose --profile stripe up -d stripe
+  #   docker compose logs stripe
+  stripe:
+    image: stripe/stripe-cli:v1.55.1
+    profiles: ["stripe"]
+    container_name: ${APP_NAME}-stripe
+    user: "${UID:-1000}:${GID:-1000}"
+    env_file:
+      - path: laravel/.env
+        required: false
+    environment:
+      XDG_CONFIG_HOME: /tmp/.config
+      STRIPE_DEVICE_NAME: ${APP_NAME}-local
+      # The events the payment sync handles. Keep in step with the events
+      # the staging and production webhook endpoints send (see
+      # docs/07-deployment.md#stripe)
+      STRIPE_EVENTS: >-
+        checkout.session.completed,checkout.session.expired,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,invoice.paid,invoice.payment_failed,payment_intent.succeeded,payment_intent.payment_failed,charge.refunded,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,customer.updated
+    # Refuses to start with anything but a test mode key
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        case "$$STRIPE_SECRET" in
+          sk_test_*|rk_test_*) ;;
+          *) echo "STRIPE_SECRET in laravel/.env must be a test mode key." >&2; exit 1 ;;
+        esac
+        STRIPE_API_KEY="$$STRIPE_SECRET" exec stripe listen \
+          --forward-to http://nginx/webhooks/stripe \
+          --events-from @self \
+          --events "$$STRIPE_EVENTS"
+    depends_on:
+      - nginx
+    networks:
+      - app-network
 
   # Servers only (COMPOSE_PROFILES=server in the root .env).
   # Terminates HTTPS for the domains in deploy/caddy/$CADDY_SITE.Caddyfile.

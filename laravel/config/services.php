@@ -35,4 +35,32 @@ return [
         ],
     ],
 
+    /*
+    | Stripe, used through the Stripe PHP SDK behind our own payment gateway
+    | interface. Local development and staging use test mode keys, and only
+    | https://wildland.eco may use live mode (see App\Payments\Stripe\StripeMode).
+    | Payments are disabled while the secret key is empty.
+    */
+    'stripe' => [
+        // A secret (sk_) or restricted (rk_) API key
+        'secret' => env('STRIPE_SECRET'),
+
+        // The signing secret (whsec_) of this environment's webhook endpoint,
+        // or the one printed by the Stripe CLI in local development
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+
+        // The single "Donation" product every gift's price is attached to;
+        // test and live mode each have their own
+        'donation_product_id' => env('STRIPE_DONATION_PRODUCT_ID'),
+
+        // The Customer Portal's no-code login link, where donors manage
+        // their recurring gifts
+        'portal_login_url' => env('STRIPE_PORTAL_LOGIN_URL'),
+
+        // Pinned, so a Stripe or SDK upgrade never changes the shape of API
+        // responses unannounced. Change it deliberately, together with the
+        // SDK, after checking Stripe's changelog.
+        'api_version' => '2026-09-30.endive',
+    ],
+
 ];

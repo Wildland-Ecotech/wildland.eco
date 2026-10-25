@@ -26,7 +26,7 @@ The development plan for the wildland.eco Laravel platform: accepting donations,
 | 3 | Convert the site to Blade, SCSS, and vanilla JS | Done |
 | 4 | New production server, webhook deploys, launch at parity | Launched; backups deferred |
 | 5 | Donation database schema and models | Done |
-| 6 | Stripe Checkout, webhooks, and history import | Planned |
+| 6 | Stripe Checkout, webhooks, and history import | In progress |
 | 7 | Donation receipts and transactional email | Planned |
 | 8 | Reporting commands, end-to-end testing in Stripe test mode, then go live | Planned |
 | 9 | Donor accounts and member dashboard | After launch |
@@ -80,7 +80,9 @@ The test database was set up ahead of this milestone, for the leaf program's app
 
 ### 6. Stripe Integration
 
-- `PaymentGateway` interface with a Stripe implementation; the Stripe API version is pinned in configuration.
+- Done: the Stripe PHP SDK with the API version pinned in `config/services.php`, the test and live mode check (`StripeMode` and `stripe:check`, run by every deploy), and the Stripe CLI for local webhook testing.
+- `PaymentGateway` interface with a Stripe implementation.
+- Every Checkout Session uses one "Donation" product (`STRIPE_DONATION_PRODUCT_ID`, one per mode) with the donor's amount set inline, and a monthly or yearly interval for recurring gifts, so any amount works without creating prices in advance.
 - Donate form → Checkout Session → Stripe-hosted payment page → thank-you page.
 - Checkout reuses a donor's existing Stripe customer, so the Customer Portal shows all of their recurring gifts together. When several Stripe customers share an email address, the portal's login link opens the most recently created one with an active subscription.
 - Webhook endpoint that verifies Stripe's signature, stores the event, and processes it on the queue.
@@ -168,7 +170,7 @@ The goal is the least possible friction before a donor has committed, without ex
 - **History importer** (`artisan` command): walks Stripe's customers, subscriptions, invoices, and payments for a date range and runs them through the same sync functions. Stripe only keeps its event log for about 30 days, so history is rebuilt from current objects rather than replayed events; older subscriptions get their key milestones (started, canceled) rather than every change.
 - **Nightly sync** re-runs the importer for recent days to catch any missed webhook.
 - **Existing Payment Link donations** have no checkout record or metadata from our system. They are imported like any other payment: matched to a user by email (some may not have a Stripe Customer), and assigned to the General Fund.
-- **Test and live mode** never mix. Each environment has its own database and one set of Stripe keys: local development and staging use test mode, and production uses live mode only. Records don't store a mode, since every row in a database comes from that environment's mode. Instead, sync and import compare the `livemode` flag on every Stripe object and webhook event with the mode the server is configured for, and reject a mismatch as an error instead of saving it.
+- **Test and live mode** never mix. Each environment has its own database and one set of Stripe keys: local development and staging use test mode, and production uses live mode only. The mode is enforced, not just configured: only `APP_URL` `https://wildland.eco` may use a live key, and every deploy runs `stripe:check`, which fails on a key for the wrong mode. Records don't store a mode, since every row in a database comes from that environment's mode. Instead, sync and import compare the `livemode` flag on every Stripe object and webhook event with the mode the server is configured for, and reject a mismatch as an error instead of saving it.
 - **Webhook events handled:** Checkout Session completed and expired; invoice paid and payment failed; payment succeeded and failed; charge refunded; subscription created, updated, and deleted; customer updated. Exact event names and payload fields are confirmed against the pinned Stripe API version during implementation.
 
 ## Designations

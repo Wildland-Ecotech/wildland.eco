@@ -14,6 +14,17 @@ Proof-of-work spam protection for public forms, used by the leaf application for
 
 Raising `DIFFICULTY` by one makes the work 16 times harder for people as well as bots.
 
+### StripeMode (`app/Payments/Stripe/StripeMode.php`)
+
+Keeps Stripe's test and live modes apart. Only the production site may use live mode.
+
+- `expected()` returns `live` when the host in `APP_URL` is `wildland.eco` (`LIVE_HOST`), and `test` for every other host, including staging and local development. The mode comes from `APP_URL` rather than its own setting, since staging deliberately runs with `APP_ENV=production`.
+- `ofKey($key)` reads a key's mode from its prefix: `sk_live_` or `rk_live_` is live, and `sk_test_` or `rk_test_` is test.
+- `assertValid()` throws a `RuntimeException` unless `STRIPE_SECRET` is set and its mode matches `expected()`. The message never includes the key.
+- `expectsLivemode()` is for sync code, which rejects any Stripe object or event whose `livemode` flag doesn't match.
+
+The `Stripe\StripeClient` singleton (bound in `AppServiceProvider`) calls `assertValid()` when it is first resolved and uses the API version pinned in `config/services.php`. The check runs then, not at boot, so a wrong key can never stop artisan commands, including the ones a deploy runs to fix it.
+
 Document each service class and artisan command here as it is added: its purpose, inputs, side effects, and how to run it.
 
 ## Scheduled Tasks
@@ -21,6 +32,18 @@ Document each service class and artisan command here as it is added: its purpose
 Tasks are scheduled in `routes/console.php` and run by the `scheduler` container (see [Deployment](07-deployment.md)). None are scheduled yet; the nightly payment sync comes with the Stripe integration (milestone 6).
 
 ## Artisan Commands
+
+### stripe:check (`app/Console/Commands/CheckStripeConfiguration.php`)
+
+Checks that the Stripe settings match the mode this site must use, without calling Stripe. Deploys run it after caching the configuration, so a wrong key fails the deploy instead of taking payments in the wrong mode.
+
+- `STRIPE_SECRET` empty: passes with a warning that payments are disabled, so servers deploy normally before Stripe is set up.
+- `STRIPE_SECRET` set: fails if its mode doesn't match (see [StripeMode](#stripemode-apppaymentsstripestripemodephp)), or if `STRIPE_WEBHOOK_SECRET` (`whsec_`), `STRIPE_DONATION_PRODUCT_ID`, or `STRIPE_PORTAL_LOGIN_URL` is missing.
+
+```bash
+docker compose exec app php artisan stripe:check
+```
+
 
 ### leaves:applications (`app/Console/Commands/ListLeafApplications.php`)
 
