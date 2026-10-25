@@ -21,6 +21,10 @@ x-php: &php
   # image stays available for a rollback
   image: ${APP_NAME}-app:${IMAGE_TAG:-latest}
   restart: unless-stopped
+  # Runs a small init process as PID 1 that passes Docker's stop signal on
+  # to PHP. PHP running as PID 1 itself ignores it, so stopping the container
+  # would wait out the timeout before Docker kills it.
+  init: true
   working_dir: /var/www/laravel
   user: "${UID:-1000}:${GID:-1000}"
   environment:
@@ -66,14 +70,12 @@ services:
 
   # Runs queued jobs, such as processing payment gateway webhooks. Exits
   # after an hour, and Docker starts it again. Each deploy replaces it, so it
-  # always runs the deployed code.
+  # always runs the deployed code. A job interrupted by a deploy is released
+  # back onto the queue and retried.
   queue:
     <<: *php
     container_name: ${APP_NAME}-queue
     command: php artisan queue:work --sleep=3 --max-time=3600
-    # When a deploy replaces it, the worker finishes its current job before
-    # exiting
-    stop_grace_period: 60s
 
   # Runs the tasks scheduled in laravel/routes/console.php, such as the
   # nightly payment sync
