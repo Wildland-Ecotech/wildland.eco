@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<!--
+    Shown by Caddy while the site is unavailable: during the switch to a new
+    release, while deploy/maintenance/on exists, or when nginx or Laravel
+    can't answer (502, 503, or 504). See deploy/caddy/site.caddy.
+
+    Self-contained, since nothing else on the site may be reachable: styles
+    are inline, and text uses system fonts rather than the site's.
+-->
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <!-- Try the site again every 30 seconds -->
+    <meta http-equiv="refresh" content="30">
+    <title>We'll be right back — Wildland Ecotech</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            min-height: 100%;
+            background: #010902;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2em 1em;
+            box-sizing: border-box;
+            background:
+                radial-gradient(ellipse at top, rgba(46, 207, 158, 0.18), transparent 60%),
+                #010902;
+        }
+
+        .wordmark {
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            margin-bottom: 1.5em;
+        }
+
+        .wordmark .eco {
+            color: #2ECF9E;
+        }
+
+        .card {
+            max-width: 520px;
+            background: rgba(0, 0, 0, 0.5);
+            border-top: 3px solid #2ECF9E;
+            border-radius: 16px;
+            padding: 2em;
+            box-sizing: border-box;
+        }
+
+        .label {
+            display: inline-block;
+            margin: 0;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #88FF82;
+            background: linear-gradient(95.37deg, #7AA8F3 -4%, #88FF82 111%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h1 {
+            font-size: 34px;
+            line-height: 1.2;
+            margin: 0.3em 0 0.5em;
+        }
+
+        p {
+            font-size: 18px;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.75);
+            margin: 0 0 1em;
+        }
+
+        p:last-child {
+            margin-bottom: 0;
+        }
+
+        .fine-print {
+            font-size: 15px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        a {
+            color: #2ECF9E;
+        }
+    </style>
+</head>
+<body>
+    <div class="wordmark">Wildland <span class="eco">Ecotech</span></div>
+
+    <main class="card">
+        <p class="label">— Site Update</p>
+        <h1>We'll be right back</h1>
+
+        <p>
+            We're updating the site. This usually takes less than a minute,
+            and this page will reload on its own.
+        </p>
+
+        <p class="fine-print">
+            Questions? Email us at <a href="mailto:contact@wildland.eco">contact@wildland.eco</a>.
+        </p>
+    </main>
+</body>
+</html>

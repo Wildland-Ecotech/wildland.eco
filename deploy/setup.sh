@@ -232,6 +232,9 @@ write_env_files() {
     set_env "$root_env" UID "$(id -u "$OWNER")"
     set_env "$root_env" GID "$(id -g "$OWNER")"
     set_env "$root_env" DB_PASSWORD "$db_password"
+    # Only the base compose file: servers run the code baked into the
+    # images, never the development file's code mounts
+    set_env "$root_env" COMPOSE_FILE docker-compose.yml
     set_env "$root_env" COMPOSE_PROFILES server
     set_env "$root_env" CADDY_SITE "$site"
     set_env "$root_env" DEPLOY_BRANCH "$branch"

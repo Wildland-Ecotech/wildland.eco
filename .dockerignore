@@ -1,0 +1,37 @@
+# Keeps secrets, local state, and build output out of the images (see the
+# Dockerfile). The images build their own vendor and public/build.
+
+# Secrets: laravel/.env reaches the containers at run time, never in an image
+.env
+laravel/.env
+laravel/.env.backup
+laravel/.env.production
+
+# Version control and editor files
+.git
+.github
+.idea
+.vscode
+
+# Built in the image instead
+laravel/vendor
+laravel/node_modules
+laravel/public/build
+laravel/public/hot
+
+# Local caches, logs, sessions, and files, keeping the empty directories
+# Laravel expects
+laravel/bootstrap/cache/*.php
+laravel/storage/app/**
+laravel/storage/framework/**
+laravel/storage/logs/**
+!laravel/storage/**/.gitignore
+
+# Not needed to run the site
+docs
+content
+deploy
+laravel/tests
+laravel/phpunit.xml
+laravel/.phpunit.cache
+laravel/.phpunit.result.cache

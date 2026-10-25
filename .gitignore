@@ -4,6 +4,9 @@
 # Deploy trigger written by the webhook listener on servers
 deploy/trigger/
 
+# Maintenance page flag on servers, read by Caddy
+deploy/maintenance/
+
 # IDE and editor files
 .idea/
 .vscode/

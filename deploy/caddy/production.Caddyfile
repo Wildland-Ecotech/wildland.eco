@@ -11,13 +11,18 @@
 	email contact@wildland.eco
 }
 
+# The proxy_to_site and maintenance_page snippets
+import /etc/caddy/site.caddy
+
 # The public site
 wildland.eco {
 	encode zstd gzip
 
 	handle {
-		reverse_proxy nginx:80
+		import proxy_to_site
 	}
+
+	import maintenance_page
 }
 
 # Permanent redirect to the public site, keeping the path and query string
@@ -39,6 +44,8 @@ prod.wildland.eco {
 	}
 
 	handle {
-		reverse_proxy nginx:80
+		import proxy_to_site
 	}
+
+	import maintenance_page
 }

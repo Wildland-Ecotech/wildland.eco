@@ -63,9 +63,10 @@ class StripeEventProcessingTest extends TestCase
         ], $overrides));
     }
 
-    public function test_every_event_stripe_sends_is_listed_in_docker_compose(): void
+    public function test_every_event_stripe_sends_is_listed_for_the_stripe_cli(): void
     {
-        $compose = file_get_contents(base_path('../docker-compose.yml'));
+        // The Stripe CLI is defined in the development compose file
+        $compose = file_get_contents(base_path('../docker-compose.dev.yml'));
         preg_match('/STRIPE_EVENTS: >-\s+(\S+)/', $compose, $match);
 
         $this->assertEqualsCanonicalizing(array_keys(StripeEventProcessor::EVENTS), explode(',', $match[1]));

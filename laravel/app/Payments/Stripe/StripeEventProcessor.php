@@ -16,7 +16,7 @@ class StripeEventProcessor
 {
     /**
      * The events Stripe sends us, and the sync function for each. Keep in
-     * step with STRIPE_EVENTS in docker-compose.yml and the events the
+     * step with STRIPE_EVENTS in docker-compose.dev.yml and the events the
      * server webhook endpoints subscribe to (docs/07-deployment.md#stripe).
      *
      * @var array<string, string>

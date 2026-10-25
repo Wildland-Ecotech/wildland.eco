@@ -1,0 +1,113 @@
+# Local development only. Never used on staging or production, and deploys
+# refuse to run with it (deploy/deploy.sh).
+#
+# Loaded on top of docker-compose.yml by the root .env:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.dev.yml
+#
+# Instead of running the code baked into images, the PHP containers and nginx
+# use the code mounted from this directory, so changes show up without a
+# rebuild. Install dependencies and build assets on the host as described in
+# docs/07-deployment.md. Also adds the services only local development uses:
+# the test database, the Node tools, and the Stripe CLI.
+
+# Mounts the code and the host's storage directory over what the image holds
+x-dev-php: &dev-php
+  build:
+    target: dev
+  volumes:
+    - ./:/var/www
+    - ./laravel/storage:/var/www/laravel/storage
+
+services:
+  app:
+    <<: *dev-php
+
+  queue:
+    <<: *dev-php
+
+  scheduler:
+    <<: *dev-php
+
+  # The stock nginx image, serving laravel/public from this directory
+  nginx:
+    build: !reset null
+    image: nginx:alpine
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx:/etc/nginx/conf.d
+
+  # A disposable database for the test suite, from the
+  # same image as db, so tests run on the same code paths as production and
+  # never touch the development database. Its data lives in memory and is
+  # discarded when the container stops. Start it with:
+  #   docker compose --profile testing up -d db-test
+  db-test:
+    image: postgis/postgis:17-3.5
+    profiles: ["testing"]
+    container_name: ${APP_NAME}-db-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: testing
+      POSTGRES_USER: testing
+      POSTGRES_PASSWORD: testing
+    tmpfs:
+      - /var/lib/postgresql/data
+    networks:
+      - app-network
+
+  # Builds frontend assets, so Node needn't be installed on the host.
+  # Not started by `docker compose up`; run it on demand:
+  #   docker compose run --rm node npm ci
+  #   docker compose run --rm node npm run build
+  node:
+    image: node:24-slim
+    profiles: ["tools"]
+    working_dir: /var/www/laravel
+    user: "${UID:-1000}:${GID:-1000}"
+    environment:
+      # The container user has no writable home directory
+      npm_config_cache: /tmp/.npm
+    volumes:
+      - ./:/var/www
+
+  # Forwards Stripe test mode events to the webhook endpoint, using
+  # STRIPE_SECRET from laravel/.env. Start it when testing payments, and copy
+  # the signing secret it prints (whsec_) into STRIPE_WEBHOOK_SECRET:
+  #   docker compose --profile stripe up -d stripe
+  #   docker compose logs stripe
+  stripe:
+    image: stripe/stripe-cli:v1.55.1
+    profiles: ["stripe"]
+    container_name: ${APP_NAME}-stripe
+    # Comes back after a reboot once started, like the other services, so
+    # events aren't missed; `stop` keeps it stopped
+    restart: unless-stopped
+    user: "${UID:-1000}:${GID:-1000}"
+    env_file:
+      - path: laravel/.env
+        required: false
+    environment:
+      XDG_CONFIG_HOME: /tmp/.config
+      STRIPE_DEVICE_NAME: ${APP_NAME}-local
+      # The events the payment sync handles. Keep in step with the events
+      # the staging and production webhook endpoints send (see
+      # docs/07-deployment.md#stripe)
+      STRIPE_EVENTS: >-
+        checkout.session.completed,checkout.session.expired,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,invoice.paid,invoice.payment_failed,payment_intent.succeeded,payment_intent.payment_failed,charge.refunded,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,customer.updated
+    # Refuses to start with anything but a test mode key
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        case "$$STRIPE_SECRET" in
+          sk_test_*|rk_test_*) ;;
+          *) echo "STRIPE_SECRET in laravel/.env must be a test mode key." >&2; exit 1 ;;
+        esac
+        STRIPE_API_KEY="$$STRIPE_SECRET" exec stripe listen \
+          --forward-to http://nginx/webhooks/stripe \
+          --events-from @self \
+          --events "$$STRIPE_EVENTS"
+    depends_on:
+      - nginx
+    networks:
+      - app-network
