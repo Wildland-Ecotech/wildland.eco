@@ -30,11 +30,41 @@ The Stripe implementation of `PaymentGateway`.
 - **Checkout Sessions.** One-time gifts use `payment` mode with a "Donate" button; monthly and annual gifts use `subscription` mode with a `month` or `year` interval. Every session uses the one Donation product (`STRIPE_DONATION_PRODUCT_ID`) with the amount set inline (`price_data`), so any amount works without creating prices. No payment methods are listed, so Checkout offers every method enabled in the Stripe dashboard that supports the gift's frequency.
 - **Metadata.** The checkout's `reference` and designation slug are set as the session's `metadata` and `client_reference_id`, and copied to the PaymentIntent or subscription, which outlive the session, so sync and import can match payments to checkouts and designations.
 - **Retries.** Sessions are created with an idempotency key of the checkout reference and customer, so a retried request returns the same session. If a recorded customer was deleted in Stripe, its record is soft-deleted and the session is created again with a current customer.
-- **Notices.** Every call goes through `call()`, which logs a notice Stripe attaches to a response as a warning instead of letting it fail a call that succeeded (see [Stripe](07-deployment.md#stripe)).
+- **Notices.** Every call goes through `call()` (see [CallsStripe](#callsstripe-apppaymentsstripeconcernscallsstripephp)).
 
 The Stripe client is resolved from the container when first needed, not when the gateway is created, so the gateway can answer `isAvailable()` on a server without Stripe keys.
 
-`tests/Feature/StripeGatewayTest.php` runs it through the real SDK with the SDK's HTTP client replaced (`Stripe\ApiRequestor::setHttpClient()`), checking the exact requests sent without calling Stripe.
+`tests/Feature/StripeGatewayTest.php` checks the exact requests it sends, without calling Stripe (see [CallsStripe](#callsstripe-apppaymentsstripeconcernscallsstripephp)).
+
+### StripeSync (`app/Payments/Stripe/StripeSync.php`)
+
+Brings our records up to date with Stripe, with one function per object type. Each fetches the object's current state from Stripe and updates our record by its Stripe ID, including soft-deleted records, so receiving the same change twice, out of order, or from a re-import never creates duplicates or moves a record backwards. Webhooks only say which object changed. Objects from the other Stripe mode are refused.
+
+- `checkoutSession($sessionId)`: sets the checkout's status from the session's: `open` → `started`, `complete` → `completed`, `expired` → `expired`. `completed_at` is set the first time a checkout is seen completed and kept after that. The checkout is found by session ID, or else by the `checkout_reference` in the session's metadata (in case saving the session ID failed). Sessions that aren't ours, such as a Payment Link's, are ignored. A bank payment that settles later still completes its checkout right away; whether the payment succeeds is recorded on the donation.
+
+Customers, subscriptions, payments, and refunds are added with payment sync (milestone 6).
+
+### StripeEventProcessor (`app/Payments/Stripe/StripeEventProcessor.php`)
+
+Processes a stored Stripe webhook event by calling the `StripeSync` function for the object it is about. `EVENTS` lists every event type Stripe sends us, mapped to its sync function. It must match `STRIPE_EVENTS` in `docker-compose.yml` (a test checks this) and the events the server webhook endpoints subscribe to. Events without a sync function yet, and any other event, are accepted and marked processed without changes.
+
+### ProcessWebhookEvent (`app/Jobs/ProcessWebhookEvent.php`)
+
+The queued job that processes a stored webhook event after the webhook has been answered.
+
+- Each attempt increments the event's `attempts`. A failure stores its message in `error` and is retried after 1 minute, 5 minutes, 30 minutes, 2 hours, and 12 hours, 6 tries over about a day in all; success sets `processed_at` and clears `error`.
+- It is unique per event (`ShouldBeUnique`, using a cache lock), so a redelivered event can't be processed alongside its own retry. An event already processed is skipped.
+- After its last try, the job stays in `failed_jobs`; retry it with `php artisan queue:retry` (see [Operating a Server](07-deployment.md#operating-a-server)). The nightly sync also catches up on whatever it missed.
+
+### CallsStripe (`app/Payments/Stripe/Concerns/CallsStripe.php`)
+
+Shared by the classes that call Stripe:
+
+- `stripe()` resolves the `StripeClient` when first needed, so a class can be created without a key.
+- `call()` wraps every API call. The SDK raises notices Stripe attaches to responses as PHP warnings, which Laravel throws as exceptions, so a notice would fail a call that already succeeded; `call()` logs them as warnings instead (see [Stripe](07-deployment.md#stripe)).
+- `assertLivemode($object)` throws unless a Stripe object's `livemode` matches this site's mode, so test and live data never mix.
+
+Tests run these classes through the real SDK without calling Stripe, using `tests/Concerns/FakesStripeApi.php`, which replaces the SDK's HTTP client (`Stripe\ApiRequestor::setHttpClient()`) with one that records requests and returns queued responses.
 
 ### StripeMode (`app/Payments/Stripe/StripeMode.php`)
 

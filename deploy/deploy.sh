@@ -42,6 +42,15 @@ deploy_commit() {
     log "Building containers"
     docker compose build
 
+    # The Stripe CLI is for local development only. Remove it if anyone
+    # started it by hand: `up` and --remove-orphans leave services from
+    # profiles that aren't enabled alone, and its restart policy would bring
+    # it back after a reboot
+    if [[ -n "$(docker compose --profile stripe ps --all --quiet stripe)" ]]; then
+        log "Removing the Stripe CLI, which is for local development only"
+        docker compose --profile stripe rm --stop --force stripe
+    fi
+
     log "Starting containers"
     docker compose up --detach --remove-orphans
 

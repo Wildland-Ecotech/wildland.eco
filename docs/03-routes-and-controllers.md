@@ -9,6 +9,7 @@
 | GET | `/donate` | `donate` | `DonationController@create` → `pages.donate` | Donate page. No page links here until donations launch (milestone 6) |
 | POST | `/donate` | `donate.store` | `DonationController@store` | Records a checkout and redirects to the payment gateway's page |
 | GET | `/donate/thank-you/{checkout:reference}` | `donate.thank-you` | `DonationController@thankYou` → `pages.donate-thank-you` | Where the gateway returns the donor after paying |
+| POST | `/webhooks/stripe` | `webhooks.stripe` | `StripeWebhookController` | Receives Stripe's webhooks; see [Stripe Webhooks](#stripe-webhooks). Skips CSRF protection, sessions, and cookies |
 | GET | `/leaves` | `leaves` | `Route::view` → `pages.leaves` | Leaf program: leave the leaves, or donate them by drop-off or pickup |
 | GET | `/leaves/apply` | `leaves.apply` | `LeafApplicationController@create` → `pages.leaves-apply` | Application form, or the thank-you message after applying |
 | POST | `/leaves/apply` | `leaves.apply.store` | `LeafApplicationController@store` | Saves an application to `leaf_applications` |
@@ -32,6 +33,17 @@ Payment happens on the payment gateway's hosted page (Stripe Checkout); payments
 4. In one transaction, it finds the user by email, including a soft-deleted one, or creates them with the name entered. An existing user's name is only filled in when it is empty: typing an email address proves nothing about owning it. A soft-deleted user is not restored here. It then records a `started` checkout for the General Fund.
 5. `PaymentGateway::startCheckout()` creates the gateway session, with the thank-you URL as the success URL and `/donate` as the cancel URL. The checkout's `gateway_session_id` and `expires_at` are saved, and the donor is redirected to the gateway. If the gateway call fails, the error is reported, the donor is sent back with a message and their input, and the checkout stays recorded without a session.
 6. `GET /donate/thank-you/{reference}` finds the checkout by its UUID reference; anything else is a 404. It shows the gift's amount and frequency, never the donor's name or email, and for recurring gifts a link to the Customer Portal login (`STRIPE_PORTAL_LOGIN_URL`).
+
+## Stripe Webhooks
+
+Stripe sends events to `POST /webhooks/stripe`: from each server's registered webhook endpoint, or locally from the Stripe CLI. Responses follow [Webhook Responses](05-ai-development-notes.md#webhook-responses): errors only when something is actually wrong, because Stripe retries failed deliveries for days.
+
+1. **Signing secret.** If `STRIPE_WEBHOOK_SECRET` is not set, the request fails with a 500 and an error is logged.
+2. **Signature.** The `Stripe-Signature` header is verified against the raw request body with the Stripe SDK (`Webhook::constructEvent()`), which also rejects signatures more than 5 minutes old, so a captured event can't be replayed. A missing or invalid signature is a 400. The route skips CSRF protection, since Stripe can't send a token, and skips sessions and cookies, since there is no visitor.
+3. **Mode.** An event from the other Stripe mode (its `livemode`, see [StripeMode](02-services-and-commands.md#stripemode-apppaymentsstripestripemodephp)) is a 400 and is logged as an error.
+4. **API version.** An event whose `api_version` differs from `services.stripe.api_version` is accepted, with a warning in the log (see [Updating the Stripe API version](07-deployment.md#updating-the-stripe-api-version)).
+5. **Storage.** The event is stored in `webhook_events` once per event ID; a redelivery finds the stored row. Every event Stripe sends is stored, including types we don't handle.
+6. **Queue.** If the event hasn't been processed yet, `ProcessWebhookEvent` is queued and the response is `200 Queued`; if it has, `200 Already processed`. Processing happens on the queue worker (see [ProcessWebhookEvent](02-services-and-commands.md#processwebhookevent-appjobsprocesswebhookeventphp)).
 
 ## Leaf Applications
 

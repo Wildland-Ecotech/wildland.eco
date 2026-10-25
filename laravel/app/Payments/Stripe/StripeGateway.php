@@ -7,10 +7,9 @@ use App\Models\GatewayCustomer;
 use App\Models\User;
 use App\Payments\HostedCheckout;
 use App\Payments\PaymentGateway;
+use App\Payments\Stripe\Concerns\CallsStripe;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\Log;
 use Stripe\Exception\InvalidRequestException;
-use Stripe\StripeClient;
 
 /**
  * Stripe, through the Stripe PHP SDK with the API version pinned in
@@ -20,6 +19,8 @@ use Stripe\StripeClient;
  */
 class StripeGateway implements PaymentGateway
 {
+    use CallsStripe;
+
     public const NAME = 'stripe';
 
     /**
@@ -44,15 +45,6 @@ class StripeGateway implements PaymentGateway
     public function isAvailable(): bool
     {
         return StripeMode::isConfigured();
-    }
-
-    /**
-     * The Stripe client, resolved when first needed, so the gateway can be
-     * created and asked whether it is available without a key.
-     */
-    private function stripe(): StripeClient
-    {
-        return app(StripeClient::class);
     }
 
     /**
@@ -182,38 +174,5 @@ class StripeGateway implements PaymentGateway
         return $this->call(fn () => $this->stripe()->checkout->sessions->create($params, [
             'idempotency_key' => "checkout-{$checkout->reference}-{$customerId}",
         ]));
-    }
-
-    /**
-     * Make a Stripe API call, logging any notice Stripe attaches to the
-     * response instead of letting it fail the call.
-     *
-     * The SDK raises notices as PHP warnings, which Laravel throws as
-     * exceptions after Stripe has already done the work, such as creating a
-     * session we would then never learn the ID of. The containers set
-     * STRIPE_SUPPRESS_NOTICES so the SDK skips them; this is the backstop.
-     *
-     * @template T
-     *
-     * @param  callable(): T  $request
-     * @return T
-     */
-    private function call(callable $request): mixed
-    {
-        $previous = set_error_handler(function (int $level, string $message, string $file = '', int $line = 0) use (&$previous) {
-            if ($level === E_USER_WARNING && str_contains($file, DIRECTORY_SEPARATOR . 'stripe-php' . DIRECTORY_SEPARATOR)) {
-                Log::warning('Stripe notice: ' . $message);
-
-                return true;
-            }
-
-            return $previous ? $previous($level, $message, $file, $line) : false;
-        });
-
-        try {
-            return $request();
-        } finally {
-            restore_error_handler();
-        }
     }
 }

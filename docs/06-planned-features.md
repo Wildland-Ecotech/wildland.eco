@@ -86,7 +86,8 @@ The test database was set up ahead of this milestone, for the leaf program's app
 - Every Checkout Session uses one "Donation" product (`STRIPE_DONATION_PRODUCT_ID`, one per mode) with the donor's amount set inline, and a monthly or yearly interval for recurring gifts, so any amount works without creating prices in advance.
 - Done: donate form → Checkout Session → Stripe-hosted payment page → thank-you page, with name and email required, proof-of-work spam protection, and a per-IP limit on started checkouts (see [Donations](03-routes-and-controllers.md#donations)).
 - Checkout reuses a donor's existing Stripe customer, so the Customer Portal shows all of their recurring gifts together. When several Stripe customers share an email address, the portal's login link opens the most recently created one with an active subscription.
-- Webhook endpoint that verifies Stripe's signature, stores the event, and processes it on the queue.
+- Done: webhook endpoint that verifies Stripe's signature, stores the event, and processes it on the queue with retries, completing and expiring checkouts (see [Stripe Webhooks](03-routes-and-controllers.md#stripe-webhooks)).
+- Payment sync: customers, subscriptions with their events, payments, and refunds, restoring a soft-deleted donor whose payment succeeds.
 - History importer command and a scheduled nightly sync. See [Payment Sync and Import](#payment-sync-and-import).
 - Done: the thank-you page links to the Customer Portal login for managing recurring gifts.
 - Enable the donate button and restore the Donate links in the home page footer, replacing the test that checks no page links to `/donate`.

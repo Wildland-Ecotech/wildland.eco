@@ -10,103 +10,24 @@ use App\Payments\PaymentGateway;
 use App\Payments\Stripe\StripeGateway;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
-use Stripe\ApiRequestor;
-use Stripe\HttpClient\ClientInterface;
+use Tests\Concerns\FakesStripeApi;
 use Tests\TestCase;
 
 /**
- * Exercises StripeGateway through the real Stripe SDK, with its HTTP client
- * replaced by one that records each request and returns canned responses,
- * so no test ever calls Stripe.
+ * Exercises StripeGateway through the real Stripe SDK without calling
+ * Stripe (see FakesStripeApi).
  */
 class StripeGatewayTest extends TestCase
 {
-    use RefreshDatabase;
+    use FakesStripeApi, RefreshDatabase;
 
     private const SUCCESS_URL = 'http://localhost/donate/thank-you';
 
     private const CANCEL_URL = 'http://localhost/donate';
 
-    /**
-     * Requests the SDK made, in order.
-     *
-     * @var array<int, array{method: string, path: string, params: array, headers: array<string, string>}>
-     */
-    private array $requests = [];
-
-    /**
-     * Responses to return, in order: [status, body, headers].
-     *
-     * @var array<int, array{0: int, 1: array, 2?: array<string, string>}>
-     */
-    private array $responses = [];
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        config([
-            'app.url' => 'http://localhost:8080',
-            'services.stripe.secret' => 'sk_test_example',
-            'services.stripe.donation_product_id' => 'prod_donation',
-        ]);
-
-        $test = $this;
-
-        ApiRequestor::setHttpClient(new class($test) implements ClientInterface
-        {
-            public function __construct(private StripeGatewayTest $test) {}
-
-            public function request($method, $absUrl, $headers, $params, $hasFile, $apiMode = 'v1', $maxNetworkRetries = null)
-            {
-                return $this->test->respond($method, $absUrl, $headers, $params);
-            }
-        });
-    }
-
-    protected function tearDown(): void
-    {
-        // The SDK creates its real HTTP client again when next needed
-        ApiRequestor::setHttpClient(null);
-
-        parent::tearDown();
-    }
-
-    /**
-     * Record a request and return the next canned response. Called by the
-     * fake HTTP client.
-     */
-    public function respond(string $method, string $url, array $headers, array $params): array
-    {
-        $parsed = [];
-
-        foreach ($headers as $header) {
-            [$name, $value] = explode(':', $header, 2);
-            $parsed[strtolower($name)] = trim($value);
-        }
-
-        $this->requests[] = [
-            'method' => $method,
-            'path' => parse_url($url, PHP_URL_PATH),
-            'params' => $params,
-            'headers' => $parsed,
-        ];
-
-        $this->assertNotEmpty($this->responses, "Unexpected Stripe request: {$method} {$url}");
-
-        [$status, $body, $responseHeaders] = array_shift($this->responses) + [2 => []];
-
-        return [json_encode($body), $status, $responseHeaders];
-    }
-
-    private function queue(int $status, array $body, array $headers = []): void
-    {
-        $this->responses[] = [$status, $body, $headers];
-    }
-
     private function queueCustomerSearch(?string $existingId = null): void
     {
-        $this->queue(200, [
+        $this->queueStripeResponse(200, [
             'object' => 'list',
             'url' => '/v1/customers',
             'has_more' => false,
@@ -116,7 +37,7 @@ class StripeGatewayTest extends TestCase
 
     private function queueSession(string $id = 'cs_test_example', array $headers = []): void
     {
-        $this->queue(200, [
+        $this->queueStripeResponse(200, [
             'id' => $id,
             'object' => 'checkout.session',
             'url' => "https://checkout.stripe.com/c/pay/{$id}",
@@ -144,7 +65,7 @@ class StripeGatewayTest extends TestCase
 
         // Created and asked without a key, which would fail to create a client
         $this->assertFalse(app(PaymentGateway::class)->isAvailable());
-        $this->assertEmpty($this->requests);
+        $this->assertEmpty($this->stripeRequests);
     }
 
     public function test_a_one_time_gift_from_a_new_donor_creates_a_customer_and_a_donate_session(): void
@@ -153,7 +74,7 @@ class StripeGatewayTest extends TestCase
         $checkout = Checkout::factory()->oneTime()->for($user)->create(['amount_cents' => 3750, 'gateway_session_id' => null]);
 
         $this->queueCustomerSearch();
-        $this->queue(200, ['id' => 'cus_new', 'object' => 'customer']);
+        $this->queueStripeResponse(200, ['id' => 'cus_new', 'object' => 'customer']);
         $this->queueSession('cs_test_one_time');
 
         $session = $this->start($checkout);
@@ -162,7 +83,7 @@ class StripeGatewayTest extends TestCase
         $this->assertSame('https://checkout.stripe.com/c/pay/cs_test_one_time', $session->url);
         $this->assertSame(1793000000, $session->expiresAt->getTimestamp());
 
-        [$search, $create, $sessionRequest] = $this->requests;
+        [$search, $create, $sessionRequest] = $this->stripeRequests;
 
         $this->assertSame(['get', '/v1/customers'], [$search['method'], $search['path']]);
         $this->assertSame(['email' => 'jamie@example.com', 'limit' => 1], $search['params']);
@@ -199,7 +120,7 @@ class StripeGatewayTest extends TestCase
     {
         // Checkouts are monthly by default
         foreach (['monthly' => 'month', 'annual' => 'year'] as $state => $interval) {
-            $this->requests = [];
+            $this->stripeRequests = [];
             $checkout = ($state === 'annual' ? Checkout::factory()->annual() : Checkout::factory())->create();
             GatewayCustomer::factory()->for($checkout->user)->create(['gateway_customer_id' => "cus_{$state}"]);
 
@@ -207,7 +128,7 @@ class StripeGatewayTest extends TestCase
 
             $this->start($checkout);
 
-            $params = $this->requests[0]['params'];
+            $params = $this->stripeRequests[0]['params'];
 
             $this->assertSame('subscription', $params['mode'], $state);
             $this->assertSame(['interval' => $interval], $params['line_items'][0]['price_data']['recurring']);
@@ -226,8 +147,8 @@ class StripeGatewayTest extends TestCase
 
         $this->start($checkout);
 
-        $this->assertCount(1, $this->requests);
-        $this->assertSame('cus_recorded', $this->requests[0]['params']['customer']);
+        $this->assertCount(1, $this->stripeRequests);
+        $this->assertSame('cus_recorded', $this->stripeRequests[0]['params']['customer']);
     }
 
     public function test_an_existing_stripe_customer_with_the_donors_email_is_reused_and_recorded(): void
@@ -240,8 +161,8 @@ class StripeGatewayTest extends TestCase
 
         $this->start($checkout);
 
-        $this->assertCount(2, $this->requests);
-        $this->assertSame('cus_payment_link', $this->requests[1]['params']['customer']);
+        $this->assertCount(2, $this->stripeRequests);
+        $this->assertSame('cus_payment_link', $this->stripeRequests[1]['params']['customer']);
         $this->assertTrue(GatewayCustomer::findByGatewayId('stripe', 'cus_payment_link')->user->is($checkout->user));
     }
 
@@ -265,22 +186,22 @@ class StripeGatewayTest extends TestCase
         $stale = GatewayCustomer::factory()->create(['gateway_customer_id' => 'cus_deleted']);
         $checkout = Checkout::factory()->for($stale->user)->create();
 
-        $this->queue(400, ['error' => [
+        $this->queueStripeResponse(400, ['error' => [
             'type' => 'invalid_request_error',
             'code' => 'resource_missing',
             'param' => 'customer',
             'message' => "No such customer: 'cus_deleted'",
         ]]);
         $this->queueCustomerSearch();
-        $this->queue(200, ['id' => 'cus_replacement', 'object' => 'customer']);
+        $this->queueStripeResponse(200, ['id' => 'cus_replacement', 'object' => 'customer']);
         $this->queueSession();
 
         $session = $this->start($checkout);
 
         $this->assertSame('cs_test_example', $session->id);
         $this->assertSoftDeleted($stale);
-        $this->assertSame('cus_replacement', end($this->requests)['params']['customer']);
-        $this->assertSame("checkout-{$checkout->reference}-cus_replacement", end($this->requests)['headers']['idempotency-key']);
+        $this->assertSame('cus_replacement', end($this->stripeRequests)['params']['customer']);
+        $this->assertSame("checkout-{$checkout->reference}-cus_replacement", end($this->stripeRequests)['headers']['idempotency-key']);
     }
 
     public function test_other_stripe_errors_are_not_retried(): void
@@ -288,7 +209,7 @@ class StripeGatewayTest extends TestCase
         $customer = GatewayCustomer::factory()->create();
         $checkout = Checkout::factory()->for($customer->user)->create();
 
-        $this->queue(400, ['error' => [
+        $this->queueStripeResponse(400, ['error' => [
             'type' => 'invalid_request_error',
             'param' => 'line_items[0][price_data][product]',
             'message' => 'No such product',
@@ -296,7 +217,7 @@ class StripeGatewayTest extends TestCase
 
         $this->assertThrows(fn () => $this->start($checkout), \Stripe\Exception\InvalidRequestException::class);
 
-        $this->assertCount(1, $this->requests);
+        $this->assertCount(1, $this->stripeRequests);
         $this->assertNotSoftDeleted($customer);
     }
 

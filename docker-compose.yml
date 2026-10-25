@@ -124,6 +124,9 @@ services:
     image: stripe/stripe-cli:v1.55.1
     profiles: ["stripe"]
     container_name: ${APP_NAME}-stripe
+    # Comes back after a reboot once started, like the other services, so
+    # events aren't missed; `stop` keeps it stopped
+    restart: unless-stopped
     user: "${UID:-1000}:${GID:-1000}"
     env_file:
       - path: laravel/.env

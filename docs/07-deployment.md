@@ -65,9 +65,28 @@ docker compose logs stripe
 
 Copy the signing secret from its output (`Your webhook signing secret is whsec_...`) into `STRIPE_WEBHOOK_SECRET`. It stays the same between restarts.
 
+Once started, the CLI comes back after a reboot, like the other services, until it is stopped. Events that happen while it isn't running are never forwarded: the CLI isn't a registered endpoint, so Stripe doesn't retry them.
+
 The CLI forwards only the events the payment sync handles, from your own account, listed in `STRIPE_EVENTS` in `docker-compose.yml`. The webhook endpoints registered for staging and production subscribe to the same events, so when the list changes, update the endpoints in the Stripe dashboard too. Stop the CLI with `docker compose --profile stripe stop stripe`.
 
-The Stripe CLI is for local development only. Servers never enable the `stripe` profile, and `deploy/deploy.sh` refuses to deploy if `COMPOSE_PROFILES` includes it.
+The Stripe CLI is for local development only, and three things keep it off the servers:
+
+- Servers never enable the `stripe` profile (`COMPOSE_PROFILES=server`), so deploys never create the container or pull its image.
+- `deploy/deploy.sh` refuses to deploy if `COMPOSE_PROFILES` includes `stripe`.
+- Every deploy removes a Stripe CLI container if one exists, such as one started by hand with `--profile stripe`, and logs that it did. To remove one right away, deploy by hand (`sudo systemctl start wildland-deploy`).
+
+The CLI also refuses to start without a test mode key, so it can never connect to live mode.
+
+Forwarded events are processed by the queue worker. `docker compose logs stripe` shows each delivery and its response (`[200]`), and `docker compose logs queue` shows the processing job.
+
+**Servers** receive events from a webhook endpoint registered in that server's Stripe sandbox (staging) or live account (production), in Workbench → Webhooks → **Create an event destination**:
+
+1. Events from **Your account**, with the **Snapshot** payload, and the API version set to our pinned version (`services.stripe.api_version` in `config/services.php`).
+2. The events listed in `STRIPE_EVENTS` in `docker-compose.yml`.
+3. A **Webhook endpoint** at `https://<server's APP_URL host>/webhooks/stripe`: `https://stage.wildland.eco/webhooks/stripe` or `https://wildland.eco/webhooks/stripe`.
+4. Copy the endpoint's signing secret (**Reveal secret**) into that server's `STRIPE_WEBHOOK_SECRET`, then deploy by hand (`sudo systemctl start wildland-deploy`) so the configuration is cached again.
+
+Stripe shows each delivery under the endpoint's **Event deliveries**, and a stored copy of every event is in the `webhook_events` table. Secrets can be rolled from the endpoint's ⋯ menu, keeping the old one valid for up to 24 hours while the server's `.env` is updated.
 
 The containers set `STRIPE_SUPPRESS_NOTICES=true`. The Stripe SDK turns informational notices from Stripe into PHP warnings, which Laravel throws as exceptions, so a notice would fail an API call that had already succeeded. The SDK reads the setting from the process environment, not `laravel/.env`, so it is set in `docker-compose.yml`.
 
