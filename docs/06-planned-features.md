@@ -14,7 +14,7 @@ The development plan for the wildland.eco Laravel platform: accepting donations,
 - **Every payment is re-importable.** Webhooks and a history importer write through the same idempotent sync code, so any record can be imported again without creating duplicates.
 - **Nothing is hard-deleted.** Records holding people and money are soft-deleted, so nothing is lost by accident, and a user with transaction history cannot be deleted at all. Hard deletes happen only when absolutely necessary. See [Deletion](#deletion).
 - **Email is always collected; passwords are optional.** Donors give an email address to donate, which creates their user record automatically. Signing in to our site comes with accounts after launch, and setting a password is offered only after a donation.
-- **Transactional email through AhaSend** over SMTP from `no-reply@wildland.eco`. Proton Mail remains the mailbox for human email.
+- **Transactional email through AhaSend** over SMTP from `no-reply@from.wildland.eco`, a subdomain kept for sending, with replies to `contact@wildland.eco`. Proton Mail remains the mailbox for human email.
 - **Pull-based deploys.** Staging updates automatically when changes are merged into `main`, and production when changes are merged into `release`, matching other Wetfish projects. The server pulls code when GitHub notifies it of a push; no SSH keys or server credentials are stored on GitHub.
 
 ## Milestones
@@ -27,7 +27,7 @@ The development plan for the wildland.eco Laravel platform: accepting donations,
 | 4 | New production server, webhook deploys, launch at parity | Launched; backups deferred |
 | 5 | Donation database schema and models | Done |
 | 6 | Stripe Checkout, webhooks, and history import | Done |
-| 7 | Donation receipts and transactional email | Planned |
+| 7 | Donation receipts and transactional email | Done |
 | 8 | Reporting commands, end-to-end testing in Stripe test mode, then go live | Planned |
 | 9 | Donor accounts and member dashboard | After launch |
 | 10 | Administrator pages and reporting | After launch |
@@ -96,9 +96,12 @@ Done. Donations work end to end in Stripe's sandbox: the donate page, Stripe Che
 
 ### 7. Receipts and Email
 
-- One receipt email per successful donation: organization name, EIN, amount, date, receipt number, and a statement that no goods or services were provided in exchange. Written acknowledgment matters most for single donations of $250 or more, which donors need in order to claim the deduction.
-- Receipts for recurring donations link to the Customer Portal login.
-- Mailpit (a local mail-catching container) is added to Docker for development. Staging and production send through AhaSend (`send.ahasend.com`, port 587 with STARTTLS) with an SMTP credential created in the AhaSend dashboard, after verifying the wildland.eco sending domain with its SPF, DKIM, and DMARC records.
+Done, except year-end summaries.
+
+- Done: one receipt email per successful donation, one-time or each recurring payment: the organization's legal name, address, and EIN, the amount, date, receipt number (`WET-<tax year>-<sequence>`), and a statement that no goods or services were provided in exchange. Written acknowledgment matters most for single donations of $250 or more, which donors need in order to claim the deduction. See [DonationReceipts](02-services-and-commands.md#donationreceipts-appservicesdonationreceiptsphp).
+- Done: receipts for recurring donations link to the Customer Portal login.
+- Done: receipts are only sent automatically for donations that succeeded within the last 24 hours, so an import or a bug can never email donors in bulk, and the database refuses a second receipt for a donation. `php artisan receipt:send` sends one donation's receipt by its Stripe payment ID. Stripe's own payment receipts are turned off.
+- Done: every environment sends through AhaSend (`send.ahasend.com`, port 587 with STARTTLS required), with the `from.wildland.eco` sending domain verified. Local development uses an AhaSend sandbox credential, which records messages without delivering them, instead of a local mail-catching container, so testing uses the same path as production. `php artisan mail:test` checks a server's settings (see [Email](07-deployment.md#email)).
 - Year-end giving summaries are an artisan command, built after launch and run in January.
 
 ### 8. Reporting and Go-Live

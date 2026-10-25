@@ -92,6 +92,31 @@ Stripe shows each delivery under the endpoint's **Event deliveries**, and a stor
 
 The containers set `STRIPE_SUPPRESS_NOTICES=true`. The Stripe SDK turns informational notices from Stripe into PHP warnings, which Laravel throws as exceptions, so a notice would fail an API call that had already succeeded. The SDK reads the setting from the process environment, not `laravel/.env`, so it is set in `docker-compose.yml`.
 
+### Email
+
+Email is sent through [AhaSend](https://ahasend.com/docs/smtp) over SMTP: `send.ahasend.com`, port 587, upgraded to TLS with STARTTLS. The site refuses to send over an unencrypted connection (`require_tls` in `config/mail.php`), so the SMTP password never travels in the clear. Emails come from `no-reply@from.wildland.eco`, and replies go to `contact@wildland.eco`. AhaSend only sends from the sending domain verified in its account, `from.wildland.eco`, with its SPF, DKIM, and DMARC records; a from address on any other domain, including `wildland.eco` itself, is refused with `556 Invalid account. Tenant or Domain not found`. The reply-to address can be on any domain.
+
+AhaSend SMTP credentials come in two modes, set on each credential in the AhaSend dashboard (Credentials):
+
+- **Sandbox:** AhaSend checks and records each message in its dashboard, but never delivers it or uses credits. Use one locally, so testing can never email a real person.
+- **Live:** messages are delivered. Production uses one. Staging can use either; a live one delivers to the email addresses used in test donations.
+
+| Setting | Value |
+|---------|-------|
+| `MAIL_MAILER` | `smtp` to send through AhaSend; `log` writes each email to `storage/logs/laravel.log` instead, which is the default in `laravel/.env.example` |
+| `MAIL_HOST`, `MAIL_PORT` | `send.ahasend.com`, `587` |
+| `MAIL_USERNAME`, `MAIL_PASSWORD` | The SMTP credential's username and password, created per environment |
+| `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME` | `no-reply@from.wildland.eco`, `Wildland Ecotech`. The address must be on `from.wildland.eco` |
+| `MAIL_REPLY_TO_ADDRESS` | `contact@wildland.eco` |
+
+Check the settings by sending a test email, which is sent right away rather than queued (see [mail:test](02-services-and-commands.md#mailtest-appconsolecommandssendtestemailphp)):
+
+```bash
+docker compose exec app php artisan mail:test you@example.com
+```
+
+With a sandbox credential, the message then appears in the AhaSend dashboard without being delivered.
+
 ### Running Tests
 
 Tests run against the `db-test` service, a separate PostgreSQL + PostGIS database from the same image as production, never SQLite or the development database. It belongs to the `testing` profile, so `docker compose up` does not start it and servers never run it. Start it once; it restarts with Docker:
@@ -186,6 +211,7 @@ Deploys in the same environment never overlap. The clone is used only for deploy
 | `laravel/.env` | `APP_DEBUG` | `false` | `false` |
 | `laravel/.env` | `APP_URL` | `https://stage.wildland.eco` | `https://wildland.eco` |
 | `laravel/.env` | `STRIPE_*` | Test mode keys and IDs | Live mode keys and IDs |
+| `laravel/.env` | `MAIL_USERNAME`, `MAIL_PASSWORD` | AhaSend SMTP credential, sandbox or live | Live AhaSend SMTP credential |
 
 Staging uses `APP_ENV=production` so it behaves exactly like production. Each server gets its own `APP_KEY`, database password, and webhook secret.
 
@@ -206,7 +232,7 @@ The script asks for:
 
 - **Environment:** `staging` or `production`
 - **Branch to deploy:** defaults to `main` for staging and `release` for production. If the branch does not exist on GitHub yet, or does not contain the Laravel site, the script says so and asks again.
-- **AhaSend SMTP username and password:** optional; without them, email is written to the Laravel log
+- **AhaSend SMTP username and password:** optional; without them, email is written to the Laravel log (see [Email](#email))
 
 It then:
 
@@ -240,6 +266,10 @@ docker compose logs -f queue scheduler
 # Output of the nightly Stripe sync, one line per object
 tail -n 100 laravel/storage/logs/stripe-sync.log
 
+# Send one donation's receipt, by its Stripe payment ID, such as one synced
+# too late to be receipted automatically
+sudo -u deploy docker compose exec app php artisan receipt:send pi_...
+
 # List failed queued jobs, then retry one by its ID, or all of them
 sudo -u deploy docker compose exec app php artisan queue:failed
 sudo -u deploy docker compose exec app php artisan queue:retry <id>
@@ -265,19 +295,22 @@ Donations need these steps once per server, after the code that includes them ha
 3. **Default API version:** upgrade it to our pinned version (`services.stripe.api_version`), in Settings → Developers → Preferences.
 4. **Donation product:** one product (Product catalog → Add product). Its name and image appear on the payment page; it needs no price of its own.
 5. **Customer Portal** (Settings → Billing → Customer portal): activate the login link; allow payment method updates and immediate cancellation; turn off plan switching and customer information updates; turn on invoice history; and set the default redirect link to the site.
-6. **Branding and public details** (live account): logo, colors, business name, and support email, shown on Checkout and the portal.
-7. **Restricted key:** create one with only the permissions the site uses: Checkout Sessions (write), Customers (write), Products, Payment Intents, Charges and Refunds, Balance, Subscriptions, and Invoices (read). Not Debugging Tools, which only the local Stripe CLI needs. Check its request logs (⋯ → View request logs) after the first donations, and remove anything it never used.
-8. **Webhook endpoint:** register it as described under [Stripe](#stripe), at `https://<host>/webhooks/stripe`.
+6. **Customer emails** (Settings → Emails): turn off Stripe's receipts for successful payments, since the site sends its own donation receipts. Keep Stripe's emails about failed payments and expiring cards, which the site doesn't send.
+7. **Branding and public details** (live account): logo, colors, business name, and support email, shown on Checkout and the portal.
+8. **Restricted key:** create one with only the permissions the site uses: Checkout Sessions (write), Customers (write), Products, Payment Intents, Charges and Refunds, Balance, Subscriptions, and Invoices (read). Not Debugging Tools, which only the local Stripe CLI needs. Check its request logs (⋯ → View request logs) after the first donations, and remove anything it never used.
+9. **Webhook endpoint:** register it as described under [Stripe](#stripe), at `https://<host>/webhooks/stripe`.
 
 **Server settings again**
 
-9. Set `STRIPE_SECRET`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_DONATION_PRODUCT_ID`, and `STRIPE_PORTAL_LOGIN_URL` in `laravel/.env`, then deploy by hand (`sudo systemctl start wildland-deploy`). The deploy's `stripe:check` fails if a key is for the wrong mode or a setting is missing.
-10. Import past history, including Payment Link donations: `sudo -u deploy docker compose exec app php artisan stripe:sync`.
-11. Make a donation (a test card on staging, a small real one on production), and check that it reaches the `donations` table and the endpoint's Event deliveries show `200`s.
+10. **Email:** set the server's AhaSend SMTP credential and the `MAIL_*` settings in `laravel/.env` (see [Email](#email)), unless setup already did. Production needs a live credential.
+11. Set `STRIPE_SECRET`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_DONATION_PRODUCT_ID`, and `STRIPE_PORTAL_LOGIN_URL` in `laravel/.env`, then deploy by hand (`sudo systemctl start wildland-deploy`). The deploy's `stripe:check` fails if a key is for the wrong mode or a setting is missing.
+12. Check email after that deploy: `sudo -u deploy docker compose exec app php artisan mail:test <your address>`. With a live credential, the email should arrive.
+13. Import past history, including Payment Link donations: `sudo -u deploy docker compose exec app php artisan stripe:sync`.
+14. Make a donation (a test card on staging, a small real one on production), and check that it reaches the `donations` table and the endpoint's Event deliveries show `200`s.
 
 **Production, after launch**
 
-12. Archive the old Payment Link products once the donate page has replaced the Payment Links.
+15. Archive the old Payment Link products once the donate page has replaced the Payment Links.
 
 ### Switching Branches
 

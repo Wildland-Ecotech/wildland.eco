@@ -35,7 +35,7 @@ After five years of volunteer-driven restoration work under the Wetfish banner, 
 - **Contact:** contact@wildland.eco
 - **Volunteering:** volunteer@wildland.eco
 - **Donations:** donate@wildland.eco
-- **Automated email:** no-reply@wildland.eco (sending only)
+- **Automated email:** no-reply@from.wildland.eco (sending only; replies go to contact@wildland.eco)
 
 ## Board of Directors
 

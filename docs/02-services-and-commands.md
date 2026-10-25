@@ -124,6 +124,14 @@ docker compose exec app php artisan stripe:check
 ```
 
 
+### mail:test (`app/Console/Commands/SendTestEmail.php`)
+
+Sends a short test email (`App\Mail\TestEmail`) to an address, right away rather than through the queue, to check a server's mail settings before donors depend on them. It shows the mailer, SMTP server, from address, and reply-to address it used, and the error if sending fails. With an AhaSend sandbox credential, the message is recorded in the AhaSend dashboard but not delivered; with `MAIL_MAILER=log`, it is written to the log. See [Email](07-deployment.md#email).
+
+```bash
+docker compose exec app php artisan mail:test you@example.com
+```
+
 ### stripe:sync (`app/Console/Commands/SyncStripe.php`)
 
 Imports donations, recurring donations, refunds, and checkouts from Stripe through the same sync functions as webhooks (see [StripeImporter](#stripeimporter-apppaymentsstripestripeimporterphp)). Safe to run any number of times: every record is keyed on its Stripe ID.
