@@ -81,7 +81,8 @@ The test database was set up ahead of this milestone, for the leaf program's app
 ### 6. Stripe Integration
 
 - Done: the Stripe PHP SDK with the API version pinned in `config/services.php`, the test and live mode check (`StripeMode` and `stripe:check`, run by every deploy), and the Stripe CLI for local webhook testing.
-- `PaymentGateway` interface with a Stripe implementation.
+- Done: the `PaymentGateway` interface with a Stripe implementation that finds or creates the donor's Stripe customer and starts Checkout Sessions (see [Services & Commands](02-services-and-commands.md#paymentgateway-apppaymentspaymentgatewayphp)).
+- Payment methods are not listed in our code: Checkout offers every method enabled in the Stripe dashboard that supports the gift's frequency, such as cards, wallets, and bank accounts. Methods that settle later, such as US bank accounts (ACH), record a `pending` donation until the payment succeeds or fails.
 - Every Checkout Session uses one "Donation" product (`STRIPE_DONATION_PRODUCT_ID`, one per mode) with the donor's amount set inline, and a monthly or yearly interval for recurring gifts, so any amount works without creating prices in advance.
 - Donate form → Checkout Session → Stripe-hosted payment page → thank-you page.
 - Checkout reuses a donor's existing Stripe customer, so the Customer Portal shows all of their recurring gifts together. When several Stripe customers share an email address, the portal's login link opens the most recently created one with an active subscription.

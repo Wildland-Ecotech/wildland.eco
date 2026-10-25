@@ -14,6 +14,25 @@ Proof-of-work spam protection for public forms, used by the leaf application for
 
 Raising `DIFFICULTY` by one makes the work 16 times harder for people as well as bots.
 
+### PaymentGateway (`app/Payments/PaymentGateway.php`)
+
+Our interface to the payment processor, so the rest of the application never depends on Stripe directly. Resolve it from the container (`app(PaymentGateway::class)` or a type-hinted parameter); `AppServiceProvider` binds it to `StripeGateway`. The interface grows as each part of the donation flow is built.
+
+- `name()` returns the value stored in `gateway` columns: `stripe`.
+- `startCheckout($checkout, $successUrl, $cancelUrl)` starts a hosted payment page for a `Checkout` and returns a `HostedCheckout` (`app/Payments/HostedCheckout.php`): the session `id` for `checkouts.gateway_session_id`, the `url` to send the donor to, and `expiresAt`.
+
+### StripeGateway (`app/Payments/Stripe/StripeGateway.php`)
+
+The Stripe implementation of `PaymentGateway`.
+
+- **Customers.** The checkout's user becomes a Stripe customer, so the Customer Portal shows all of a donor's recurring gifts together. It uses the user's most recently recorded `gateway_customers` row; otherwise the most recent Stripe customer with their email address, such as a donor who gave through a Payment Link; otherwise a new customer with their name and email. Stripe's email filter is case-sensitive, so a customer created elsewhere with capital letters in their address is not found, and a new one is created. Found customers are recorded, restoring a soft-deleted record rather than duplicating it.
+- **Checkout Sessions.** One-time gifts use `payment` mode with a "Donate" button; monthly and annual gifts use `subscription` mode with a `month` or `year` interval. Every session uses the one Donation product (`STRIPE_DONATION_PRODUCT_ID`) with the amount set inline (`price_data`), so any amount works without creating prices. No payment methods are listed, so Checkout offers every method enabled in the Stripe dashboard that supports the gift's frequency.
+- **Metadata.** The checkout's `reference` and designation slug are set as the session's `metadata` and `client_reference_id`, and copied to the PaymentIntent or subscription, which outlive the session, so sync and import can match payments to checkouts and designations.
+- **Retries.** Sessions are created with an idempotency key of the checkout reference and customer, so a retried request returns the same session. If a recorded customer was deleted in Stripe, its record is soft-deleted and the session is created again with a current customer.
+- **Notices.** Every call goes through `call()`, which logs a notice Stripe attaches to a response as a warning instead of letting it fail a call that succeeded (see [Stripe](07-deployment.md#stripe)).
+
+`tests/Feature/StripeGatewayTest.php` runs it through the real SDK with the SDK's HTTP client replaced (`Stripe\ApiRequestor::setHttpClient()`), checking the exact requests sent without calling Stripe.
+
 ### StripeMode (`app/Payments/Stripe/StripeMode.php`)
 
 Keeps Stripe's test and live modes apart. Only the production site may use live mode.

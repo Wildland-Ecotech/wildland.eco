@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Payments\PaymentGateway;
+use App\Payments\Stripe\StripeGateway;
 use App\Payments\Stripe\StripeMode;
 use Illuminate\Support\ServiceProvider;
 use Stripe\StripeClient;
@@ -24,6 +26,8 @@ class AppServiceProvider extends ServiceProvider
                 'stripe_version' => config('services.stripe.api_version'),
             ]);
         });
+
+        $this->app->bind(PaymentGateway::class, StripeGateway::class);
     }
 
     /**
