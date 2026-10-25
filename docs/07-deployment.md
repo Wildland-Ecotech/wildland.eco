@@ -183,7 +183,7 @@ Staging and production each run on their own server from a clone of the reposito
 
 | Service | Purpose |
 |---------|---------|
-| caddy | Terminates HTTPS on ports 80 and 443, obtains and renews certificates automatically, and forwards requests to nginx. Configured by `deploy/caddy/<CADDY_SITE>.Caddyfile`. |
+| caddy | Terminates HTTPS on ports 80 and 443, obtains and renews certificates automatically, and forwards requests to nginx. Shows the maintenance page while the site is unavailable (see [Maintenance Page](#maintenance-page)). Configured by `deploy/caddy/<CADDY_SITE>.Caddyfile`, with the parts both servers share in `deploy/caddy/site.caddy`. |
 | webhook | Receives GitHub push webhooks at `/hooks/deploy`. It verifies the signature, and for pushes to the server's branch writes `deploy/trigger/deploy-requested`. It has no Docker access, and its port (9000) is reachable only by Caddy over Docker's internal network. |
 
 ### Images
@@ -216,13 +216,23 @@ Locally, `docker-compose.dev.yml` replaces the images' code with the clone (the 
 4. `deploy/deploy.sh` checks out the branch's latest commit, which changes nothing on the running site, and then:
    1. Builds the app and nginx images while the old containers keep serving the site. If the commit changed the deploy script itself, it first restarts with the new version.
    2. Runs `php artisan stripe:check` in a container from the new image, which fails the deploy before anything changes if the Stripe keys are for the wrong mode or `laravel/.env` is broken.
-   3. Runs migrations from the new image. The old code runs against the new schema for the few seconds until the switch, which is safe for additive migrations.
-   4. Replaces the app, queue, scheduler, and nginx containers with ones from the new images (`docker compose up --wait`), waiting until app and nginx pass their health checks. They are replaced even when the images are unchanged, so a deploy by hand applies changes to `laravel/.env`. The queue worker finishes its current job before its container stops. Requests can fail for a few seconds while the containers are replaced.
+   3. Runs migrations from the new image. When there are migrations to run, it first turns on the [maintenance page](#maintenance-page), which stays on until the new containers are up, so no visitor reaches a half-migrated database.
+   4. Replaces the app, queue, scheduler, and nginx containers with ones from the new images (`docker compose up --wait`), waiting until app and nginx pass their health checks. They are replaced even when the images are unchanged, so a deploy by hand applies changes to `laravel/.env`. The queue worker finishes its current job before its container stops. While nginx is replaced, Caddy holds incoming requests for a few seconds until it is back, so visitors see a slower page load rather than an error.
    5. Records the release's image tag as `IMAGE_TAG` in the root `.env`, reloads the Caddy config, and removes images older than the three newest releases.
 
    If more commits arrived during the deploy, it deploys again.
 
 Deploys in the same environment never overlap. The clone is used only for deploys: the script discards local changes to tracked files, while untracked files such as `.env` and `laravel/.env` are kept. To deploy a different branch, see [Switching Branches](#switching-branches).
+
+### Maintenance Page
+
+Caddy shows `deploy/caddy/maintenance.html`, a self-contained page in the site's style that reloads itself every 30 seconds, instead of an error while the site is unavailable. It is sent with the error's status code and a `Retry-After` header, so search engines treat the outage as temporary. Caddy shows it:
+
+- **While `deploy/maintenance/on` exists** on the host. Deploys create it while migrations run (see [How Deploys Work](#how-deploys-work)), and it can be created by hand for planned maintenance. The deploy webhook (`/hooks/*`) keeps working while it is on.
+- **When nginx can't be reached for 15 seconds.** During a deploy, nginx is back well within that, so the request simply waits.
+- **When nginx answers 502 or 504** (PHP can't be reached) **or Laravel answers 503** (`php artisan down`). Laravel's other errors, such as a 500 from a bug, are shown as Laravel renders them.
+
+The rules are in `deploy/caddy/site.caddy`, which both Caddyfiles import. nginx looks up the app container's address every few seconds rather than once, so it never keeps sending requests to a container that was replaced.
 
 ### Server Settings
 
@@ -286,6 +296,11 @@ journalctl -u wildland-deploy -f
 
 # Webhook and Caddy logs (from the clone's directory)
 docker compose logs -f webhook caddy
+
+# Show the maintenance page for planned maintenance, then hide it. A deploy
+# that runs meanwhile leaves it on.
+sudo -u deploy touch deploy/maintenance/on
+sudo -u deploy rm deploy/maintenance/on
 
 # Queue worker and scheduler logs
 docker compose logs -f queue scheduler

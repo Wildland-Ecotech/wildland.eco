@@ -67,9 +67,15 @@ deploy_commit() {
     log "Checking the Stripe configuration"
     docker compose run --rm app php artisan stripe:check
 
-    # Runs from the new image just before the switch. The old code runs
-    # against the new schema for a few seconds, which is safe for the
-    # additive migrations we write.
+    # Runs from the new image just before the switch. When there are
+    # migrations to run, visitors see the maintenance page until the new
+    # containers are up, so no request meets a half-migrated database. With
+    # none, the switch alone takes a few seconds, during which Caddy holds
+    # requests until nginx is back (deploy/caddy/site.caddy).
+    if ! docker compose run --rm app php artisan migrate:status --pending=1 > /dev/null; then
+        maintenance_on
+    fi
+
     log "Running migrations"
     docker compose run --rm app php artisan migrate --force
 
@@ -80,6 +86,7 @@ deploy_commit() {
     docker compose up --detach --no-deps --force-recreate --wait --wait-timeout 180 \
         app queue scheduler nginx
     save_image_tag "$IMAGE_TAG"
+    maintenance_off
 
     # Starts or updates the other services where their configuration changed,
     # and removes containers of services no longer in docker-compose.yml, such
@@ -111,6 +118,31 @@ copy_host_storage() {
                 touch storage/.copied-from-host
             fi
         '
+}
+
+# Shows the maintenance page (deploy/caddy/maintenance.html) on every request
+# while deploy/maintenance/on exists. A page turned on by hand before the
+# deploy is left on.
+maintenance_on() {
+    if [[ -e deploy/maintenance/on ]]; then
+        log "The maintenance page was already on; leaving it on"
+        return
+    fi
+
+    log "Showing the maintenance page"
+    touch deploy/maintenance/on
+    MAINTENANCE_STARTED_BY_DEPLOY=1
+}
+
+# Hides the maintenance page if this deploy showed it. Also runs when the
+# deploy exits early, since a failed step leaves the old containers serving
+# the site.
+maintenance_off() {
+    if [[ -n "${MAINTENANCE_STARTED_BY_DEPLOY:-}" ]]; then
+        log "Hiding the maintenance page"
+        rm -f deploy/maintenance/on
+        MAINTENANCE_STARTED_BY_DEPLOY=
+    fi
 }
 
 # Records the running release in .env, so docker compose commands run by
@@ -184,6 +216,10 @@ main() {
     mkdir -p deploy/trigger
     exec 9>deploy/trigger/deploy.lock
     flock 9
+
+    # Caddy reads the maintenance flag from here (docker-compose.yml)
+    mkdir -p deploy/maintenance
+    trap maintenance_off EXIT
 
     deploy
 }

@@ -1,0 +1,45 @@
+# Snippets shared by staging.Caddyfile and production.Caddyfile, which import
+# this file. Not a site configuration on its own.
+
+# Proxies the site to nginx, showing the maintenance page instead of an error
+# while the site is unavailable:
+#
+# - While deploy/maintenance/on exists on the host (mounted read-only at
+#   /srv/maintenance). Deploys create it while migrations run and the
+#   containers switch over; create it by hand for planned maintenance.
+# - While nginx is being replaced, a request waits up to 15 seconds for it to
+#   come back before getting the page, so most visitors only see a slower
+#   page load.
+# - When nginx answers 502 or 504 (PHP is unreachable) or Laravel answers 503
+#   (`php artisan down`). Laravel's other errors, such as a 500 from a bug,
+#   are passed through unchanged.
+(proxy_to_site) {
+	@maintenance file {
+		root /srv/maintenance
+		try_files /on
+	}
+	error @maintenance "Down for maintenance" 503
+
+	reverse_proxy nginx:80 {
+		lb_try_duration 15s
+		lb_try_interval 250ms
+
+		@unavailable status 502 503 504
+		handle_response @unavailable {
+			error "Unavailable" {rp.status_code}
+		}
+	}
+}
+
+# Serves deploy/caddy/maintenance.html for the errors above, keeping their
+# status code. Retry-After tells browsers and search engines the outage is
+# temporary.
+(maintenance_page) {
+	handle_errors 502 503 504 {
+		root * /etc/caddy
+		rewrite * /maintenance.html
+		header Cache-Control "no-store"
+		header Retry-After "30"
+		file_server
+	}
+}

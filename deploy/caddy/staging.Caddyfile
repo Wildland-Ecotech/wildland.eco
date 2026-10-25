@@ -7,6 +7,9 @@
 	email contact@wildland.eco
 }
 
+# The proxy_to_site and maintenance_page snippets
+import /etc/caddy/site.caddy
+
 stage.wildland.eco {
 	encode zstd gzip
 
@@ -19,6 +22,8 @@ stage.wildland.eco {
 	}
 
 	handle {
-		reverse_proxy nginx:80
+		import proxy_to_site
 	}
+
+	import maintenance_page
 }
