@@ -59,24 +59,68 @@ class PagesTest extends TestCase
         }
     }
 
-    public function test_menu_page_links_to_the_main_pages(): void
+    public function test_page_footers_link_to_our_social_media(): void
     {
-        $this->get('/menu')
-            ->assertOk()
-            ->assertSeeInOrder(['Home', 'Leaf Collection', 'FAQ', 'Contact Us'])
-            ->assertSee('href="' . route('leaves') . '"', false)
-            ->assertSee('href="' . route('faq') . '"', false)
-            ->assertSee('href="mailto:contact@wildland.eco"', false);
+        foreach (['/', '/leaves', '/leaves/apply', '/faq', '/donate'] as $uri) {
+            $this->get($uri)
+                ->assertOk()
+                ->assertSeeInOrder(['Follow our progress', '>Instagram</a>', '>LinkedIn</a>', '>Facebook</a>'], false)
+                ->assertSee('<a href="https://www.facebook.com/people/Wildland-Ecotech/61593137854373/" target="_blank" rel="noopener noreferrer">Facebook</a>', false);
+        }
     }
 
-    public function test_menu_overlay_links_to_the_new_pages(): void
+    public function test_menu_page_links_to_the_main_pages(): void
+    {
+        $content = $this->get('/menu')->assertOk()->getContent();
+
+        // The page's own links, after the menu overlay every page includes
+        $page = substr($content, strpos($content, 'class="menu-page"'));
+
+        $this->assertMatchesRegularExpression('/Home.*Leaf Collection.*FAQ.*Volunteer.*Contact Us.*Donate/s', $page);
+        $this->assertStringContainsString('<a class="button" href="mailto:volunteer@wildland.eco">Volunteer</a>', $page);
+        $this->assertStringContainsString('<a class="button" href="mailto:contact@wildland.eco">Contact Us</a>', $page);
+        $this->assertStringContainsString('<a class="button full" href="' . route('donate') . '">Donate</a>', $page);
+        $this->assertStringContainsString('class="social-links"', $page);
+    }
+
+    public function test_menu_overlay_links_to_the_main_pages_with_donate_highlighted(): void
     {
         $this->get('/')
             ->assertOk()
-            ->assertSee('href="' . route('leaves') . '" data-menu-close>Leaf Collection', false)
-            ->assertSee('href="' . route('faq') . '" data-menu-close>FAQ', false)
+            ->assertSeeInOrder(['data-menu-close>Home', 'data-menu-close>Leaf Collection', 'data-menu-close>FAQ', 'data-menu-close>Volunteer', 'data-menu-close>Contact Us', 'data-menu-close>Donate'], false)
+            ->assertSee('<a class="button" href="' . route('home') . '" data-menu-close>Home</a>', false)
+            ->assertSee('<a class="button" href="mailto:volunteer@wildland.eco" data-menu-close>Volunteer</a>', false)
+            ->assertSee('<a class="button full" href="' . route('donate') . '" data-menu-close>Donate</a>', false)
             ->assertDontSee('data-menu-close>Our Programs', false)
             ->assertDontSee('data-menu-close>Our Projects', false);
+    }
+
+    public function test_the_menu_links_to_our_social_media(): void
+    {
+        foreach (['/', '/menu'] as $uri) {
+            $this->get($uri)
+                ->assertOk()
+                ->assertSee('href="https://www.instagram.com/wildland.ecotech" target="_blank" rel="noopener noreferrer" aria-label="Instagram"', false)
+                ->assertSee('href="https://www.linkedin.com/company/wildland-ecotech" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn"', false)
+                ->assertSee('href="https://www.facebook.com/people/Wildland-Ecotech/61593137854373/" target="_blank" rel="noopener noreferrer" aria-label="Facebook"', false);
+        }
+    }
+
+    public function test_home_banner_asks_visitors_to_donate(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('<div class="donate-cta" data-rainbow-border>', false)
+            ->assertSee('Help restore Colorado\'s <span class="nowrap">wildfire-damaged</span> land', false)
+            ->assertSee('<a class="button full" href="' . route('donate') . '">Donate</a>', false)
+            ->assertDontSee('Follow our socials');
+    }
+
+    public function test_project_popups_link_to_facebook(): void
+    {
+        $content = $this->get('/')->assertOk()->getContent();
+
+        $this->assertSame(2, substr_count($content, '<a class="button dark" href="https://www.facebook.com/people/Wildland-Ecotech/61593137854373/"'));
     }
 
     public function test_home_collecting_leaves_section_links_to_the_leaf_program(): void
@@ -174,9 +218,11 @@ class PagesTest extends TestCase
 
     public function test_donate_page_footer_links_home_instead_of_to_donate(): void
     {
-        $this->get('/donate')
+        $response = $this->get('/donate')
             ->assertOk()
-            ->assertSee('Back to Home')
-            ->assertDontSee('href="' . route('donate') . '"', false);
+            ->assertSee('Back to Home');
+
+        // The menu's Donate link is on every page, including this one
+        $this->assertStringNotContainsString('href="' . route('donate') . '"', $this->withoutMenuOverlay($response->getContent()));
     }
 }

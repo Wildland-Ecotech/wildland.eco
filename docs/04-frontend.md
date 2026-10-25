@@ -48,7 +48,8 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 ### Home (`/`) — `pages/home.blade.php`
 
 - Illustrated mountain background with a firefly forest transition
-- Social media banner with a rotating rainbow border (`rainbow-border.js`), drawn only while the banner is on screen; without JavaScript the border cycles colors in CSS
+- Donate banner ("Help restore Colorado's wildfire-damaged land" and a Donate button linking to `/donate`) with a rotating rainbow border (`rainbow-border.js`), drawn only while the banner is on screen; without JavaScript the border cycles colors in CSS
+- The project modals link to Instagram, LinkedIn, and Facebook
 - Three sections: Our Mission, What We Do (programs accordion), Our Projects (project cards that open modals)
 - The Collecting Leaves program ends with a plain text link to `/leaves` ("Learn more about leaf collection"), styled as a link rather than a button so it isn't mistaken for the buttons that open sections
 - Footer, with a Donate link
@@ -102,7 +103,7 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 
 ### Menu (`/menu`) — `pages/menu.blade.php`
 
-A full-page menu for visitors without JavaScript, with the same links as the menu overlay.
+A full-page menu for visitors without JavaScript, with the same links and social media icons as the menu overlay.
 
 ## Components
 
@@ -120,11 +121,11 @@ A 44px square link to `/menu` with a three-bar icon drawn as an inline SVG, cent
 
 ### Menu Overlay (`menu-overlay`)
 
-Full-screen blurred overlay with links to Home, Leaf Collection (`/leaves`, the page visitors from our flyers are looking for), FAQ (`/faq`), and Contact Us. It repeats the top nav layout with an invisible wordmark, so its close button sits exactly where the menu button is. Escape or following a link closes it.
+Full-screen blurred overlay with links to Home, Leaf Collection (`/leaves`, the page visitors from our flyers are looking for), FAQ (`/faq`), Volunteer (an email to volunteer@wildland.eco until there's a volunteers page), Contact Us, and Donate (`/donate`), the filled main-action button. Below the links, social media icons (`social-links`), left-aligned with the links. It scrolls when it's taller than the window. It repeats the top nav layout with an invisible wordmark, so its close button sits exactly where the menu button is. Escape or following a link closes it.
 
 ### Footer (`footer`)
 
-Gradient footer with decorative bubbles. Props with defaults:
+Gradient footer with decorative bubbles, links to Instagram, LinkedIn, and Facebook under "Follow our progress", and the organization's EIN. Props with defaults:
 
 - `color` (default: `'green'`)
 - `heading` (default: `'Want to make a difference?'`)
@@ -140,6 +141,10 @@ Shell for standalone content pages such as `/donate`: the mountain and firefly b
 ### Disappearing Content (`disappearing-content`)
 
 Wraps page content so it fades out as it scrolls under the top nav. `disappearing-content.js` recalculates a mask image on scroll and resize. The fade is positioned from the top of the content, so it stays correct when something below changes height (opening a `<details>` element, showing a form field) without being recalculated, and never flickers.
+
+### Social Links (`social-links`) and Social Icon (`social-icon`)
+
+`social-links` is a row of icon links to Instagram, LinkedIn, and Facebook, in the menu overlay and on `/menu`; each link has an `aria-label`, since it has no text. `social-icon` draws one outlined icon in the current text color (`<x-social-icon name="facebook" />`; names: `instagram`, `linkedin`, `facebook`), and is also used in the project modals' buttons.
 
 ### Modal (`modal`)
 

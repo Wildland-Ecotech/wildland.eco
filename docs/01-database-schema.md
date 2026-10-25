@@ -141,16 +141,16 @@ Every incoming payment gateway webhook, stored before it is processed on the que
 
 ### donation_receipts
 
-Tax receipts sent to donors. Model: `App\Models\DonationReceipt`. The receipt number format and the receipt email are built in milestone 7.
+Tax receipts sent to donors. Model: `App\Models\DonationReceipt`. Issued and sent by `DonationReceipts` (see [Services & Commands](02-services-and-commands.md#donationreceipts-appservicesdonationreceiptsphp)).
 
 | Column | Notes |
 |--------|-------|
 | user_id | Foreign key; restricts deletes |
-| donation_id | Nullable foreign key; set for receipts for a single donation |
-| receipt_number | Unique, including among soft-deleted receipts, so a number is never reused |
+| donation_id | Nullable foreign key; set for receipts for a single donation. At most one `single` receipt per donation, including soft-deleted receipts: a partial unique index (`donation_receipts_single_donation_unique`) makes the database refuse a second one |
+| receipt_number | `WET-<tax year>-<sequence>`, such as `WET-2026-00001`, with the sequence restarting each tax year. Unique, including among soft-deleted receipts, so a number is never reused |
 | type | String: `single` or `annual_summary` (`DonationReceipt::TYPES`) |
-| tax_year, amount_cents | Integers |
-| sent_at | Nullable timestamp |
+| tax_year, amount_cents | Integers. The tax year is the year the donation was paid in Fort Collins time |
+| sent_at | Nullable timestamp; set once the email is sent. A receipt issued but not sent, such as after an email failure, is sent on the next try |
 | created_at, updated_at | |
 | deleted_at | Nullable; soft deletes |
 

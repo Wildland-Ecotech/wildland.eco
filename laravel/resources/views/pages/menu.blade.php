@@ -2,7 +2,7 @@
     <div class="menu-page">
         <ul class="links">
             <li>
-                <a class="button full" href="{{ route('home') }}">Home</a>
+                <a class="button" href="{{ route('home') }}">Home</a>
             </li>
 
             <li>
@@ -14,9 +14,19 @@
             </li>
 
             <li>
+                <a class="button" href="mailto:volunteer@wildland.eco">Volunteer</a>
+            </li>
+
+            <li>
                 <a class="button" href="mailto:contact@wildland.eco">Contact Us</a>
             </li>
+
+            <li>
+                <a class="button full" href="{{ route('donate') }}">Donate</a>
+            </li>
         </ul>
+
+        <x-social-links />
 
         <a class="back" href="{{ route('home') }}">← Back to site</a>
     </div>

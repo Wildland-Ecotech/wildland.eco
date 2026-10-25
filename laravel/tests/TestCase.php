@@ -30,4 +30,22 @@ abstract class TestCase extends BaseTestCase
 
         return parent::setUpTraits();
     }
+
+    /**
+     * A page's HTML without the menu overlay, which every page includes, so
+     * assertions can check the page's own content. The overlay holds no
+     * other sections, so it ends at the first </section> after it starts.
+     */
+    protected function withoutMenuOverlay(string $html): string
+    {
+        $start = strpos($html, '<section class="menu-overlay"');
+
+        if ($start === false) {
+            return $html;
+        }
+
+        $end = strpos($html, '</section>', $start) + strlen('</section>');
+
+        return substr($html, 0, $start) . substr($html, $end);
+    }
 }

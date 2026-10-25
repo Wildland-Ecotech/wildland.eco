@@ -14,6 +14,25 @@ Proof-of-work spam protection for public forms, used by the leaf application for
 
 Raising `DIFFICULTY` by one makes the work 16 times harder for people as well as bots.
 
+### DonationReceipts (`app/Services/DonationReceipts.php`)
+
+Tax receipts for donations, one per donation and never more.
+
+- **Automatic receipts:** payment sync calls `queueIfDue()` every time it syncs a donation. It queues `SendDonationReceipt` only for a donation that `succeeded` within the last 24 hours (`AUTOMATIC_WINDOW_HOURS`) and hasn't been receipted, so importing past history, or a bug, can never email donors in bulk. A donation refunded before its receipt went out isn't receipted. Anything older needs [receipt:send](#receiptsend-appconsolecommandssendreceiptphp).
+- **Receipt numbers:** `issue()` gives a donation its receipt the first time, numbered `WET-<tax year>-<sequence>` (such as `WET-2026-00001`), with the sequence restarting each tax year. The tax year is the year the donation was paid in Fort Collins time (`TIMEZONE`), so the evening of December 31st counts toward that year. Numbers are issued under a PostgreSQL advisory lock, so two receipts can never get the same number, and a receipt's number never changes. "WET" is only used in receipt numbers (see the [style guide](08-style-guide.md#writing)).
+- **Sending:** `send($donation, $resend)` issues the receipt if needed and emails it to the donor (`DonationReceiptMail`), then sets `sent_at`. A receipt already sent is sent again only with `$resend`, keeping its number.
+- **Never twice:** the database's partial unique index refuses a second receipt for the same donation, as a safeguard behind the code (see [donation_receipts](01-database-schema.md#donation_receipts)).
+
+`SendDonationReceipt` (`app/Jobs/SendDonationReceipt.php`) sends one donation's receipt on the queue, retrying failures after 1 minute, 5 minutes, 30 minutes, and 2 hours. It checks again that the receipt is still due when it runs, so a retry more than 24 hours after the donation sends nothing. It is unique per donation.
+
+### DonationReceiptMail (`app/Mail/DonationReceiptMail.php`)
+
+The receipt email (`resources/views/mail/donation-receipt.blade.php`, a Markdown mail with HTML and plain-text versions). It thanks the donor on behalf of the Wildland Ecotech team and lists what donors need for their taxes: the receipt number, date (Fort Collins time), amount, and whether the donation was one-time, monthly, or annual; the statement that no goods or services were provided in exchange; and the organization's legal name, address, and EIN from `config/organization.php`. Receipts for recurring donations link to the Customer Portal login. Replies go to `contact@wildland.eco`. It uses the Wildland Ecotech email theme (see [Email](08-style-guide.md#email) in the style guide).
+
+Stripe's own payment receipts are turned off in the Stripe dashboard, so donors get one receipt (see [Launching Donations](07-deployment.md#launching-donations)).
+
+Locally, `GET /dev/receipt-preview/{one-time|monthly|annual}` shows the email in the browser with sample details, since AhaSend's sandbox records emails without delivering them. The route only exists when `APP_ENV=local`.
+
 ### PaymentGateway (`app/Payments/PaymentGateway.php`)
 
 Our interface to the payment processor, so the rest of the application never depends on Stripe directly. Resolve it from the container (`app(PaymentGateway::class)` or a type-hinted parameter); `AppServiceProvider` binds it to `StripeGateway`. The interface grows as each part of the donation flow is built.
@@ -131,6 +150,23 @@ Sends a short test email (`App\Mail\TestEmail`) to an address, right away rather
 ```bash
 docker compose exec app php artisan mail:test you@example.com
 ```
+
+### receipt:send (`app/Console/Commands/SendReceipt.php`)
+
+Sends the receipt for one donation, named by its Stripe payment ID (`pi_...`), such as a donation that succeeded more than 24 hours before it was synced and so wasn't receipted automatically. It takes exactly one payment ID and nothing else, so it can never email more than one donor. Only `succeeded` donations are receipted.
+
+It shows the payment, amount, date, and the address the receipt will go to, and asks for confirmation before sending. A receipt already sent is refused unless `--resend` is given, which sends the same receipt, with the same number, again.
+
+| Option | Effect |
+|--------|--------|
+| `--resend` | Send a receipt that was already sent again |
+| `--force` | Send without asking for confirmation |
+
+```bash
+docker compose exec app php artisan receipt:send pi_3UUJTNIeELjLGgDr0L3xPGHk
+```
+
+On a server, run it from the clone's directory as the clone's owner (`sudo -u deploy docker compose exec app ...`).
 
 ### stripe:sync (`app/Console/Commands/SyncStripe.php`)
 

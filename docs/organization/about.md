@@ -92,6 +92,7 @@ Selected from 500+ applicants for a $2,500 micro-grant funding:
 
 - **Instagram:** [@wildland.ecotech](https://www.instagram.com/wildland.ecotech)
 - **LinkedIn:** [Wildland Ecotech](https://www.linkedin.com/company/wildland-ecotech/)
+- **Facebook:** [Wildland Ecotech](https://www.facebook.com/people/Wildland-Ecotech/61593137854373/)
 - **GitHub:** [wildland-ecotech](https://github.com/wildland-ecotech)
 
 Posting cadence: 1 update per week across both platforms. Content includes restoration progress photos, volunteer events, educational content about BDAs and watershed restoration, grant announcements, and community partnerships.

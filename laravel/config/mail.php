@@ -119,6 +119,26 @@ return [
     ],
 
     /*
+    |--------------------------------------------------------------------------
+    | Markdown Mail Settings
+    |--------------------------------------------------------------------------
+    |
+    | Markdown mail, such as donation receipts, uses the Wildland Ecotech
+    | theme (resources/views/vendor/mail/html/themes/wildland.css). Mail
+    | components in resources/views/vendor/mail override Laravel's, such as
+    | the header with the site's wordmark.
+    |
+    */
+
+    'markdown' => [
+        'theme' => 'wildland',
+
+        'paths' => [
+            resource_path('views/vendor/mail'),
+        ],
+    ],
+
+    /*
     | Replies go to a mailbox people read, since the from address
     | (no-reply@from.wildland.eco) isn't one. Unlike the from address, it
     | doesn't need to be on the sending domain verified in AhaSend.

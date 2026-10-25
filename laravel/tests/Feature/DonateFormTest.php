@@ -340,7 +340,7 @@ class DonateFormTest extends TestCase
         $donor = User::factory()->create(['name' => 'Jamie Rivera', 'email' => 'jamie@example.com']);
         $checkout = Checkout::factory()->for($donor)->create(['amount_cents' => 3750]);
 
-        $this->get(route('donate.thank-you', $checkout))
+        $response = $this->get(route('donate.thank-you', $checkout))
             ->assertOk()
             ->assertSee('Thank You')
             ->assertSee('monthly donation of $37.50')
@@ -348,8 +348,11 @@ class DonateFormTest extends TestCase
             ->assertDontSee('gift')
             ->assertSee('href="https://billing.stripe.com/p/login/test_example"', false)
             ->assertDontSee('Jamie')
-            ->assertDontSee('jamie@example.com')
-            ->assertDontSee('href="' . route('donate') . '"', false);
+            ->assertDontSee('jamie@example.com');
+
+        // The page itself doesn't ask for another donation; the menu's
+        // Donate link is on every page
+        $this->assertStringNotContainsString('href="' . route('donate') . '"', $this->withoutMenuOverlay($response->getContent()));
     }
 
     public function test_thank_you_page_for_a_one_time_donation_has_no_recurring_donation_link(): void

@@ -10,6 +10,7 @@ use App\Models\Subscription;
 use App\Models\SubscriptionEvent;
 use App\Models\User;
 use App\Payments\Stripe\Concerns\CallsStripe;
+use App\Services\DonationReceipts;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Log;
 
@@ -29,6 +30,8 @@ use Illuminate\Support\Facades\Log;
 class StripeSync
 {
     use CallsStripe;
+
+    public function __construct(private DonationReceipts $receipts) {}
 
     /**
      * Our checkout status for each Checkout Session status.
@@ -257,7 +260,8 @@ class StripeSync
      * the subscription and invoice when it already has them. Other payments
      * belong to the checkout in their metadata, or, without one (such as
      * Payment Link donations), go to the General Fund. A soft-deleted donor
-     * is restored when a payment from them is received.
+     * is restored when a payment from them is received. A donation that
+     * succeeded within the last day is receipted (DonationReceipts).
      */
     public function paymentIntent(string $paymentIntentId, string $source = SubscriptionEvent::SOURCE_WEBHOOK, ?Subscription $subscription = null, ?string $invoiceId = null, ?string $checkoutReference = null): ?Donation
     {
@@ -321,6 +325,10 @@ class StripeSync
         if ($donation->wasReceived() && $user->trashed()) {
             $user->restore();
         }
+
+        // Only donations that succeeded within the last day, and haven't
+        // been receipted, are receipted automatically
+        $this->receipts->queueIfDue($donation);
 
         return $donation;
     }

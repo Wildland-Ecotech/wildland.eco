@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DonationController;
+use App\Http\Controllers\DonationReceiptPreviewController;
 use App\Http\Controllers\LeafApplicationController;
 use App\Http\Controllers\StripeWebhookController;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -32,3 +33,11 @@ Route::post('/webhooks/stripe', StripeWebhookController::class)
         AddQueuedCookiesToResponse::class,
     ])
     ->name('webhooks.stripe');
+
+// Local development only: the donation receipt email as donors see it, with
+// sample details, since AhaSend's sandbox records emails without delivering
+// them. Staging and production run with APP_ENV=production.
+if (app()->environment('local')) {
+    Route::get('/dev/receipt-preview/{frequency?}', DonationReceiptPreviewController::class)
+        ->whereIn('frequency', ['one-time', 'monthly', 'annual']);
+}

@@ -7,6 +7,7 @@ We restore landscapes damaged by wildfire and pollution, working at the intersec
 **Website:** [wildland.eco](https://wildland.eco)
 **Instagram:** [@wildland.ecotech](https://www.instagram.com/wildland.ecotech)
 **LinkedIn:** [Wildland Ecotech](https://www.linkedin.com/company/wildland-ecotech/)
+**Facebook:** [Wildland Ecotech](https://www.facebook.com/people/Wildland-Ecotech/61593137854373/)
 **EIN:** 33-3738514
 
 ## About This Repository

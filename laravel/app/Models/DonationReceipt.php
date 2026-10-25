@@ -9,9 +9,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * A tax receipt sent to a donor: for a single donation, or a year-end summary
- * of their giving. The receipt number format and email are built with
- * receipts (milestone 7). Deleting a receipt soft-deletes it, so it is
- * hidden but never lost, and its number is never reused.
+ * of their giving. Issued and sent by App\Services\DonationReceipts, with
+ * numbers like WET-2026-00001; a donation can have only one. Deleting a
+ * receipt soft-deletes it, so it is hidden but never lost, and its number
+ * is never reused.
  */
 #[Fillable([
     'user_id',
