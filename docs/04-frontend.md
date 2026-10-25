@@ -136,7 +136,7 @@ Gradient footer with decorative bubbles, links to Instagram, LinkedIn, and Faceb
 
 ### Content Page (`content-page`)
 
-Shell for standalone content pages such as `/donate`: the mountain and firefly backgrounds (the fireflies image fades in and out at its edges with a mask, as on the home page), a centered content column wrapped in Disappearing Content, and the page's footer in a `footer` slot. Pages add their own root class for their styles (`<x-content-page class="donate-page">`). `_content-page.scss` also provides `.section-divider`, the gradient line between sections, and `.prose`, a left-aligned 680px text column under centered headings. Text in `.prose` is Detail text, or Lead text with `.prose.lead` (see [Text Roles](08-style-guide.md#text-roles)).
+Shell for standalone content pages such as `/donate`: the mountain and firefly backgrounds (the fireflies image fades in and out at its edges with a mask, as on the home page, and the backgrounds are cut off at the bottom of the page, so they never extend past the footer of a short page), a centered content column wrapped in Disappearing Content, and the page's footer in a `footer` slot. Pages add their own root class for their styles (`<x-content-page class="donate-page">`). `_content-page.scss` also provides `.section-divider`, the gradient line between sections, and `.prose`, a left-aligned 680px text column under centered headings. Text in `.prose` is Detail text, or Lead text with `.prose.lead` (see [Text Roles](08-style-guide.md#text-roles)).
 
 ### Disappearing Content (`disappearing-content`)
 
