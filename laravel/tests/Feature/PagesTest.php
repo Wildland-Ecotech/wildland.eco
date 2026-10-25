@@ -109,18 +109,21 @@ class PagesTest extends TestCase
         $this->get('/donate')
             ->assertOk()
             ->assertSee('Support Our Mission')
-            ->assertSee('id="frequency-monthly" value="monthly" data-frequency data-suffix="/month" checked', false)
+            ->assertSee('id="frequency-monthly" value="monthly" data-frequency data-suffix="/month" >', false)
             ->assertSee('id="tier-one-time-5"', false)
             ->assertSee('id="tier-monthly-100"', false)
             ->assertSee('id="tier-annual-5000"', false)
             ->assertSee('$5,000');
     }
 
-    public function test_donate_button_is_disabled_until_payments_are_integrated(): void
+    public function test_donate_button_is_disabled_until_stripe_is_configured(): void
     {
+        config(['services.stripe.secret' => null]);
+
         $this->get('/donate')
             ->assertOk()
-            ->assertSee('data-donate-button disabled', false);
+            ->assertSee('Online donations are not available right now.')
+            ->assertSee('data-proof-of-work-button disabled', false);
     }
 
     public function test_leaves_page_leads_with_leaving_the_leaves(): void

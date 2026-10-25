@@ -20,6 +20,12 @@ interface PaymentGateway
     public function name(): string;
 
     /**
+     * Whether payments can be taken: the gateway is configured for this
+     * site. The donate page offers giving only while this is true.
+     */
+    public function isAvailable(): bool;
+
+    /**
      * Start a hosted checkout for a donation attempt, where the donor pays on
      * the gateway's own page. The checkout's user becomes the gateway's
      * customer, reusing an existing customer record when there is one.

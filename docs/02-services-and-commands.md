@@ -19,6 +19,7 @@ Raising `DIFFICULTY` by one makes the work 16 times harder for people as well as
 Our interface to the payment processor, so the rest of the application never depends on Stripe directly. Resolve it from the container (`app(PaymentGateway::class)` or a type-hinted parameter); `AppServiceProvider` binds it to `StripeGateway`. The interface grows as each part of the donation flow is built.
 
 - `name()` returns the value stored in `gateway` columns: `stripe`.
+- `isAvailable()` says whether payments can be taken. For Stripe, that is whether `STRIPE_SECRET` is set; the donate page offers giving only while it is true.
 - `startCheckout($checkout, $successUrl, $cancelUrl)` starts a hosted payment page for a `Checkout` and returns a `HostedCheckout` (`app/Payments/HostedCheckout.php`): the session `id` for `checkouts.gateway_session_id`, the `url` to send the donor to, and `expiresAt`.
 
 ### StripeGateway (`app/Payments/Stripe/StripeGateway.php`)
@@ -30,6 +31,8 @@ The Stripe implementation of `PaymentGateway`.
 - **Metadata.** The checkout's `reference` and designation slug are set as the session's `metadata` and `client_reference_id`, and copied to the PaymentIntent or subscription, which outlive the session, so sync and import can match payments to checkouts and designations.
 - **Retries.** Sessions are created with an idempotency key of the checkout reference and customer, so a retried request returns the same session. If a recorded customer was deleted in Stripe, its record is soft-deleted and the session is created again with a current customer.
 - **Notices.** Every call goes through `call()`, which logs a notice Stripe attaches to a response as a warning instead of letting it fail a call that succeeded (see [Stripe](07-deployment.md#stripe)).
+
+The Stripe client is resolved from the container when first needed, not when the gateway is created, so the gateway can answer `isAvailable()` on a server without Stripe keys.
 
 `tests/Feature/StripeGatewayTest.php` runs it through the real SDK with the SDK's HTTP client replaced (`Stripe\ApiRequestor::setHttpClient()`), checking the exact requests sent without calling Stripe.
 

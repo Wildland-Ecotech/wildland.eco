@@ -11,7 +11,20 @@
 // the form shows a notice with an email address to apply by instead.
 
 export function initProofOfWork() {
-    document.querySelectorAll('form[data-proof-of-work]').forEach(setUpForm);
+    const forms = document.querySelectorAll('form[data-proof-of-work]');
+
+    forms.forEach(setUpForm);
+
+    // A page restored from the back/forward cache, such as returning from
+    // the payment page with the browser's Back button, still holds a
+    // challenge the server has already used. Reload it for a fresh one.
+    if (forms.length) {
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                window.location.reload();
+            }
+        });
+    }
 }
 
 function setUpForm(form) {

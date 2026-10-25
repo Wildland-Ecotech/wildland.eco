@@ -136,6 +136,17 @@ class StripeGatewayTest extends TestCase
         $this->assertSame('stripe', app(PaymentGateway::class)->name());
     }
 
+    public function test_the_gateway_is_available_only_with_a_secret_key(): void
+    {
+        $this->assertTrue(app(PaymentGateway::class)->isAvailable());
+
+        config(['services.stripe.secret' => null]);
+
+        // Created and asked without a key, which would fail to create a client
+        $this->assertFalse(app(PaymentGateway::class)->isAvailable());
+        $this->assertEmpty($this->requests);
+    }
+
     public function test_a_one_time_gift_from_a_new_donor_creates_a_customer_and_a_donate_session(): void
     {
         $user = User::factory()->create(['name' => 'Jamie Rivera', 'email' => 'jamie@example.com']);

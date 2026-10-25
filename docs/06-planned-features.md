@@ -84,11 +84,11 @@ The test database was set up ahead of this milestone, for the leaf program's app
 - Done: the `PaymentGateway` interface with a Stripe implementation that finds or creates the donor's Stripe customer and starts Checkout Sessions (see [Services & Commands](02-services-and-commands.md#paymentgateway-apppaymentspaymentgatewayphp)).
 - Payment methods are not listed in our code: Checkout offers every method enabled in the Stripe dashboard that supports the gift's frequency, such as cards, wallets, and bank accounts. Methods that settle later, such as US bank accounts (ACH), record a `pending` donation until the payment succeeds or fails.
 - Every Checkout Session uses one "Donation" product (`STRIPE_DONATION_PRODUCT_ID`, one per mode) with the donor's amount set inline, and a monthly or yearly interval for recurring gifts, so any amount works without creating prices in advance.
-- Donate form → Checkout Session → Stripe-hosted payment page → thank-you page.
+- Done: donate form → Checkout Session → Stripe-hosted payment page → thank-you page, with name and email required, proof-of-work spam protection, and a per-IP limit on started checkouts (see [Donations](03-routes-and-controllers.md#donations)).
 - Checkout reuses a donor's existing Stripe customer, so the Customer Portal shows all of their recurring gifts together. When several Stripe customers share an email address, the portal's login link opens the most recently created one with an active subscription.
 - Webhook endpoint that verifies Stripe's signature, stores the event, and processes it on the queue.
 - History importer command and a scheduled nightly sync. See [Payment Sync and Import](#payment-sync-and-import).
-- The thank-you page links to the Customer Portal login for managing recurring gifts.
+- Done: the thank-you page links to the Customer Portal login for managing recurring gifts.
 - Enable the donate button and restore the Donate links in the home page footer, replacing the test that checks no page links to `/donate`.
 
 ### 7. Receipts and Email
@@ -134,7 +134,7 @@ After launch. Stripe Checkout and the no-code Customer Portal are a quick MVP so
 
 ## Donation Flow
 
-1. The donor chooses a frequency and amount and enters their email address (name optional).
+1. The donor chooses a frequency and amount and enters their name and email address, both required, so every donor has a name to address them by.
 2. The server finds or creates a user by email (no password), records a `checkouts` row, creates a Checkout Session with the checkout's reference in its metadata, and redirects to Stripe.
 3. Stripe collects payment. Webhooks record the donation, and the subscription for recurring gifts.
 4. The thank-you page confirms the gift and links to the Customer Portal login for managing recurring gifts. After accounts are built, it also offers an optional password (see [Accounts](#accounts)).

@@ -102,6 +102,33 @@ docker compose exec app php artisan test
 
 Merging into `main` and `release` deploys it: the deploy rebuilds the changed image and recreates the app container, with no manual step on the servers.
 
+### Updating the Stripe API version
+
+Stripe structures every request, response, and webhook event by an API version. Ours is pinned in two places that must change together: the Stripe PHP SDK (`stripe/stripe-php` in `composer.json`), whose generated code matches one version, and `services.stripe.api_version` in `config/services.php`, which every request sends as its `Stripe-Version`. Stripe releases a compatible version monthly and a major version with breaking changes twice a year (such as `dahlia` to `endive`); see [How API versioning works](https://docs.stripe.com/api-versions).
+
+Three other things in Stripe have a version of their own:
+
+| Where | Used for | Set in |
+|-------|----------|--------|
+| Each account's or sandbox's **default API version** | Events the Stripe CLI forwards, events fetched through the API, and requests without a `Stripe-Version` | Workbench → Overview, or Settings → Developers → Preferences. An upgrade can be reverted for a few days |
+| Each **webhook endpoint** | The payloads of the events sent to it | Chosen when the endpoint is created |
+| The **Stripe CLI** | Its own requests, and the events it forwards | The account default; `stripe listen --latest` would use the newest version instead, which can move ahead of ours, so it isn't used |
+
+To move to a new version:
+
+1. Read the [API changelog](https://docs.stripe.com/changelog.md) from our version to the new one, and the SDK's `CHANGELOG.md`. Within one major version (the name after the date), changes are compatible; across majors, check every field the code uses.
+2. Update the SDK and set `api_version` to the version that SDK release pins (`Stripe\Util\ApiVersion::CURRENT` in `vendor/stripe/stripe-php/lib/Util/ApiVersion.php`), then run the tests:
+
+```bash
+docker compose exec app composer require stripe/stripe-php:^<major>.0
+docker compose exec app php artisan test
+```
+
+3. Upgrade the local development sandbox's default API version, and restart the Stripe CLI. Its banner (`docker compose logs stripe`) shows the version it forwards.
+4. For each server's sandbox or account, upgrade the default API version, and move its webhook endpoint to the new version. Within a major version, edit the endpoint's version. Across majors, follow Stripe's [webhook versioning](https://docs.stripe.com/webhooks/versioning.md) guide: create a second endpoint at the new version, run both until the new code is deployed, then remove the old one.
+
+Once the webhook endpoint is built (milestone 6), its handler logs a warning for any event whose `api_version` differs from ours, so a version left behind shows up in the logs.
+
 ## Servers
 
 Staging and production each run on their own server from a clone of the repository, using the same `docker-compose.yml` as local development. The clone can be in any directory; deploys run as the user who owns it. Two more services run only on servers, enabled by `COMPOSE_PROFILES=server`:

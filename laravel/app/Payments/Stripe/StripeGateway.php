@@ -32,11 +32,27 @@ class StripeGateway implements PaymentGateway
         Checkout::FREQUENCY_ANNUAL => ['mode' => 'subscription', 'interval' => 'year'],
     ];
 
-    public function __construct(private StripeClient $stripe) {}
-
     public function name(): string
     {
         return self::NAME;
+    }
+
+    /**
+     * Whether a secret key is set. A key for the wrong mode still fails
+     * loudly when the client is first used (see StripeMode::assertValid()).
+     */
+    public function isAvailable(): bool
+    {
+        return StripeMode::isConfigured();
+    }
+
+    /**
+     * The Stripe client, resolved when first needed, so the gateway can be
+     * created and asked whether it is available without a key.
+     */
+    private function stripe(): StripeClient
+    {
+        return app(StripeClient::class);
     }
 
     /**
@@ -93,12 +109,12 @@ class StripeGateway implements PaymentGateway
             return $recorded->gateway_customer_id;
         }
 
-        $existing = $this->call(fn () => $this->stripe->customers->all([
+        $existing = $this->call(fn () => $this->stripe()->customers->all([
             'email' => $user->email,
             'limit' => 1,
         ]))->data[0] ?? null;
 
-        $customerId = $existing->id ?? $this->call(fn () => $this->stripe->customers->create([
+        $customerId = $existing->id ?? $this->call(fn () => $this->stripe()->customers->create([
             'email' => $user->email,
             'name' => $user->name,
         ]))->id;
@@ -163,7 +179,7 @@ class StripeGateway implements PaymentGateway
             $params['subscription_data'] = ['metadata' => $metadata];
         }
 
-        return $this->call(fn () => $this->stripe->checkout->sessions->create($params, [
+        return $this->call(fn () => $this->stripe()->checkout->sessions->create($params, [
             'idempotency_key' => "checkout-{$checkout->reference}-{$customerId}",
         ]));
     }

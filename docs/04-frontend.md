@@ -55,12 +55,25 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 
 ### Donate (`/donate`) — `pages/donate.blade.php`
 
-- Built on the Content Page component
+- Built on the Content Page component; a plain HTML form validated on the server (see [Routes & Controllers](03-routes-and-controllers.md#donations))
 - Frequency toggle (One-Time / Monthly / Annual) and tier cards: `[5, 20, 50]` one-time, `[20, 50, 100]` monthly, `[100, 1000, 5000]` annual. The amounts are defined in the `$frequencies` array at the top of the view.
-- Frequencies and tiers are visually hidden radio inputs styled through their labels. The frequency radios come first in the form, so a sibling selector (`~`) shows the tier set for the checked frequency without JavaScript. Each frequency's tiers use their own field name (`amount_one_time`, `amount_monthly`, `amount_annual`).
-- Custom amount field. `donate.js` filters input as it is typed (digits, one decimal point, two decimal places, $9,999 maximum), clears selections when the frequency changes, and shows the amount on the button ("Donate $20/month").
-- The donate button is disabled until Stripe is integrated (milestone 6), and no page links to `/donate` until then.
+- No frequency is chosen when the page loads, and only the frequency toggle shows, so the opening card stays short for visitors who want to read about our work first. Choosing a frequency reveals everything else (`.donate-details`): the tier cards, custom amount, name, email, and button. After a validation error, the chosen frequency stays checked, so the details stay open.
+- Frequencies and tiers are visually hidden radio inputs styled through their labels. The frequency radios come first in the form, so a sibling selector (`~`) shows `.donate-details` once any frequency is checked, and the tier set for the checked frequency inside it, without JavaScript. Each frequency's tiers use their own field name (`amount_one_time`, `amount_monthly`, `amount_annual`).
+- The custom amount, name, and email fields share one width (`$field-width` in `_donate.scss`).
+- Custom amount field. `donate.js` filters input as it is typed (digits, one decimal point, two decimal places, $9,999 maximum), clears selections when the frequency changes, shows the amount on the button ("Donate $20/month"), and disables the button until an amount is chosen. Without JavaScript the button says "Donate", and the server checks the amount.
+- Name and email fields, both required. Validation errors appear in a red summary above the form and under each field, and every field keeps its input, including the chosen frequency and suggested amount.
+- An off-screen `website` field as a spam trap, and proof-of-work spam protection (`proof-of-work.js`), as on the leaf form. Paying needs JavaScript anyway, for Stripe's own pages, so a `<noscript>` notice gives the email address to give another way.
+- While online giving is unavailable (no Stripe key), a notice says so and the button stays disabled (`data-unavailable` on the form).
+- Submitting sends the donor to Stripe Checkout. No page links to `/donate` until donations launch (milestone 6).
 - "What You're Supporting" cards, impact stats, "Other Ways to Help", and a footer that links back home.
+
+### Donation Thank-You (`/donate/thank-you/{reference}`) — `pages/donate-thank-you.blade.php`
+
+- Where Stripe returns the donor after paying, in the same card style as the donate page
+- Thanks the donor for their gift by amount and frequency ("monthly gift of $20"), never showing their name or email, since the URL is the only thing protecting the page
+- Notes that bank payments can take a few business days
+- For monthly and annual gifts, a "Manage Your Recurring Gift" button links to the Stripe Customer Portal login (`STRIPE_PORTAL_LOGIN_URL`), where the donor signs in with an emailed link
+- A footer that links back home
 
 ### Leaves (`/leaves`) — `pages/leaves.blade.php`
 
@@ -78,7 +91,7 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 - The "when will they be ready" date is hidden with `:has()` while "Yes, they're ready now" is checked. Browsers without `:has()` always show it, and the server ignores it when the bags are ready.
 - Validation errors appear in a red summary above the form and under each field, and every field keeps its input.
 - Terms with a required "Yes, I agree" checkbox, and an off-screen `website` field as a spam trap
-- Proof-of-work spam protection (`proof-of-work.js`, attached with `data-proof-of-work`): solving starts when the page loads, and if the form is submitted first, the button shows "Verifying…" until it finishes. This is the one page that needs JavaScript to submit: without it, a `<noscript>` notice gives the email address to apply by instead. The browser's `crypto.subtle` is only available over HTTPS and on `localhost`.
+- Proof-of-work spam protection (`proof-of-work.js`, attached with `data-proof-of-work`): solving starts when the page loads, and if the form is submitted first, the button shows "Verifying…" until it finishes. The form needs JavaScript to submit: without it, a `<noscript>` notice gives the email address to apply by instead. The browser's `crypto.subtle` is only available over HTTPS and on `localhost`. A page restored from the back/forward cache reloads, since its challenge has already been used.
 - After applying, the page shows a thank-you message for drop-off or pickup instead of the form
 
 ### FAQ (`/faq`) — `pages/faq.blade.php`

@@ -1,10 +1,12 @@
 // Donate form enhancements: filters the custom amount as it is typed,
-// clears selections when the frequency changes, and shows the selected
-// amount on the donate button.
+// clears selections when the frequency changes, shows the selected amount
+// on the donate button, and keeps the button disabled until an amount is
+// chosen. The server validates everything again (StartDonationRequest).
 //
-// The donate button stays disabled until Stripe is integrated
-// (milestone 6 in docs/06-planned-features.md).
+// While online giving is unavailable (data-unavailable on the form), the
+// server renders the button disabled and it stays that way.
 
+// Keep in step with StartDonationRequest::MIN_AMOUNT and MAX_AMOUNT
 const MIN_AMOUNT = 1;
 const MAX_AMOUNT = 9999;
 
@@ -19,6 +21,7 @@ export function initDonateForm() {
     const tierInputs = form.querySelectorAll('[data-tier]');
     const customInput = form.querySelector('[data-custom-amount]');
     const button = form.querySelector('[data-donate-button]');
+    const available = !form.hasAttribute('data-unavailable');
 
     function selectedFrequency() {
         return form.querySelector('[data-frequency]:checked');
@@ -49,6 +52,8 @@ export function initDonateForm() {
     function updateButtonLabel() {
         const tier = selectedTier();
         const amount = tier ? Number(tier.value) : validCustomAmount();
+
+        button.disabled = !available || amount === null;
 
         if (amount === null) {
             button.textContent = 'Select an amount';
