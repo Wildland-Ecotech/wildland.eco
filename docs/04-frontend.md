@@ -51,7 +51,7 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 - Social media banner with a rotating rainbow border (`rainbow-border.js`), drawn only while the banner is on screen; without JavaScript the border cycles colors in CSS
 - Three sections: Our Mission, What We Do (programs accordion), Our Projects (project cards that open modals)
 - The Collecting Leaves program ends with a plain text link to `/leaves` ("Learn more about leaf collection"), styled as a link rather than a button so it isn't mistaken for the buttons that open sections
-- Footer, with its Donate link hidden until donations are enabled (milestone 6)
+- Footer, with a Donate link
 
 ### Donate (`/donate`) — `pages/donate.blade.php`
 
@@ -64,7 +64,7 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 - Name and email fields, both required. Validation errors appear in a red summary above the form and under each field, and every field keeps its input, including the chosen frequency and suggested amount.
 - An off-screen `website` field as a spam trap, and proof-of-work spam protection (`proof-of-work.js`), as on the leaf form. Paying needs JavaScript anyway, for Stripe's own pages, so a `<noscript>` notice gives the email address to give another way.
 - While online giving is unavailable (no Stripe key), a notice says so and the button stays disabled (`data-unavailable` on the form).
-- Submitting sends the donor to Stripe Checkout. No page links to `/donate` until donations launch (milestone 6).
+- Submitting sends the donor to Stripe Checkout. Every other page's footer links here; the donate and thank-you pages hide the footer's Donate link (`:show-donate="false"`) and link back home instead.
 - "What You're Supporting" cards, impact stats, "Other Ways to Help", and a footer that links back home.
 
 ### Donation Thank-You (`/donate/thank-you/{reference}`) — `pages/donate-thank-you.blade.php`

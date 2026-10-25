@@ -67,6 +67,18 @@ The queued job that processes a stored webhook event after the webhook has been 
 - It is unique per event (`ShouldBeUnique`, using a cache lock), so a redelivered event can't be processed alongside its own retry. An event already processed is skipped.
 - After its last try, the job stays in `failed_jobs`; retry it with `php artisan queue:retry` (see [Operating a Server](07-deployment.md#operating-a-server)). The nightly sync also catches up on whatever it missed.
 
+### StripeImporter (`app/Payments/Stripe/StripeImporter.php`)
+
+Imports Stripe history for `stripe:sync` by listing objects and running each through `StripeSync` with the `import` source:
+
+1. **Subscriptions**, always all of them (`status: all`), since a long-running one can change at any time; first, so their payments find them without asking Stripe again.
+2. **Invoices**, with their payments, renewals, and failed payments.
+3. **Payments** (PaymentIntents): one-time donations from our checkouts and from Payment Links. Payments of invoices are synced again, harmlessly.
+4. **Refunds**, so a recent refund of an older payment is caught.
+5. **Checkout sessions**, completing or expiring checkouts.
+
+`import($createdSince, $each)` limits everything but subscriptions to objects created since a time, or imports everything when it is null. Lists are paged through automatically. Each object is handed to `$each` with a closure that syncs it, one at a time, so the caller can show progress and handle failures, and the import continues with the next object. The closure returns the synced record, or `null` when there is nothing to record, such as a Payment Link's checkout session or a payment that was never attempted. Stripe keeps its event log for only about 30 days, so history is rebuilt from objects as they are now: a subscription imported long after it was canceled gets its start and cancellation, but not every change between.
+
 ### CallsStripe (`app/Payments/Stripe/Concerns/CallsStripe.php`)
 
 Shared by the classes that call Stripe:
@@ -92,7 +104,11 @@ Document each service class and artisan command here as it is added: its purpose
 
 ## Scheduled Tasks
 
-Tasks are scheduled in `routes/console.php` and run by the `scheduler` container (see [Deployment](07-deployment.md)). None are scheduled yet; the nightly payment sync comes with the Stripe integration (milestone 6).
+Tasks are scheduled in `routes/console.php` and run by the `scheduler` container (see [Deployment](07-deployment.md)). Times are in Fort Collins time.
+
+| Task | When | Purpose |
+|------|------|---------|
+| `stripe:sync --days=3` | Daily at 3:30 AM | Catches anything a Stripe webhook missed. Skipped while Stripe isn't configured, and never overlaps a sync still running. Three days covers a weekend of webhook failures; a longer outage needs a manual `stripe:sync --days=N`. Each run's output is appended to `storage/logs/stripe-sync.log` |
 
 ## Artisan Commands
 
@@ -107,6 +123,23 @@ Checks that the Stripe settings match the mode this site must use, without calli
 docker compose exec app php artisan stripe:check
 ```
 
+
+### stripe:sync (`app/Console/Commands/SyncStripe.php`)
+
+Imports donations, recurring donations, refunds, and checkouts from Stripe through the same sync functions as webhooks (see [StripeImporter](#stripeimporter-apppaymentsstripestripeimporterphp)). Safe to run any number of times: every record is keyed on its Stripe ID.
+
+| Option | Default | Effect |
+|--------|---------|--------|
+| `--days=N` | everything | Only objects created in the last N days; subscriptions are always imported in full |
+
+Run it in full once per environment after Stripe is configured, to import past history, including donations made through Payment Links before the donate page. The scheduler runs it nightly for the last three days.
+
+Output is shown as the sync runs: a line saying whether it's a live or test mode sync and what it covers, then one line per object (such as `Payment pi_3U…`), written before the object syncs and finished with its time and `DONE`, `SKIPPED` (nothing to record), or `FAIL`. If a sync is slow or stuck, the last line shows which object it's on. A summary table follows, with how many objects of each kind were synced, skipped, and failed, then each failure's error. A failed object is also reported to the log, the rest still sync, and the command exits with an error; running it again retries. Without `STRIPE_SECRET`, it does nothing.
+
+```bash
+docker compose exec app php artisan stripe:sync
+docker compose exec app php artisan stripe:sync --days=7
+```
 
 ### leaves:applications (`app/Console/Commands/ListLeafApplications.php`)
 

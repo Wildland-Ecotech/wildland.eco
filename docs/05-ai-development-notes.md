@@ -141,7 +141,7 @@ Server rules that must hold:
 
 ## Webhook Responses
 
-Webhook endpoints, both the deploy webhook and the payment gateway webhooks planned in milestone 6, return an error only when something is actually wrong, such as a missing or invalid signature or a failure while processing. Expected outcomes succeed with a 2xx response and a short message: a push to a branch this server does not deploy, an event type we do not handle, or an event already processed. An error then always means a real problem, and senders that retry failed deliveries (Stripe retries for days and can disable an endpoint) are not sent into retry loops.
+Webhook endpoints, both the deploy webhook and the Stripe webhook (`/webhooks/stripe`), return an error only when something is actually wrong, such as a missing or invalid signature or a failure while processing. Expected outcomes succeed with a 2xx response and a short message: a push to a branch this server does not deploy, an event type we do not handle, or an event already processed. An error then always means a real problem, and senders that retry failed deliveries (Stripe retries for days and can disable an endpoint) are not sent into retry loops.
 
 ## Artisan Commands
 

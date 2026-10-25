@@ -6,7 +6,7 @@
 |--------|-----|------|---------|-------|
 | GET | `/` | `home` | `Route::view` → `pages.home` | Home page |
 | GET | `/menu` | `menu` | `Route::view` → `pages.menu` | Full-page menu for visitors without JavaScript |
-| GET | `/donate` | `donate` | `DonationController@create` → `pages.donate` | Donate page. No page links here until donations launch (milestone 6) |
+| GET | `/donate` | `donate` | `DonationController@create` → `pages.donate` | Donate page, linked from the footer of every other page |
 | POST | `/donate` | `donate.store` | `DonationController@store` | Records a checkout and redirects to the payment gateway's page |
 | GET | `/donate/thank-you/{checkout:reference}` | `donate.thank-you` | `DonationController@thankYou` → `pages.donate-thank-you` | Where the gateway returns the donor after paying |
 | POST | `/webhooks/stripe` | `webhooks.stripe` | `StripeWebhookController` | Receives Stripe's webhooks; see [Stripe Webhooks](#stripe-webhooks). Skips CSRF protection, sessions, and cookies |

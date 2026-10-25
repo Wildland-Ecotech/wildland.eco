@@ -50,12 +50,12 @@ class PagesTest extends TestCase
         $this->assertSame(4, substr_count($content, 'data-blob '));
     }
 
-    public function test_no_page_links_to_donate_page_until_payments_are_integrated(): void
+    public function test_page_footers_link_to_the_donate_page(): void
     {
-        foreach (['/', '/menu', '/donate', '/leaves', '/leaves/apply', '/faq'] as $uri) {
+        foreach (['/', '/leaves', '/leaves/apply', '/faq'] as $uri) {
             $this->get($uri)
                 ->assertOk()
-                ->assertDontSee('href="' . route('donate') . '"', false);
+                ->assertSee('<a class="button dark" href="' . route('donate') . '">Donate</a>', false);
         }
     }
 

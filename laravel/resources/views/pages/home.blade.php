@@ -174,8 +174,7 @@
                 </div>
             </div>
 
-            {{-- Hidden until donations are enabled with the Stripe integration (milestone 6) --}}
-            <x-footer color="green" :show-donate="false" />
+            <x-footer color="green" />
         </x-disappearing-content>
 
         <x-modal id="high-park" title="High Park Burn Scar" close-href="#projects">

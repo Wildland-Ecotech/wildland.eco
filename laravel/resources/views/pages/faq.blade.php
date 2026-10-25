@@ -211,8 +211,7 @@
         </div>
 
         <x-slot:footer>
-            {{-- Donate stays hidden until donations are enabled with the Stripe integration (milestone 6) --}}
-            <x-footer :show-donate="false" />
+            <x-footer />
         </x-slot:footer>
     </x-content-page>
 </x-layout>

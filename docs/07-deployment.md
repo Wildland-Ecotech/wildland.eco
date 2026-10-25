@@ -77,7 +77,9 @@ The Stripe CLI is for local development only, and three things keep it off the s
 
 The CLI also refuses to start without a test mode key, so it can never connect to live mode.
 
-Forwarded events are processed by the queue worker. `docker compose logs stripe` shows each delivery and its response (`[200]`), and `docker compose logs queue` shows the processing job.
+Forwarded events are processed by the queue worker. `docker compose logs stripe` shows each delivery and its response (`[200]`), and `docker compose logs queue` shows the processing job. The worker keeps the code it started with, so after changing PHP files locally, restart it with `docker compose exec app php artisan queue:restart` (deploys do this on servers).
+
+To bring in payments made while nothing was listening, such as before the CLI started, run the importer: `docker compose exec app php artisan stripe:sync` (see [stripe:sync](02-services-and-commands.md#stripesync-appconsolecommandssyncstripephp)).
 
 **Servers** receive events from a webhook endpoint registered in that server's Stripe sandbox (staging) or live account (production), in Workbench → Webhooks → **Create an event destination**:
 
@@ -146,7 +148,7 @@ docker compose exec app php artisan test
 3. Upgrade the local development sandbox's default API version, and restart the Stripe CLI. Its banner (`docker compose logs stripe`) shows the version it forwards.
 4. For each server's sandbox or account, upgrade the default API version, and move its webhook endpoint to the new version. Within a major version, edit the endpoint's version. Across majors, follow Stripe's [webhook versioning](https://docs.stripe.com/webhooks/versioning.md) guide: create a second endpoint at the new version, run both until the new code is deployed, then remove the old one.
 
-Once the webhook endpoint is built (milestone 6), its handler logs a warning for any event whose `api_version` differs from ours, so a version left behind shows up in the logs.
+The webhook handler logs a warning for any event whose `api_version` differs from ours, so a version left behind shows up in the logs.
 
 ## Servers
 
@@ -235,6 +237,9 @@ docker compose logs -f webhook caddy
 # Queue worker and scheduler logs
 docker compose logs -f queue scheduler
 
+# Output of the nightly Stripe sync, one line per object
+tail -n 100 laravel/storage/logs/stripe-sync.log
+
 # List failed queued jobs, then retry one by its ID, or all of them
 sudo -u deploy docker compose exec app php artisan queue:failed
 sudo -u deploy docker compose exec app php artisan queue:retry <id>
@@ -245,6 +250,34 @@ sudo -u deploy docker compose exec app php artisan queue:retry all
 # creating files in the clone that the containers cannot write.
 sudo -u deploy git status
 ```
+
+### Launching Donations
+
+Donations need these steps once per server, after the code that includes them has deployed. Staging uses its own Stripe sandbox and production the live account; the two never share keys, products, or webhook endpoints.
+
+**Server settings**
+
+1. In `laravel/.env`, switch the framework drivers to the database: `CACHE_STORE=database` and `QUEUE_CONNECTION=database`. Without this, webhooks are stored but nothing processes them.
+
+**Stripe (the server's sandbox or live account)**
+
+2. **Payment methods:** turn off Klarna, whose [rules](https://docs.stripe.com/payments/klarna/compliance) don't allow charities. Before enabling any other buy now, pay later method, check its rules the same way.
+3. **Default API version:** upgrade it to our pinned version (`services.stripe.api_version`), in Settings → Developers → Preferences.
+4. **Donation product:** one product (Product catalog → Add product). Its name and image appear on the payment page; it needs no price of its own.
+5. **Customer Portal** (Settings → Billing → Customer portal): activate the login link; allow payment method updates and immediate cancellation; turn off plan switching and customer information updates; turn on invoice history; and set the default redirect link to the site.
+6. **Branding and public details** (live account): logo, colors, business name, and support email, shown on Checkout and the portal.
+7. **Restricted key:** create one with only the permissions the site uses: Checkout Sessions (write), Customers (write), Products, Payment Intents, Charges and Refunds, Balance, Subscriptions, and Invoices (read). Not Debugging Tools, which only the local Stripe CLI needs. Check its request logs (⋯ → View request logs) after the first donations, and remove anything it never used.
+8. **Webhook endpoint:** register it as described under [Stripe](#stripe), at `https://<host>/webhooks/stripe`.
+
+**Server settings again**
+
+9. Set `STRIPE_SECRET`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_DONATION_PRODUCT_ID`, and `STRIPE_PORTAL_LOGIN_URL` in `laravel/.env`, then deploy by hand (`sudo systemctl start wildland-deploy`). The deploy's `stripe:check` fails if a key is for the wrong mode or a setting is missing.
+10. Import past history, including Payment Link donations: `sudo -u deploy docker compose exec app php artisan stripe:sync`.
+11. Make a donation (a test card on staging, a small real one on production), and check that it reaches the `donations` table and the endpoint's Event deliveries show `200`s.
+
+**Production, after launch**
+
+12. Archive the old Payment Link products once the donate page has replaced the Payment Links.
 
 ### Switching Branches
 

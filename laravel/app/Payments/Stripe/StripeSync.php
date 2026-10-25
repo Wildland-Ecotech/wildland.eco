@@ -200,21 +200,21 @@ class StripeSync
     /**
      * Record the payments of a recurring donation's invoice, and the
      * renewal or failed payment in its history. Invoices that aren't for a
-     * subscription are ignored.
+     * subscription are ignored. Returns the subscription, if any.
      */
-    public function invoice(string $invoiceId, string $source = SubscriptionEvent::SOURCE_WEBHOOK): void
+    public function invoice(string $invoiceId, string $source = SubscriptionEvent::SOURCE_WEBHOOK): ?Subscription
     {
         $invoice = $this->retrieve(fn () => $this->stripe()->invoices->retrieve($invoiceId));
         $subscriptionId = data_get($invoice, 'parent.subscription_details.subscription');
 
         if (! $subscriptionId) {
-            return;
+            return null;
         }
 
         $subscription = $this->subscription($subscriptionId, $source);
 
         if (! $subscription) {
-            return;
+            return null;
         }
 
         // The first invoice is paid on our donate page, so its payment
@@ -243,6 +243,8 @@ class StripeSync
 
             $this->recordEvent($subscription, SubscriptionEvent::TYPE_PAYMENT_FAILED, "{$invoiceId}:{$attempt}", $source, now(), ['attempt' => $attempt]);
         }
+
+        return $subscription;
     }
 
     /**
