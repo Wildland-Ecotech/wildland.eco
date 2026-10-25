@@ -8,8 +8,13 @@
 
         <div class="donate-cta" data-rainbow-border>
             <canvas></canvas>
-            <div class="cta-text">Help restore Colorado's <span class="nowrap">wildfire-damaged</span> land</div>
-            <a class="button full" href="{{ route('donate') }}">Donate</a>
+            <div class="cta-text">Get involved and help us fight back against wildfires</div>
+
+            <div class="cta-links">
+                <a href="{{ route('donate') }}">Donate</a>
+                <span class="cta-divider" aria-hidden="true">|</span>
+                <a href="mailto:volunteer@wildland.eco">Volunteer</a>
+            </div>
         </div>
 
         <x-disappearing-content>

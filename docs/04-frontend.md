@@ -48,7 +48,7 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 ### Home (`/`) — `pages/home.blade.php`
 
 - Illustrated mountain background with a firefly forest transition
-- Donate banner ("Help restore Colorado's wildfire-damaged land" and a Donate button linking to `/donate`) with a rotating rainbow border (`rainbow-border.js`), drawn only while the banner is on screen; without JavaScript the border cycles colors in CSS
+- Banner asking visitors to get involved ("Get involved and help us fight back against wildfires"), with a Donate link to `/donate` and a Volunteer link that emails volunteer@wildland.eco, separated by a vertical line, and a rotating rainbow border (`rainbow-border.js`), drawn only while the banner is on screen; without JavaScript the border cycles colors in CSS
 - The project modals link to Instagram, LinkedIn, and Facebook
 - Three sections: Our Mission, What We Do (programs accordion), Our Projects (project cards that open modals)
 - The Collecting Leaves program ends with a plain text link to `/leaves` ("Learn more about leaf collection"), styled as a link rather than a button so it isn't mistaken for the buttons that open sections

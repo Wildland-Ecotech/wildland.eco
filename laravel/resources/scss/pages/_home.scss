@@ -7,9 +7,9 @@ $fireflies-fade: 400px;
 .nature {
     overflow-x: hidden;
 
-    // Donate call to action. The border cycles through colors in CSS;
-    // resources/js/rainbow-border.js replaces it with a rotating gradient
-    // drawn on the canvas when the browser supports it.
+    // Call to action to donate or volunteer. The border cycles through
+    // colors in CSS; resources/js/rainbow-border.js replaces it with a
+    // rotating gradient drawn on the canvas when the browser supports it.
     .donate-cta {
         position: absolute;
         z-index: 10;
@@ -42,18 +42,35 @@ $fireflies-fade: 400px;
             font-family: satoshi;
             font-size: 18px;
             color: #fff;
-            margin-bottom: 0.75em;
+            margin-bottom: 0.6em;
+        }
 
-            // Wraps before "wildfire-damaged" rather than at its hyphen
-            .nowrap {
-                white-space: nowrap;
+        // Plain green links separated by a faint vertical line, so they
+        // don't read as buttons inside the banner's own border
+        .cta-links {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            gap: 0.75em;
+            flex-wrap: wrap;
+
+            a {
+                font-family: satoshi;
+                font-size: 16px;
+                color: #2ECF9E;
+                text-decoration: none;
+                padding: 0.3em 0.5em;
+
+                &:hover {
+                    color: #fff;
+                }
             }
         }
 
-        .button {
-            position: relative;
-            margin: 0;
-            padding: 0.5em 2em;
+        .cta-divider {
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 16px;
+            align-self: center;
         }
     }
 
@@ -256,6 +273,15 @@ $fireflies-fade: 400px;
 
             .cta-text {
                 font-size: 21px;
+            }
+
+            .cta-links a {
+                font-size: 18px;
+                padding: 0.3em 1em;
+            }
+
+            .cta-divider {
+                font-size: 18px;
             }
         }
 

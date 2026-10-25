@@ -106,13 +106,18 @@ class PagesTest extends TestCase
         }
     }
 
-    public function test_home_banner_asks_visitors_to_donate(): void
+    public function test_home_banner_asks_visitors_to_donate_or_volunteer(): void
     {
         $this->get('/')
             ->assertOk()
             ->assertSee('<div class="donate-cta" data-rainbow-border>', false)
-            ->assertSee('Help restore Colorado\'s <span class="nowrap">wildfire-damaged</span> land', false)
-            ->assertSee('<a class="button full" href="' . route('donate') . '">Donate</a>', false)
+            ->assertSee('Get involved and help us fight back against wildfires')
+            ->assertSeeInOrder([
+                '<div class="cta-links">',
+                '<a href="' . route('donate') . '">Donate</a>',
+                '<span class="cta-divider" aria-hidden="true">|</span>',
+                '<a href="mailto:volunteer@wildland.eco">Volunteer</a>',
+            ], false)
             ->assertDontSee('Follow our socials');
     }
 
