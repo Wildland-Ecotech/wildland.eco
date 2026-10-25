@@ -141,7 +141,7 @@ Server rules that must hold:
 
 ## Webhook Responses
 
-Webhook endpoints, both the deploy webhook and the payment gateway webhooks planned in milestone 6, return an error only when something is actually wrong, such as a missing or invalid signature or a failure while processing. Expected outcomes succeed with a 2xx response and a short message: a push to a branch this server does not deploy, an event type we do not handle, or an event already processed. An error then always means a real problem, and senders that retry failed deliveries (Stripe retries for days and can disable an endpoint) are not sent into retry loops.
+Webhook endpoints, both the deploy webhook and the Stripe webhook (`/webhooks/stripe`), return an error only when something is actually wrong, such as a missing or invalid signature or a failure while processing. Expected outcomes succeed with a 2xx response and a short message: a push to a branch this server does not deploy, an event type we do not handle, or an event already processed. An error then always means a real problem, and senders that retry failed deliveries (Stripe retries for days and can disable an endpoint) are not sent into retry loops.
 
 ## Artisan Commands
 
@@ -174,7 +174,10 @@ docker compose exec app php artisan make:migration create_second_table
 
 Every public page must render and work without JavaScript. Pages are rendered on the server with Blade, and JavaScript only enhances them (animations, live labels, overlays). Forms are real HTML forms that submit to the server and are validated there. Features that cannot work without JavaScript, such as the canvas border animation, need a CSS fallback.
 
-The one agreed exception is proof-of-work spam protection on public forms, starting with the leaf application form: submitting requires JavaScript to solve the challenge. Such pages still render without JavaScript and show a `<noscript>` notice with another way to reach us (see [Frontend](04-frontend.md#apply-to-donate-leaves-leavesapply--pagesleaves-applybladephp)).
+There are two agreed exceptions:
+
+- **Proof-of-work spam protection** on public forms, starting with the leaf application form: submitting requires JavaScript to solve the challenge. Such pages still render without JavaScript and show a `<noscript>` notice with another way to reach us (see [Frontend](04-frontend.md#apply-to-donate-leaves-leavesapply--pagesleaves-applybladephp)).
+- **Payment.** Stripe's payment pages and fields use JavaScript for fraud detection, and we don't control them, so completing a payment requires it and has no fallback. Our own pages, including the donate page, still render without JavaScript.
 
 Do not add a runtime Node.js process (for example, server-side rendering) to production. Node is only used to build assets.
 
@@ -199,6 +202,8 @@ All forms must display validation errors visibly to the user (typically in red t
 All status and type fields use string columns instead of database enum types (MySQL `ENUM` columns or PostgreSQL enum types). Enums are difficult to modify in production migrations and cause issues with schema diffing tools. Expected values are documented in the schema docs and enforced in application logic.
 
 Money is stored as integer cents (`amount_cents`) with a separate `currency` column, never as floats or decimals.
+
+Never hard-delete data in normal operation. Tables holding people and money use soft deletes (a nullable `deleted_at` column and Eloquent's `SoftDeletes`), foreign keys restrict deletes so the database refuses to remove a referenced row, and append-only logs are never deleted. Lookups by a gateway ID include soft-deleted rows, so imports never duplicate them. A user with transaction history cannot be deleted at all. See [Deletion](06-planned-features.md#deletion).
 
 ## Database Connections
 

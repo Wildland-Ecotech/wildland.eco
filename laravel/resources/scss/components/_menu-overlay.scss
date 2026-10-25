@@ -13,8 +13,15 @@
     z-index: 1000;
     padding: 1em;
     display: flex;
+    // The links, then the social media icons below them
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    // Scrolls when the menu is taller than the window, such as on a short
+    // laptop screen. `safe` keeps the top in reach instead of centering it
+    // off screen.
+    justify-content: safe center;
+    overflow-y: auto;
 
     // display: flex above would override the browser's default styling for
     // the hidden attribute, so restate it
@@ -33,6 +40,21 @@
         .wordmark {
             visibility: hidden;
         }
+    }
+
+    // Centered in the overlay, with the links and the social media icons
+    // left-aligned inside it
+    .menu-content {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    // Each icon is centered in a 44px tap target; pull the row left so the
+    // first icon lines up with the buttons' left edge
+    .social-links {
+        justify-content: flex-start;
+        margin-left: -8px;
     }
 
     .links {
@@ -58,6 +80,11 @@
 @media screen and (min-width: 1024px) {
     .menu-overlay {
         padding: 1em 4em;
+
+        // The icons are larger here, leaving less space in the tap target
+        .social-links {
+            margin-left: -5px;
+        }
 
         .links {
             .button {

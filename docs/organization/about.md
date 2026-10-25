@@ -35,7 +35,7 @@ After five years of volunteer-driven restoration work under the Wetfish banner, 
 - **Contact:** contact@wildland.eco
 - **Volunteering:** volunteer@wildland.eco
 - **Donations:** donate@wildland.eco
-- **Automated email:** no-reply@wildland.eco (sending only)
+- **Automated email:** no-reply@from.wildland.eco (sending only; replies go to contact@wildland.eco)
 
 ## Board of Directors
 
@@ -92,6 +92,7 @@ Selected from 500+ applicants for a $2,500 micro-grant funding:
 
 - **Instagram:** [@wildland.ecotech](https://www.instagram.com/wildland.ecotech)
 - **LinkedIn:** [Wildland Ecotech](https://www.linkedin.com/company/wildland-ecotech/)
+- **Facebook:** [Wildland Ecotech](https://www.facebook.com/people/Wildland-Ecotech/61593137854373/)
 - **GitHub:** [wildland-ecotech](https://github.com/wildland-ecotech)
 
 Posting cadence: 1 update per week across both platforms. Content includes restoration progress photos, volunteer events, educational content about BDAs and watershed restoration, grant announcements, and community partnerships.

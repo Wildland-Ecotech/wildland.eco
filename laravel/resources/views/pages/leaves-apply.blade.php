@@ -219,11 +219,9 @@
         </section>
 
         <x-slot:footer>
-            {{-- Donate stays hidden until donations are enabled with the Stripe integration (milestone 6) --}}
             <x-footer
                 heading="Questions about leaves?"
                 title="Help us turn yard waste into restored habitat."
-                :show-donate="false"
             />
         </x-slot:footer>
     </x-content-page>

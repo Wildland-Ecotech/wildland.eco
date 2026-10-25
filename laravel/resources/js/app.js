@@ -1,5 +1,6 @@
 // Progressive enhancements. Every page works without this script, except
-// that the leaf application form requires its proof-of-work spam protection.
+// that the leaf application and donate forms require their proof-of-work
+// spam protection.
 // Vite loads it as a module, which runs after the page has been parsed.
 
 import { initMenu } from './menu';

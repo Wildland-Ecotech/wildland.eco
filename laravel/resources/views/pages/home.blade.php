@@ -6,23 +6,10 @@
             <div class="fireflies"></div>
         </div>
 
-        <div class="social-cta" data-rainbow-border>
+        <div class="donate-cta" data-rainbow-border>
             <canvas></canvas>
-            <div class="cta-text">Follow our socials for weekly progress reports</div>
-
-            <div class="cta-links">
-                <a href="https://www.instagram.com/wildland.ecotech" target="_blank" rel="noopener noreferrer">
-                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.5" cy="6.5" r="1.5"/></svg>
-                    Instagram
-                </a>
-
-                <span class="cta-divider">|</span>
-
-                <a href="https://www.linkedin.com/company/wildland-ecotech" target="_blank" rel="noopener noreferrer">
-                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="3" ry="3" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="11" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="8" x2="8" y2="8.01" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M12 17v-3.5c0-1.5 1-2.5 2.5-2.5s2.5 1 2.5 2.5V17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="11" x2="12" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                    LinkedIn
-                </a>
-            </div>
+            <div class="cta-text">Help restore Colorado's <span class="nowrap">wildfire-damaged</span> land</div>
+            <a class="button full" href="{{ route('donate') }}">Donate</a>
         </div>
 
         <x-disappearing-content>
@@ -174,8 +161,7 @@
                 </div>
             </div>
 
-            {{-- Hidden until donations are enabled with the Stripe integration (milestone 6) --}}
-            <x-footer color="green" :show-donate="false" />
+            <x-footer color="green" />
         </x-disappearing-content>
 
         <x-modal id="high-park" title="High Park Burn Scar" close-href="#projects">
@@ -203,13 +189,18 @@
 
                     <div class="buttons">
                         <a class="button dark" href="https://www.instagram.com/wildland.ecotech" target="_blank" rel="noopener noreferrer">
-                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.5" cy="6.5" r="1.5"/></svg>
+                            <x-social-icon name="instagram" />
                             Instagram
                         </a>
 
                         <a class="button dark" href="https://www.linkedin.com/company/wildland-ecotech" target="_blank" rel="noopener noreferrer">
-                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="3" ry="3" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="11" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="8" x2="8" y2="8.01" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M12 17v-3.5c0-1.5 1-2.5 2.5-2.5s2.5 1 2.5 2.5V17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="11" x2="12" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                            <x-social-icon name="linkedin" />
                             LinkedIn
+                        </a>
+
+                        <a class="button dark" href="https://www.facebook.com/people/Wildland-Ecotech/61593137854373/" target="_blank" rel="noopener noreferrer">
+                            <x-social-icon name="facebook" />
+                            Facebook
                         </a>
                     </div>
                 </div>
@@ -244,13 +235,18 @@
 
                     <div class="buttons">
                         <a class="button dark" href="https://www.instagram.com/wildland.ecotech" target="_blank" rel="noopener noreferrer">
-                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.5" cy="6.5" r="1.5"/></svg>
+                            <x-social-icon name="instagram" />
                             Instagram
                         </a>
 
                         <a class="button dark" href="https://www.linkedin.com/company/wildland-ecotech" target="_blank" rel="noopener noreferrer">
-                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="3" ry="3" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="11" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="8" x2="8" y2="8.01" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M12 17v-3.5c0-1.5 1-2.5 2.5-2.5s2.5 1 2.5 2.5V17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="11" x2="12" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                            <x-social-icon name="linkedin" />
                             LinkedIn
+                        </a>
+
+                        <a class="button dark" href="https://www.facebook.com/people/Wildland-Ecotech/61593137854373/" target="_blank" rel="noopener noreferrer">
+                            <x-social-icon name="facebook" />
+                            Facebook
                         </a>
                     </div>
                 </div>

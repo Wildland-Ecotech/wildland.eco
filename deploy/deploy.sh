@@ -42,6 +42,15 @@ deploy_commit() {
     log "Building containers"
     docker compose build
 
+    # The Stripe CLI is for local development only. Remove it if anyone
+    # started it by hand: `up` and --remove-orphans leave services from
+    # profiles that aren't enabled alone, and its restart policy would bring
+    # it back after a reboot
+    if [[ -n "$(docker compose --profile stripe ps --all --quiet stripe)" ]]; then
+        log "Removing the Stripe CLI, which is for local development only"
+        docker compose --profile stripe rm --stop --force stripe
+    fi
+
     log "Starting containers"
     docker compose up --detach --remove-orphans
 
@@ -65,6 +74,17 @@ deploy_commit() {
     log "Caching configuration, routes, and views"
     docker compose exec -T app php artisan optimize
 
+    # The queue worker keeps the code it started with in memory. It exits
+    # after finishing its current job, and Docker starts it again with the
+    # new code and the configuration cached above.
+    log "Restarting the queue worker"
+    docker compose exec -T app php artisan queue:restart
+
+    # Fails the deploy if the Stripe keys don't match this site's mode:
+    # live mode only on https://wildland.eco, test mode everywhere else
+    log "Checking the Stripe configuration"
+    docker compose exec -T app php artisan stripe:check
+
     log "Deployed $(git log -1 --format='%h')"
 }
 
@@ -74,6 +94,12 @@ deploy() {
 
     if [[ -z "$branch" ]]; then
         log "DEPLOY_BRANCH is not set in .env; refusing to deploy"
+        exit 1
+    fi
+
+    # The Stripe CLI is for local development only
+    if [[ ",$(env_value COMPOSE_PROFILES)," == *",stripe,"* ]]; then
+        log "COMPOSE_PROFILES includes stripe, which is for local development only; refusing to deploy"
         exit 1
     fi
 

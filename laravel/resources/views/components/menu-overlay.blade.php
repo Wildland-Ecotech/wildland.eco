@@ -7,21 +7,34 @@
         <x-menu-button />
     </div>
 
-    <ul class="links">
-        <li>
-            <a class="button full" href="{{ route('home') }}" data-menu-close>Home</a>
-        </li>
+    {{-- Keeps the links and the social media icons on the same left edge --}}
+    <div class="menu-content">
+        <ul class="links">
+            <li>
+                <a class="button" href="{{ route('home') }}" data-menu-close>Home</a>
+            </li>
 
-        <li>
-            <a class="button" href="{{ route('leaves') }}" data-menu-close>Leaf Collection</a>
-        </li>
+            <li>
+                <a class="button" href="{{ route('leaves') }}" data-menu-close>Leaf Collection</a>
+            </li>
 
-        <li>
-            <a class="button" href="{{ route('faq') }}" data-menu-close>FAQ</a>
-        </li>
+            <li>
+                <a class="button" href="{{ route('faq') }}" data-menu-close>FAQ</a>
+            </li>
 
-        <li>
-            <a class="button" href="mailto:contact@wildland.eco" data-menu-close>Contact Us</a>
-        </li>
-    </ul>
+            <li>
+                <a class="button" href="mailto:volunteer@wildland.eco" data-menu-close>Volunteer</a>
+            </li>
+
+            <li>
+                <a class="button" href="mailto:contact@wildland.eco" data-menu-close>Contact Us</a>
+            </li>
+
+            <li>
+                <a class="button full" href="{{ route('donate') }}" data-menu-close>Donate</a>
+            </li>
+        </ul>
+
+        <x-social-links />
+    </div>
 </section>

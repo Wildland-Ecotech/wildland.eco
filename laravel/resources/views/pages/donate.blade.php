@@ -1,3 +1,5 @@
+@use('App\Http\Controllers\DonationController')
+
 @php
     // Suggested amounts in dollars for each giving frequency. The key is
     // used in element IDs; `value` is what the form submits.
@@ -7,7 +9,9 @@
         'annual' => ['value' => 'annual', 'label' => 'Annual', 'period' => '/yr', 'suffix' => '/year', 'tiers' => [100, 1000, 5000]],
     ];
 
-    $defaultFrequency = 'monthly';
+    // No frequency is chosen until the visitor picks one; the rest of the
+    // form appears once they do. After a validation error, their choice is kept.
+    $selectedFrequency = old('frequency');
 @endphp
 
 <x-layout title="Donate — Wildland Ecotech">
@@ -21,11 +25,46 @@
                 and flooding while restoring habitat for future generations.
             </p>
 
-            {{-- Submission is enabled when Stripe is integrated (milestone 6) --}}
-            <form class="donate-form" data-donate-form>
-                {{-- The frequency radios must come before the toggle and tier grids; see resources/scss/pages/_donate.scss --}}
+            {{-- Payment happens on the gateway's page; see DonationController --}}
+            <form class="donate-form" method="POST" action="{{ route('donate.store') }}" novalidate data-donate-form @if ($paymentsAvailable) data-proof-of-work @else data-unavailable @endif>
+                @csrf
+
+                {{-- Spam protection solved in the browser; see resources/js/proof-of-work.js --}}
+                <input type="hidden" name="pow_challenge" value="{{ $proofOfWorkChallenge }}" data-proof-of-work-challenge>
+                <input type="hidden" name="pow_nonce" value="" data-proof-of-work-nonce>
+
+                @if ($paymentsAvailable)
+                    <noscript>
+                        <p class="notice">
+                            Donating online needs JavaScript, for our spam protection and our payment processor.
+                            Please turn it on, or email us at <a href="mailto:contact@wildland.eco">contact@wildland.eco</a> to give another way.
+                        </p>
+                    </noscript>
+                @else
+                    <p class="notice" role="status">{{ DonationController::UNAVAILABLE_MESSAGE }}</p>
+                @endif
+
+                @if ($errors->any())
+                    <div class="error-summary" role="alert">
+                        <p>Please fix the following and try again:</p>
+
+                        <ul>
+                            @foreach ($errors->unique() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                {{-- Hidden from people; spam bots fill in every field. See StartDonationRequest. --}}
+                <div class="website-field" aria-hidden="true">
+                    <label for="website">Leave this field empty</label>
+                    <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+                </div>
+
+                {{-- The frequency radios must come before the toggle and the details; see resources/scss/pages/_donate.scss --}}
                 @foreach ($frequencies as $key => $frequency)
-                    <input type="radio" class="frequency-radio" name="frequency" id="frequency-{{ $key }}" value="{{ $frequency['value'] }}" data-frequency data-suffix="{{ $frequency['suffix'] }}" @checked($key === $defaultFrequency)>
+                    <input type="radio" class="frequency-radio" name="frequency" id="frequency-{{ $key }}" value="{{ $frequency['value'] }}" data-frequency data-suffix="{{ $frequency['suffix'] }}" @checked($frequency['value'] === $selectedFrequency)>
                 @endforeach
 
                 <div class="frequency-toggle">
@@ -34,28 +73,54 @@
                     @endforeach
                 </div>
 
-                @foreach ($frequencies as $key => $frequency)
-                    <div class="tier-grid tier-grid--{{ $key }}">
-                        @foreach ($frequency['tiers'] as $amount)
-                            <input type="radio" class="tier-radio" name="amount_{{ $frequency['value'] }}" id="tier-{{ $key }}-{{ $amount }}" value="{{ $amount }}" data-tier>
-                            <label class="tier-card" for="tier-{{ $key }}-{{ $amount }}">
-                                <div class="amount">${{ number_format($amount) }}</div>
-                                <div class="period">{{ $frequency['period'] }}</div>
-                            </label>
-                        @endforeach
-                    </div>
-                @endforeach
+                {{-- Hidden until a frequency is chosen, with CSS only --}}
+                <div class="donate-details">
+                    @foreach ($frequencies as $key => $frequency)
+                        <div class="tier-grid tier-grid--{{ $key }}">
+                            @foreach ($frequency['tiers'] as $amount)
+                                <input type="radio" class="tier-radio" name="amount_{{ $frequency['value'] }}" id="tier-{{ $key }}-{{ $amount }}" value="{{ $amount }}" data-tier @checked(old('amount_' . $frequency['value']) === (string) $amount)>
+                                <label class="tier-card" for="tier-{{ $key }}-{{ $amount }}">
+                                    <div class="amount">${{ number_format($amount) }}</div>
+                                    <div class="period">{{ $frequency['period'] }}</div>
+                                </label>
+                            @endforeach
+                        </div>
+                    @endforeach
 
-                <div class="custom-amount">
-                    <label for="custom-amount">Or enter a custom amount</label>
+                    <div class="custom-amount">
+                        <label for="custom-amount">Or enter a custom amount</label>
 
-                    <div class="input-wrapper">
-                        <span class="dollar-sign">$</span>
-                        <input type="text" id="custom-amount" name="custom_amount" inputmode="decimal" placeholder="Other amount" autocomplete="off" data-custom-amount>
+                        <div class="input-wrapper">
+                            <span class="dollar-sign">$</span>
+                            <input type="text" id="custom-amount" name="custom_amount" value="{{ old('custom_amount') }}" inputmode="decimal" placeholder="Other amount" autocomplete="off" data-custom-amount @error('amount') aria-invalid="true" @enderror>
+                        </div>
+
+                        @error('amount')
+                            <p class="field-error">{{ $message }}</p>
+                        @enderror
                     </div>
+
+                    <div class="donor-fields">
+                        <div class="field">
+                            <label for="name">Name</label>
+                            <input type="text" id="name" name="name" value="{{ old('name') }}" autocomplete="name" required @error('name') aria-invalid="true" @enderror>
+                            @error('name')
+                                <p class="field-error">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="field">
+                            <label for="email">Email</label>
+                            <p class="hint" id="email-hint">For your receipt, and to manage recurring donations.</p>
+                            <input type="email" id="email" name="email" value="{{ old('email') }}" autocomplete="email" aria-describedby="email-hint" required @error('email') aria-invalid="true" @enderror>
+                            @error('email')
+                                <p class="field-error">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <button type="submit" class="donate-button" data-donate-button data-proof-of-work-button @disabled(! $paymentsAvailable)>Donate</button>
                 </div>
-
-                <button type="submit" class="donate-button" data-donate-button disabled>Select an amount</button>
             </form>
 
             <p class="tax-note">

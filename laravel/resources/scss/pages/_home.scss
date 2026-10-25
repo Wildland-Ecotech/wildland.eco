@@ -7,10 +7,10 @@ $fireflies-fade: 400px;
 .nature {
     overflow-x: hidden;
 
-    // Social media call to action. The border cycles through colors in CSS;
+    // Donate call to action. The border cycles through colors in CSS;
     // resources/js/rainbow-border.js replaces it with a rotating gradient
     // drawn on the canvas when the browser supports it.
-    .social-cta {
+    .donate-cta {
         position: absolute;
         z-index: 10;
         top: 100px;
@@ -42,42 +42,18 @@ $fireflies-fade: 400px;
             font-family: satoshi;
             font-size: 18px;
             color: #fff;
-            margin-bottom: 0.6em;
+            margin-bottom: 0.75em;
+
+            // Wraps before "wildfire-damaged" rather than at its hyphen
+            .nowrap {
+                white-space: nowrap;
+            }
         }
 
-        .cta-links {
+        .button {
             position: relative;
-            display: flex;
-            justify-content: center;
-            gap: 0.75em;
-            flex-wrap: wrap;
-        }
-
-        .cta-links a {
-            font-family: satoshi;
-            font-size: 16px;
-            color: #2ECF9E;
-            text-decoration: none;
-            padding: 0.3em 0.5em;
-            display: flex;
-            align-items: center;
-            gap: 0.4em;
-
-            svg {
-                width: 18px;
-                height: 18px;
-                fill: currentColor;
-            }
-
-            &:hover {
-                color: #fff;
-            }
-        }
-
-        .cta-divider {
-            color: rgba(255, 255, 255, 0.3);
-            font-size: 16px;
-            align-self: center;
+            margin: 0;
+            padding: 0.5em 2em;
         }
     }
 
@@ -200,12 +176,25 @@ $fireflies-fade: 400px;
             font-size: 18px;
         }
 
-        .buttons svg {
-            width: 18px;
-            height: 18px;
-            vertical-align: middle;
-            margin-right: 0.3em;
-            fill: currentColor;
+        // The social media buttons, centered with the same space between
+        // them across and down when they wrap
+        .buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1em;
+
+            .button {
+                margin: 0;
+            }
+
+            svg {
+                width: 18px;
+                height: 18px;
+                vertical-align: middle;
+                margin-right: 0.3em;
+                fill: currentColor;
+            }
         }
     }
 }
@@ -261,26 +250,12 @@ $fireflies-fade: 400px;
 
 @media screen and (min-width: 768px) {
     .nature {
-        .social-cta {
+        .donate-cta {
             width: 580px;
             padding: 20px 32px;
 
             .cta-text {
                 font-size: 21px;
-            }
-
-            .cta-links a {
-                font-size: 18px;
-                padding: 0.3em 1em;
-
-                svg {
-                    width: 20px;
-                    height: 20px;
-                }
-            }
-
-            .cta-divider {
-                font-size: 18px;
             }
         }
 
