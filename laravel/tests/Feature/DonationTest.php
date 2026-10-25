@@ -71,7 +71,7 @@ class DonationTest extends TestCase
         $this->assertTrue(Donation::findByGatewayId('stripe', 'pi_deleted')->is($donation));
     }
 
-    public function test_a_single_gift_receipt_belongs_to_its_donation(): void
+    public function test_a_receipt_for_a_single_donation_belongs_to_it(): void
     {
         $donation = Donation::factory()->create();
 

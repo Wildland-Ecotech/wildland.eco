@@ -27,14 +27,14 @@ A user with **transaction history** cannot be deleted, soft or hard: `delete()` 
 
 ### designations
 
-What a donor directed their gift toward (see [Designations](06-planned-features.md#designations)). Model: `App\Models\Designation`.
+What a donor directed their donation toward (see [Designations](06-planned-features.md#designations)). Model: `App\Models\Designation`.
 
 | Column | Notes |
 |--------|-------|
 | name | |
 | slug | Unique, including among soft-deleted designations, so a slug always means the same fund. Travels in gateway metadata |
 | description | Nullable |
-| is_restricted | Boolean, default false. Gifts to restricted designations can only be spent on them |
+| is_restricted | Boolean, default false. Donations to restricted designations can only be spent on them |
 | is_active, sort_order | Boolean (default true) and integer (default 0), for the future donate-page selector |
 | created_at, updated_at | |
 | deleted_at | Nullable; soft deletes |
@@ -73,7 +73,7 @@ Every attempt to donate, recorded when the donor submits the donate form, includ
 
 ### subscriptions
 
-Recurring gifts, synced from the payment gateway. Model: `App\Models\Subscription`.
+Recurring donations, synced from the payment gateway. Model: `App\Models\Subscription`.
 
 | Column | Notes |
 |--------|-------|
@@ -90,12 +90,12 @@ Recurring gifts, synced from the payment gateway. Model: `App\Models\Subscriptio
 
 ### donations
 
-One row per payment, one-time or from a recurring gift, including failed payments. Model: `App\Models\Donation`.
+One row per payment, one-time or from a recurring donation, including failed payments. Model: `App\Models\Donation`.
 
 | Column | Notes |
 |--------|-------|
 | user_id, designation_id | Foreign keys; restrict deletes. The designation defaults to the General Fund |
-| subscription_id | Nullable foreign key; set for payments of a recurring gift |
+| subscription_id | Nullable foreign key; set for payments of a recurring donation |
 | checkout_id | Nullable foreign key; set for payments started on our donate page |
 | gateway, gateway_payment_id | Unique together, including among soft-deleted rows; the Stripe PaymentIntent. A payment received through several webhook events, a retried webhook, or a re-import is one row |
 | gateway_invoice_id | Nullable; set for subscription payments. Indexed |
@@ -113,7 +113,7 @@ A **received** payment is one we actually collected, even if it was refunded lat
 
 ### subscription_events
 
-The history of each recurring gift in our own vocabulary, independent of the gateway. Model: `App\Models\SubscriptionEvent`. Append-only: there is no `deleted_at`, and the model throws a `LogicException` on any update or delete.
+The history of each recurring donation in our own vocabulary, independent of the gateway. Model: `App\Models\SubscriptionEvent`. Append-only: there is no `deleted_at`, and the model throws a `LogicException` on any update or delete.
 
 | Column | Notes |
 |--------|-------|
@@ -146,7 +146,7 @@ Tax receipts sent to donors. Model: `App\Models\DonationReceipt`. The receipt nu
 | Column | Notes |
 |--------|-------|
 | user_id | Foreign key; restricts deletes |
-| donation_id | Nullable foreign key; set for single-gift receipts |
+| donation_id | Nullable foreign key; set for receipts for a single donation |
 | receipt_number | Unique, including among soft-deleted receipts, so a number is never reused |
 | type | String: `single` or `annual_summary` (`DonationReceipt::TYPES`) |
 | tax_year, amount_cents | Integers |

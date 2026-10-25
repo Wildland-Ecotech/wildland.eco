@@ -62,16 +62,23 @@ trait CallsStripe
      * data never mix. Keys are already checked for their mode, so this only
      * fails if something is badly misconfigured.
      *
+     * Deleted objects, such as a deleted customer ({id, object, deleted}),
+     * carry no livemode and are accepted: only their ID is used.
+     *
      * @throws RuntimeException
      */
     protected function assertLivemode(StripeObject $object): void
     {
-        if ((bool) $object->livemode !== StripeMode::expectsLivemode()) {
+        if (! isset($object['livemode'])) {
+            return;
+        }
+
+        if ((bool) $object['livemode'] !== StripeMode::expectsLivemode()) {
             throw new RuntimeException(sprintf(
                 'Refused %s %s from Stripe\'s %s mode; this site uses %s mode.',
-                $object->object,
-                $object->id,
-                $object->livemode ? 'live' : 'test',
+                $object['object'],
+                $object['id'],
+                $object['livemode'] ? 'live' : 'test',
                 StripeMode::expected(),
             ));
         }

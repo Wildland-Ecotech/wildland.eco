@@ -68,7 +68,7 @@ class StripeGatewayTest extends TestCase
         $this->assertEmpty($this->stripeRequests);
     }
 
-    public function test_a_one_time_gift_from_a_new_donor_creates_a_customer_and_a_donate_session(): void
+    public function test_a_one_time_donation_from_a_new_donor_creates_a_customer_and_a_donate_session(): void
     {
         $user = User::factory()->create(['name' => 'Jamie Rivera', 'email' => 'jamie@example.com']);
         $checkout = Checkout::factory()->oneTime()->for($user)->create(['amount_cents' => 3750, 'gateway_session_id' => null]);
@@ -116,7 +116,7 @@ class StripeGatewayTest extends TestCase
         $this->assertSame(['cus_new'], $user->gatewayCustomers()->pluck('gateway_customer_id')->all());
     }
 
-    public function test_recurring_gifts_start_subscriptions_with_their_interval(): void
+    public function test_recurring_donations_start_subscriptions_with_their_interval(): void
     {
         // Checkouts are monthly by default
         foreach (['monthly' => 'month', 'annual' => 'year'] as $state => $interval) {

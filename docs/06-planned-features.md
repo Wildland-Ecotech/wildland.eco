@@ -4,13 +4,13 @@ The development plan for the wildland.eco Laravel platform: accepting donations,
 
 ## Guiding Decisions
 
-- **Launch donations first, dashboards later.** Donations go live as soon as donors can give, receive receipts, and manage their recurring gifts. Donor accounts and administrator pages follow after launch; until then, reports are artisan commands, like `leaves:applications`.
+- **Launch donations first, dashboards later.** Donations go live as soon as donors can give, receive receipts, and manage their recurring donations. Donor accounts and administrator pages follow after launch; until then, reports are artisan commands, like `leaves:applications`.
 - **Server-rendered Blade, no frontend framework.** Every public page is rendered by Laravel and works without JavaScript; small vanilla JS modules add animations and conveniences. A JavaScript framework would need either a server-side rendering Node process in production or pages rendered only in the browser.
 - **No Node.js at runtime.** Node is only used to build CSS and JS assets.
 - **Docker in every environment.** Local development, staging, and production run the same `docker-compose.yml`; differences live only in each environment's `.env` files.
 - **PostgreSQL 17 + PostGIS.** PostGIS is not needed for donations, but it gives us accurate area and distance calculations, coordinate system conversion for drone and LIDAR data, raster storage, and direct QGIS access for the mapping work planned below.
 - **Gateway-neutral payments.** Stripe is used through the Stripe PHP SDK directly (no Laravel Cashier). Stripe calls sit behind our own payment gateway interface, and database columns use `gateway` and `gateway_*_id` instead of Stripe-specific names, so we can move from Stripe-hosted pages to our own UI, or to another processor, without a schema rewrite.
-- **Stripe-hosted pages for the MVP.** Stripe Checkout collects payments, and the Stripe Customer Portal handles payment methods and cancellation. Donors reach the portal through its no-code login link: they enter their email address and Stripe emails them a sign-in link, so managing a recurring gift needs no account on our site. Both are a quick MVP for accepting donations sooner: an on-site donation flow in the site's own design replaces them after launch (milestone 11).
+- **Stripe-hosted pages for the MVP.** Stripe Checkout collects payments, and the Stripe Customer Portal handles payment methods and cancellation. Donors reach the portal through its no-code login link: they enter their email address and Stripe emails them a sign-in link, so managing a recurring donation needs no account on our site. Both are a quick MVP for accepting donations sooner: an on-site donation flow in the site's own design replaces them after launch (milestone 11).
 - **Every payment is re-importable.** Webhooks and a history importer write through the same idempotent sync code, so any record can be imported again without creating duplicates.
 - **Nothing is hard-deleted.** Records holding people and money are soft-deleted, so nothing is lost by accident, and a user with transaction history cannot be deleted at all. Hard deletes happen only when absolutely necessary. See [Deletion](#deletion).
 - **Email is always collected; passwords are optional.** Donors give an email address to donate, which creates their user record automatically. Signing in to our site comes with accounts after launch, and setting a password is offered only after a donation.
@@ -31,7 +31,7 @@ The development plan for the wildland.eco Laravel platform: accepting donations,
 | 8 | Reporting commands, end-to-end testing in Stripe test mode, then go live | Planned |
 | 9 | Donor accounts and member dashboard | After launch |
 | 10 | Administrator pages and reporting | After launch |
-| 11 | On-site donation flow and recurring gift management, replacing the Stripe-hosted pages | After launch |
+| 11 | On-site donation flow and recurring donation management, replacing the Stripe-hosted pages | After launch |
 
 Milestones 5 through 8 are the minimum for accepting donations. Content pages can be built any time after milestone 4. Stripe test mode is used from milestone 6 onward, not only in milestone 8.
 
@@ -82,33 +82,33 @@ The test database was set up ahead of this milestone, for the leaf program's app
 
 - Done: the Stripe PHP SDK with the API version pinned in `config/services.php`, the test and live mode check (`StripeMode` and `stripe:check`, run by every deploy), and the Stripe CLI for local webhook testing.
 - Done: the `PaymentGateway` interface with a Stripe implementation that finds or creates the donor's Stripe customer and starts Checkout Sessions (see [Services & Commands](02-services-and-commands.md#paymentgateway-apppaymentspaymentgatewayphp)).
-- Payment methods are not listed in our code: Checkout offers every method enabled in the Stripe dashboard that supports the gift's frequency, such as cards, wallets, and bank accounts. Methods that settle later, such as US bank accounts (ACH), record a `pending` donation until the payment succeeds or fails.
-- Every Checkout Session uses one "Donation" product (`STRIPE_DONATION_PRODUCT_ID`, one per mode) with the donor's amount set inline, and a monthly or yearly interval for recurring gifts, so any amount works without creating prices in advance.
+- Payment methods are not listed in our code: Checkout offers every method enabled in the Stripe dashboard that supports the donation's frequency, such as cards, wallets, and bank accounts. Methods that settle later, such as US bank accounts (ACH), record a `pending` donation until the payment succeeds or fails.
+- Every Checkout Session uses one "Donation" product (`STRIPE_DONATION_PRODUCT_ID`, one per mode) with the donor's amount set inline, and a monthly or yearly interval for recurring donations, so any amount works without creating prices in advance.
 - Done: donate form → Checkout Session → Stripe-hosted payment page → thank-you page, with name and email required, proof-of-work spam protection, and a per-IP limit on started checkouts (see [Donations](03-routes-and-controllers.md#donations)).
-- Checkout reuses a donor's existing Stripe customer, so the Customer Portal shows all of their recurring gifts together. When several Stripe customers share an email address, the portal's login link opens the most recently created one with an active subscription.
+- Checkout reuses a donor's existing Stripe customer, so the Customer Portal shows all of their recurring donations together. When several Stripe customers share an email address, the portal's login link opens the most recently created one with an active subscription.
 - Done: webhook endpoint that verifies Stripe's signature, stores the event, and processes it on the queue with retries, completing and expiring checkouts (see [Stripe Webhooks](03-routes-and-controllers.md#stripe-webhooks)).
-- Payment sync: customers, subscriptions with their events, payments, and refunds, restoring a soft-deleted donor whose payment succeeds.
+- Done: payment sync of customers, subscriptions with their history, payments with Stripe's fee, and refunds, restoring a soft-deleted donor whose payment succeeds (see [StripeSync](02-services-and-commands.md#stripesync-apppaymentsstripestripesyncphp)).
 - History importer command and a scheduled nightly sync. See [Payment Sync and Import](#payment-sync-and-import).
-- Done: the thank-you page links to the Customer Portal login for managing recurring gifts.
+- Done: the thank-you page links to the Customer Portal login for managing recurring donations.
 - Enable the donate button and restore the Donate links in the home page footer, replacing the test that checks no page links to `/donate`.
 
 ### 7. Receipts and Email
 
-- One receipt email per successful gift: organization name, EIN, amount, date, receipt number, and a statement that no goods or services were provided in exchange. Written acknowledgment matters most for single gifts of $250 or more, which donors need in order to claim the deduction.
-- Receipts for recurring gifts link to the Customer Portal login.
+- One receipt email per successful donation: organization name, EIN, amount, date, receipt number, and a statement that no goods or services were provided in exchange. Written acknowledgment matters most for single donations of $250 or more, which donors need in order to claim the deduction.
+- Receipts for recurring donations link to the Customer Portal login.
 - Mailpit (a local mail-catching container) is added to Docker for development. Staging and production send through AhaSend (`send.ahasend.com`, port 587 with STARTTLS) with an SMTP credential created in the AhaSend dashboard, after verifying the wildland.eco sending domain with its SPF, DKIM, and DMARC records.
 - Year-end giving summaries are an artisan command, built after launch and run in January.
 
 ### 8. Reporting and Go-Live
 
-- Reporting artisan commands, following `leaves:applications`: donations for a date range (with `--csv`), totals by month, quarter, and year, and active recurring gifts. The exact commands are decided when they are built.
-- End-to-end runs in Stripe test mode covering one-time and recurring gifts, failed payments, refunds, cancellation through the Customer Portal, abandoned checkouts, re-imports, and webhook retries.
+- Reporting artisan commands, following `leaves:applications`: donations for a date range (with `--csv`), totals by month, quarter, and year, and active recurring donations. The exact commands are decided when they are built.
+- End-to-end runs in Stripe test mode covering one-time and recurring donations, failed payments, refunds, cancellation through the Customer Portal, abandoned checkouts, re-imports, and webhook retries.
 - Privacy policy (including email collection) and refund policy pages.
 - Switch production to live keys, register the live webhook endpoint, and import live account history, including existing Payment Link donations.
 
 ### 9. Accounts and Member Dashboard
 
-After launch. See [Accounts](#accounts). The dashboard shows donation history, active recurring gifts, receipts, and the designation each gift supported, with a button that opens a Customer Portal session until milestone 11 replaces it. Donors who gave before accounts existed already have a user record and sign in with an email link.
+After launch. See [Accounts](#accounts). The dashboard shows donation history, active recurring donations, receipts, and the designation each donation supported, with a button that opens a Customer Portal session until milestone 11 replaces it. Donors who gave before accounts existed already have a user record and sign in with an email link.
 
 ### 10. Administrator Pages
 
@@ -129,7 +129,7 @@ After launch. Pages for users with the `admin` role, which board members are giv
 After launch. Stripe Checkout and the no-code Customer Portal are a quick MVP so we can start accepting donations; the long-term goal is a donation experience that matches the look and feel of the site from start to finish.
 
 - Payment fields on our own donate page, built with Stripe's embeddable payment components (confirmed against the pinned API version when built), in place of the redirect to Stripe Checkout.
-- Donors manage recurring gifts from the member dashboard (milestone 9): update their payment method, change the amount, or cancel, replacing the Customer Portal. Until then, donors change an amount by canceling and starting a new gift.
+- Donors manage recurring donations from the member dashboard (milestone 9): update their payment method, change the amount, or cancel, replacing the Customer Portal. Until then, donors change an amount by canceling and starting a new donation.
 - Stripe's payment fields need JavaScript, which Stripe uses for fraud detection, so paying has no fallback without it; this is an agreed exception to [Progressive Enhancement](05-ai-development-notes.md#progressive-enhancement).
 - The `PaymentGateway` interface and gateway-neutral columns keep this a change to the donation pages, not to the schema or the sync code.
 
@@ -137,13 +137,13 @@ After launch. Stripe Checkout and the no-code Customer Portal are a quick MVP so
 
 1. The donor chooses a frequency and amount and enters their name and email address, both required, so every donor has a name to address them by.
 2. The server finds or creates a user by email (no password), records a `checkouts` row, creates a Checkout Session with the checkout's reference in its metadata, and redirects to Stripe.
-3. Stripe collects payment. Webhooks record the donation, and the subscription for recurring gifts.
-4. The thank-you page confirms the gift and links to the Customer Portal login for managing recurring gifts. After accounts are built, it also offers an optional password (see [Accounts](#accounts)).
+3. Stripe collects payment. Webhooks record the donation, and the subscription for recurring donations.
+4. The thank-you page confirms the donation and links to the Customer Portal login for managing recurring donations. After accounts are built, it also offers an optional password (see [Accounts](#accounts)).
 5. If the donor leaves without paying, the Checkout Session expires and the checkout is marked `expired`. After launch, the donor may receive one reminder email (see [Abandoned Checkouts](#abandoned-checkouts)).
 
 ## Accounts
 
-Built after launch (milestone 9). Until then, donors have a user record but do not sign in to our site, and they manage recurring gifts through the Customer Portal login link.
+Built after launch (milestone 9). Until then, donors have a user record but do not sign in to our site, and they manage recurring donations through the Customer Portal login link.
 
 The goal is the least possible friction before a donor has committed, without exposing anyone's giving history to someone who merely typed their email address.
 
@@ -166,22 +166,22 @@ The goal is the least possible friction before a donor has committed, without ex
 
 **Idempotency comes from keying records on the gateway's own IDs, not from filtering events.** A donation is identified by the payment it represents, so receiving the same payment through several webhook events, a retried webhook, or a re-run import always updates one row.
 
-- **One sync function per object type** (customer, subscription, payment, refund). Each fetches the current object from Stripe and upserts it by `(gateway, gateway_*_id)`. Webhooks only signal which object changed, so out-of-order events are harmless.
+- **One sync function per object type** (customer, subscription, invoice, payment, and charge for refunds). Each fetches the current object from Stripe and upserts it by `(gateway, gateway_*_id)`. Webhooks only signal which object changed, so out-of-order events are harmless.
 - **Soft-deleted records are matched too.** Sync and import look records up by gateway ID including soft-deleted rows, so a re-import updates them without restoring them and never creates a duplicate.
 - **Every webhook is stored** in `webhook_events` (unique per event ID), then processed on the queue. Failures are recorded and can be retried.
 - **History importer** (`artisan` command): walks Stripe's customers, subscriptions, invoices, and payments for a date range and runs them through the same sync functions. Stripe only keeps its event log for about 30 days, so history is rebuilt from current objects rather than replayed events; older subscriptions get their key milestones (started, canceled) rather than every change.
 - **Nightly sync** re-runs the importer for recent days to catch any missed webhook.
 - **Existing Payment Link donations** have no checkout record or metadata from our system. They are imported like any other payment: matched to a user by email (some may not have a Stripe Customer), and assigned to the General Fund.
 - **Test and live mode** never mix. Each environment has its own database and one set of Stripe keys: local development and staging use test mode, and production uses live mode only. The mode is enforced, not just configured: only `APP_URL` `https://wildland.eco` may use a live key, and every deploy runs `stripe:check`, which fails on a key for the wrong mode. Records don't store a mode, since every row in a database comes from that environment's mode. Instead, sync and import compare the `livemode` flag on every Stripe object and webhook event with the mode the server is configured for, and reject a mismatch as an error instead of saving it.
-- **Webhook events handled:** Checkout Session completed and expired; invoice paid and payment failed; payment succeeded and failed; charge refunded; subscription created, updated, and deleted; customer updated. Exact event names and payload fields are confirmed against the pinned Stripe API version during implementation.
+- **Webhook events handled:** `checkout.session.completed`, `expired`, `async_payment_succeeded`, and `async_payment_failed`; `invoice.paid` and `invoice.payment_failed`; `payment_intent.succeeded` and `payment_intent.payment_failed`; `charge.refunded`; `customer.subscription.created`, `updated`, and `deleted`; and `customer.updated`. They are listed with their sync functions in `StripeEventProcessor::EVENTS`, confirmed against the pinned API version (`2026-09-30.endive`), where invoices and payments link through Stripe's invoice payments rather than directly.
 
 ## Designations
 
-A **designation** is what a donor directed their gift toward. Every donation, subscription, and checkout has a `designation_id`, which defaults to the General Fund, and the designation's slug travels in Stripe metadata.
+A **designation** is what a donor directed their donation toward. Every donation, subscription, and checkout has a `designation_id`, which defaults to the General Fund, and the designation's slug travels in Stripe metadata.
 
-For the MVP, all gifts go to the General Fund and the donate page has no selector. Enabling project-specific giving later means adding designations (for example, High Park Burn Scar or Wetland Restoration) and a selector on the donate page; designated gifts are restricted funds, which `is_restricted` records for accounting. Splitting one gift across several designations would add an allocations table without changing the rest of the schema.
+For the MVP, all donations go to the General Fund and the donate page has no selector. Enabling project-specific giving later means adding designations (for example, High Park Burn Scar or Wetland Restoration) and a selector on the donate page; designated donations are restricted funds, which `is_restricted` records for accounting. Splitting one donation across several designations would add an allocations table without changing the rest of the schema.
 
-"Campaigns" is reserved for a different future concept: time-bound appeals (such as a spring tree-planting drive), used to track what prompted a gift.
+"Campaigns" is reserved for a different future concept: time-bound appeals (such as a spring tree-planting drive), used to track what prompted a donation.
 
 ## Deletion
 
@@ -189,7 +189,7 @@ For the MVP, all gifts go to the General Fund and the donate page has no selecto
 - **Append-only logs are never deleted.** `subscription_events` and `webhook_events` record what happened and have no `deleted_at`.
 - **Foreign keys restrict deletes.** The database refuses to hard-delete a row that another row references, as a safeguard behind the application rules.
 - **Users with transaction history cannot be deleted**, soft or hard. Transaction history means a payment we actually received: a one-time or recurring donation that succeeded, including one refunded later. Refunds are kept for accounting, and a refunded payment still counts. Failed payments, unpaid checkouts, and subscriptions that never collected a payment do not count. A user without any, such as a spam account, can be soft-deleted, and their email address stays reserved by the soft-deleted row.
-- **Failed payments are recorded**, but they do not protect an account from deletion. Donation forms are a common target of carding attacks, where stolen card numbers are tested with small gifts, leaving an account full of failed payments. Soft-deleting such an account soft-deletes its failed donations, checkouts, and subscriptions with it, so they stay out of reports such as the failed payment rate.
+- **Failed payments are recorded**, but they do not protect an account from deletion. Donation forms are a common target of carding attacks, where stolen card numbers are tested with small donations, leaving an account full of failed payments. Soft-deleting such an account soft-deletes its failed donations, checkouts, and subscriptions with it, so they stay out of reports such as the failed payment rate.
 - **Hard deletes** happen only when absolutely necessary, as a deliberate one-off action rather than a feature of the site.
 
 ## Planned Schema
@@ -274,7 +274,7 @@ One row per payment, one-time or recurring.
 
 ### subscription_events
 
-The history of a recurring gift in our own vocabulary, independent of the gateway. Powers the donor timeline and churn and retention reports. Append-only; never deleted.
+The history of a recurring donation in our own vocabulary, independent of the gateway. Powers the donor timeline and churn and retention reports. Append-only; never deleted.
 
 | Column | Notes |
 |--------|-------|
@@ -301,7 +301,7 @@ Raw log of every incoming webhook, for deduplication, debugging, and replay. App
 | Column | Notes |
 |--------|-------|
 | user_id | Foreign key |
-| donation_id | Nullable; set for single-gift receipts |
+| donation_id | Nullable; set for receipts for a single donation |
 | receipt_number | Unique |
 | type | `single`, `annual_summary` |
 | tax_year, amount_cents | |

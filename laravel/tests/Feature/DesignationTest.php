@@ -29,7 +29,7 @@ class DesignationTest extends TestCase
         $this->assertTrue(Designation::factory()->restricted()->create()->is_restricted);
     }
 
-    public function test_gifts_without_a_designation_go_to_the_general_fund(): void
+    public function test_donations_without_a_designation_go_to_the_general_fund(): void
     {
         $checkout = Checkout::factory()->create();
 
@@ -37,7 +37,7 @@ class DesignationTest extends TestCase
         $this->assertTrue(Designation::generalFund()->checkouts->contains($checkout));
     }
 
-    public function test_gifts_keep_the_designation_they_name(): void
+    public function test_donations_keep_the_designation_they_name(): void
     {
         $designation = Designation::factory()->restricted()->create();
 
