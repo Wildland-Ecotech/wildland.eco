@@ -49,12 +49,12 @@ return [
         // or the one printed by the Stripe CLI in local development
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
 
-        // The single "Donation" product every gift's price is attached to;
+        // The single "Donation" product every donation's price is attached to;
         // test and live mode each have their own
         'donation_product_id' => env('STRIPE_DONATION_PRODUCT_ID'),
 
         // The Customer Portal's no-code login link, where donors manage
-        // their recurring gifts
+        // their recurring donations
         'portal_login_url' => env('STRIPE_PORTAL_LOGIN_URL'),
 
         // Pinned, so a Stripe or SDK upgrade never changes the shape of API

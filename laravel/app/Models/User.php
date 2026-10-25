@@ -128,7 +128,7 @@ class User extends Authenticatable
     }
 
     /**
-     * The donor's recurring gifts.
+     * The donor's recurring donations.
      *
      * @return HasMany<Subscription, $this>
      */

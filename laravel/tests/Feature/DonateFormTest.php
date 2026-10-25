@@ -84,13 +84,13 @@ class DonateFormTest extends TestCase
     }
 
     /**
-     * A valid monthly $20 gift with a solved proof of work, with any fields
+     * A valid monthly $20 donation with a solved proof of work, with any fields
      * overridden.
      *
      * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
      */
-    private function gift(array $overrides = []): array
+    private function donation(array $overrides = []): array
     {
         $challenge = app(ProofOfWork::class)->issue();
 
@@ -108,7 +108,7 @@ class DonateFormTest extends TestCase
 
     private function donate(array $overrides = [])
     {
-        return $this->from(route('donate'))->post(route('donate.store'), $this->gift($overrides));
+        return $this->from(route('donate'))->post(route('donate.store'), $this->donation($overrides));
     }
 
     public function test_donate_page_shows_the_form(): void
@@ -150,7 +150,7 @@ class DonateFormTest extends TestCase
             ->assertDontSee('<noscript>', false);
     }
 
-    public function test_a_gift_creates_the_donor_and_checkout_and_sends_them_to_pay(): void
+    public function test_a_donation_creates_the_donor_and_checkout_and_sends_them_to_pay(): void
     {
         $response = $this->donate();
 
@@ -232,7 +232,7 @@ class DonateFormTest extends TestCase
 
         $this->followingRedirects()
             ->from(route('donate'))
-            ->post(route('donate.store'), $this->gift(['name' => 'Jamie Rivera', 'email' => 'not-an-email', 'custom_amount' => '42']))
+            ->post(route('donate.store'), $this->donation(['name' => 'Jamie Rivera', 'email' => 'not-an-email', 'custom_amount' => '42']))
             ->assertOk()
             ->assertSee('Enter a valid email address')
             ->assertSee('value="Jamie Rivera"', false)
@@ -333,7 +333,7 @@ class DonateFormTest extends TestCase
         $this->assertSame(0, Checkout::count());
     }
 
-    public function test_thank_you_page_shows_the_gift_but_not_the_donor(): void
+    public function test_thank_you_page_shows_the_donation_but_not_the_donor(): void
     {
         config(['services.stripe.portal_login_url' => 'https://billing.stripe.com/p/login/test_example']);
 
@@ -343,14 +343,16 @@ class DonateFormTest extends TestCase
         $this->get(route('donate.thank-you', $checkout))
             ->assertOk()
             ->assertSee('Thank You')
-            ->assertSee('monthly gift of $37.50')
+            ->assertSee('monthly donation of $37.50')
+            ->assertSee('Manage Your Recurring Donation')
+            ->assertDontSee('gift')
             ->assertSee('href="https://billing.stripe.com/p/login/test_example"', false)
             ->assertDontSee('Jamie')
             ->assertDontSee('jamie@example.com')
             ->assertDontSee('href="' . route('donate') . '"', false);
     }
 
-    public function test_thank_you_page_for_a_one_time_gift_has_no_recurring_gift_link(): void
+    public function test_thank_you_page_for_a_one_time_donation_has_no_recurring_donation_link(): void
     {
         config(['services.stripe.portal_login_url' => 'https://billing.stripe.com/p/login/test_example']);
 
@@ -358,7 +360,7 @@ class DonateFormTest extends TestCase
 
         $this->get(route('donate.thank-you', $checkout))
             ->assertOk()
-            ->assertSee('gift of $25 protects')
+            ->assertSee('Your donation of $25 protects')
             ->assertDontSee('billing.stripe.com');
     }
 

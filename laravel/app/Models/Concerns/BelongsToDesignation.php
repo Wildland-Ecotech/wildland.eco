@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * For checkouts, subscriptions, and donations: what the donor directed their
- * gift toward. A record created without a designation goes to the General
+ * donation toward. A record created without a designation goes to the General
  * Fund, including payments imported from outside our donation flow.
  */
 trait BelongsToDesignation
@@ -23,7 +23,7 @@ trait BelongsToDesignation
     }
 
     /**
-     * The designation the gift supports.
+     * The designation the donation supports.
      *
      * @return BelongsTo<Designation, $this>
      */

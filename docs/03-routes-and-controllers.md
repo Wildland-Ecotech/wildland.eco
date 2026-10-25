@@ -32,7 +32,7 @@ Payment happens on the payment gateway's hosted page (Stripe Checkout); payments
 3. The controller refuses if the gateway became unavailable, and allows `DonationController::MAX_PER_HOUR` (10) started checkouts per IP address per hour. Only checkouts that reach the gateway count.
 4. In one transaction, it finds the user by email, including a soft-deleted one, or creates them with the name entered. An existing user's name is only filled in when it is empty: typing an email address proves nothing about owning it. A soft-deleted user is not restored here. It then records a `started` checkout for the General Fund.
 5. `PaymentGateway::startCheckout()` creates the gateway session, with the thank-you URL as the success URL and `/donate` as the cancel URL. The checkout's `gateway_session_id` and `expires_at` are saved, and the donor is redirected to the gateway. If the gateway call fails, the error is reported, the donor is sent back with a message and their input, and the checkout stays recorded without a session.
-6. `GET /donate/thank-you/{reference}` finds the checkout by its UUID reference; anything else is a 404. It shows the gift's amount and frequency, never the donor's name or email, and for recurring gifts a link to the Customer Portal login (`STRIPE_PORTAL_LOGIN_URL`).
+6. `GET /donate/thank-you/{reference}` finds the checkout by its UUID reference; anything else is a 404. It shows the donation's amount and frequency, never the donor's name or email, and for recurring gifts a link to the Customer Portal login (`STRIPE_PORTAL_LOGIN_URL`).
 
 ## Stripe Webhooks
 

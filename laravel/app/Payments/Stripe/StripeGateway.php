@@ -13,7 +13,7 @@ use Stripe\Exception\InvalidRequestException;
 
 /**
  * Stripe, through the Stripe PHP SDK with the API version pinned in
- * config/services.php. Donors pay on Stripe Checkout, and every gift uses
+ * config/services.php. Donors pay on Stripe Checkout, and every donation uses
  * the one Donation product (STRIPE_DONATION_PRODUCT_ID) with its amount and
  * interval set inline, so any amount works without creating prices first.
  */
@@ -50,7 +50,7 @@ class StripeGateway implements PaymentGateway
     /**
      * Create a Checkout Session for the checkout. Payment methods are not
      * listed, so Checkout offers every method enabled in the Stripe
-     * dashboard that supports the gift's frequency.
+     * dashboard that supports the donation's frequency.
      */
     public function startCheckout(Checkout $checkout, string $successUrl, string $cancelUrl): HostedCheckout
     {
@@ -84,7 +84,7 @@ class StripeGateway implements PaymentGateway
      * address (such as a donor who gave through a Payment Link before
      * donations moved to this site), or else a new customer. Reusing one
      * customer lets the Customer Portal show all of a donor's recurring
-     * gifts together.
+     * donations together.
      *
      * Stripe's email filter is case-sensitive, and our addresses are
      * lowercase, so a customer created elsewhere with capital letters in

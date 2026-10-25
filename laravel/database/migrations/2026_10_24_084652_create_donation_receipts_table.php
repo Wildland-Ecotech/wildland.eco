@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('donation_receipts', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->index()->constrained()->restrictOnDelete();
-            // Set for single-gift receipts
+            // Set for receipts for a single donation
             $table->foreignId('donation_id')->nullable()->index()->constrained()->restrictOnDelete();
             // Unique among soft-deleted receipts too, so a number is never reused
             $table->string('receipt_number')->unique();

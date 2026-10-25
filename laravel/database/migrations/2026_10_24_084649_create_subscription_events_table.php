@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Append-only history of each recurring gift; never deleted, so no
+        // Append-only history of each recurring donation; never deleted, so no
         // deleted_at column
         Schema::create('subscription_events', function (Blueprint $table) {
             $table->id();

@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use LogicException;
 
 /**
- * One moment in a recurring gift's history, in our own vocabulary rather
+ * One moment in a recurring donation's history, in our own vocabulary rather
  * than the gateway's. Powers the donor timeline and the churn and retention
  * reports. Append-only: events are never changed or deleted.
  *
@@ -91,7 +91,7 @@ class SubscriptionEvent extends Model
     }
 
     /**
-     * The recurring gift this event belongs to.
+     * The recurring donation this event belongs to.
      *
      * @return BelongsTo<Subscription, $this>
      */

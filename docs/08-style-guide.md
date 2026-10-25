@@ -73,6 +73,7 @@ Headings, section labels, buttons, form fields, badges, and stats have their own
 ## Writing
 
 - **Name:** "Wildland Ecotech". Use the legal name, Wildland Ecology Technologies, only where it matters (once, as in the FAQ's first answer), and never "WET".
+- **Donations, not gifts:** call what donors give a "donation" ("monthly donation", "recurring donation") in everything visitors and donors read, including page text, buttons, error messages, and emails. Wildland Ecotech is a nonprofit charity, and "gift" reads like a present.
 - **Plain language:** say what we do and why, not legalese. For example, the Privacy section explains what we share and why instead of listing terms.
 - **Familiar section names:** keep names people look for, such as "Privacy", even when the content is written conversationally.
 - **Accurate places:** the New York property is next to the GE Moreau Superfund site, not in it.

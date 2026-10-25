@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 class CheckoutFactory extends Factory
 {
     /**
-     * Define the model's default state: a monthly gift to the General Fund,
+     * Define the model's default state: a monthly donation to the General Fund,
      * started through Stripe and not yet paid.
      *
      * @return array<string, mixed>
@@ -33,7 +33,7 @@ class CheckoutFactory extends Factory
     }
 
     /**
-     * Indicate a one-time gift.
+     * Indicate a one-time donation.
      */
     public function oneTime(): static
     {
@@ -43,7 +43,7 @@ class CheckoutFactory extends Factory
     }
 
     /**
-     * Indicate an annual gift.
+     * Indicate an annual donation.
      */
     public function annual(): static
     {

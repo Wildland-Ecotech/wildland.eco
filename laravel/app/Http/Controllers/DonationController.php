@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\View\View;
 
 /**
- * The donate page (/donate): the donor chooses a gift, is sent to the
+ * The donate page (/donate): the donor chooses a donation, is sent to the
  * payment gateway's hosted page to pay, and returns to a thank-you page.
  * Payments are recorded from the gateway's webhooks, not here.
  */
@@ -98,7 +98,7 @@ class DonationController extends Controller
     /**
      * Thank the donor after they pay. Reached from the gateway's success
      * redirect; the checkout's public reference in the URL can't be guessed.
-     * The page shows only the gift, never the donor's name or email.
+     * The page shows only the donation, never the donor's name or email.
      */
     public function thankYou(Checkout $checkout): View
     {

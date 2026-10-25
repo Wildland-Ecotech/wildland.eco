@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * A recurring gift, synced from the payment gateway. Each payment it
+ * A recurring donation, synced from the payment gateway. Each payment it
  * collects is a donation, and its history is recorded as subscription
  * events. Deleting a subscription soft-deletes it, so it is hidden but
  * never lost.
@@ -94,7 +94,7 @@ class Subscription extends Model
     }
 
     /**
-     * The donor giving the recurring gift.
+     * The donor giving the recurring donation.
      *
      * @return BelongsTo<User, $this>
      */
@@ -104,7 +104,7 @@ class Subscription extends Model
     }
 
     /**
-     * The payments the recurring gift has collected, including failed ones.
+     * The payments the recurring donation has collected, including failed ones.
      *
      * @return HasMany<Donation, $this>
      */
@@ -114,7 +114,7 @@ class Subscription extends Model
     }
 
     /**
-     * The recurring gift's history, oldest first.
+     * The recurring donation's history, oldest first.
      *
      * @return HasMany<SubscriptionEvent, $this>
      */

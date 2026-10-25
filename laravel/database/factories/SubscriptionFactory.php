@@ -34,7 +34,7 @@ class SubscriptionFactory extends Factory
     }
 
     /**
-     * Indicate an annual recurring gift.
+     * Indicate an annual recurring donation.
      */
     public function annual(): static
     {
@@ -55,7 +55,7 @@ class SubscriptionFactory extends Factory
     }
 
     /**
-     * Indicate a canceled recurring gift.
+     * Indicate a canceled recurring donation.
      */
     public function canceled(): static
     {

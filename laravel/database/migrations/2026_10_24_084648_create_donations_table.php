@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->index()->constrained()->restrictOnDelete();
             $table->foreignId('designation_id')->index()->constrained()->restrictOnDelete();
-            // Set for payments of a recurring gift
+            // Set for payments of a recurring donation
             $table->foreignId('subscription_id')->nullable()->index()->constrained()->restrictOnDelete();
             // Set for payments started on our donate page
             $table->foreignId('checkout_id')->nullable()->index()->constrained()->restrictOnDelete();

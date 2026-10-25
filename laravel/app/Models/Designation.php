@@ -10,9 +10,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * What a donor directed their gift toward. Every gift goes to the General
+ * What a donor directed their donation toward. Every donation goes to the General
  * Fund, created by the designations migration, unless it names another
- * designation. Gifts to restricted designations can only be spent on them.
+ * designation. Donations to restricted designations can only be spent on them.
  * The slug travels in gateway metadata. Deleting a designation soft-deletes
  * it, so it is hidden but never lost.
  */
@@ -46,7 +46,7 @@ class Designation extends Model
     }
 
     /**
-     * The General Fund, which every gift goes to unless it names another
+     * The General Fund, which every donation goes to unless it names another
      * designation.
      */
     public static function generalFund(): self
@@ -65,7 +65,7 @@ class Designation extends Model
     }
 
     /**
-     * Recurring gifts directed to this designation.
+     * Recurring donations directed to this designation.
      *
      * @return HasMany<Subscription, $this>
      */

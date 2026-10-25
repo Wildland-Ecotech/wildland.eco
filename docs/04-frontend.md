@@ -70,9 +70,9 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 ### Donation Thank-You (`/donate/thank-you/{reference}`) — `pages/donate-thank-you.blade.php`
 
 - Where Stripe returns the donor after paying, in the same card style as the donate page
-- Thanks the donor for their gift by amount and frequency ("monthly gift of $20"), never showing their name or email, since the URL is the only thing protecting the page
+- Thanks the donor for their donation by amount and frequency ("monthly donation of $20"), never showing their name or email, since the URL is the only thing protecting the page
 - Notes that bank payments can take a few business days
-- For monthly and annual gifts, a "Manage Your Recurring Gift" button links to the Stripe Customer Portal login (`STRIPE_PORTAL_LOGIN_URL`), where the donor signs in with an emailed link
+- For monthly and annual donations, a "Manage Your Recurring Donation" button links to the Stripe Customer Portal login (`STRIPE_PORTAL_LOGIN_URL`), where the donor signs in with an emailed link
 - A footer that links back home
 
 ### Leaves (`/leaves`) — `pages/leaves.blade.php`

@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * One payment, one-time or from a recurring gift, synced from the payment
+ * One payment, one-time or from a recurring donation, synced from the payment
  * gateway. Failed payments are recorded too. A payment we actually received
  * stays received after a refund, since refunds are kept for accounting.
  * Deleting a donation soft-deletes it, so it is hidden but never lost.
@@ -127,7 +127,7 @@ class Donation extends Model
     }
 
     /**
-     * The recurring gift that collected the payment, if any.
+     * The recurring donation that collected the payment, if any.
      *
      * @return BelongsTo<Subscription, $this>
      */

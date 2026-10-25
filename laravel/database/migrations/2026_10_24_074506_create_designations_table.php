@@ -19,7 +19,7 @@ return new class extends Migration
             // designations too, so a slug always means the same fund
             $table->string('slug')->unique();
             $table->text('description')->nullable();
-            // Gifts to restricted designations can only be spent on them
+            // Donations to restricted designations can only be spent on them
             $table->boolean('is_restricted')->default(false);
             // For the future donate-page selector
             $table->boolean('is_active')->default(true);
@@ -29,7 +29,7 @@ return new class extends Migration
             $table->softDeletes();
         });
 
-        // Every gift goes to the General Fund unless it names another
+        // Every donation goes to the General Fund unless it names another
         // designation. Created here rather than in a seeder, since deploys
         // run migrations but never seeders.
         DB::table('designations')->insert([

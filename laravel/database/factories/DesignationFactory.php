@@ -32,7 +32,7 @@ class DesignationFactory extends Factory
     }
 
     /**
-     * Indicate that gifts to the designation can only be spent on it.
+     * Indicate that donations to the designation can only be spent on it.
      */
     public function restricted(): static
     {

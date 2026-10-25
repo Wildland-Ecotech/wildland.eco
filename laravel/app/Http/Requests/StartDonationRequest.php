@@ -9,14 +9,14 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 /**
- * Validates a gift submitted from the donate page (/donate), before the
+ * Validates a donation submitted from the donate page (/donate), before the
  * donor is sent to the payment gateway to pay.
  */
 class StartDonationRequest extends FormRequest
 {
     /**
-     * The smallest and largest gifts accepted online, in dollars; the donate
-     * form's JavaScript uses the same limits. Larger gifts are welcome by
+     * The smallest and largest donations accepted online, in dollars; the
+     * donate form's JavaScript uses the same limits. Larger donations are welcome by
      * check or bank transfer.
      */
     public const MIN_AMOUNT = 1;
@@ -114,7 +114,7 @@ class StartDonationRequest extends FormRequest
      */
     public function messages(): array
     {
-        $range = 'Enter an amount from $' . self::MIN_AMOUNT . ' to $' . number_format(self::MAX_AMOUNT) . '. For larger gifts, email us at contact@wildland.eco.';
+        $range = 'Enter an amount from $' . self::MIN_AMOUNT . ' to $' . number_format(self::MAX_AMOUNT) . '. For larger donations, email us at contact@wildland.eco.';
 
         return [
             'frequency.required' => 'Choose one-time, monthly, or annual.',

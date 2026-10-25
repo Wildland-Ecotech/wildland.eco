@@ -5,10 +5,10 @@
     $cents = $checkout->amount_cents;
     $amount = '$' . number_format($cents / 100, $cents % 100 === 0 ? 0 : 2);
 
-    $gift = match ($checkout->frequency) {
-        Checkout::FREQUENCY_MONTHLY => "monthly gift of {$amount}",
-        Checkout::FREQUENCY_ANNUAL => "annual gift of {$amount}",
-        default => "gift of {$amount}",
+    $donation = match ($checkout->frequency) {
+        Checkout::FREQUENCY_MONTHLY => "monthly donation of {$amount}",
+        Checkout::FREQUENCY_ANNUAL => "annual donation of {$amount}",
+        default => "donation of {$amount}",
     };
 
     $recurring = $checkout->frequency !== Checkout::FREQUENCY_ONE_TIME;
@@ -16,13 +16,13 @@
 
 <x-layout title="Thank You — Wildland Ecotech">
     <x-content-page class="donate-page">
-        {{-- Shows only the gift, never the donor's name or email; see DonationController::thankYou() --}}
+        {{-- Shows only the donation, never the donor's name or email; see DonationController::thankYou() --}}
         <div class="donate-section thanks">
             <h3>— Support Our Mission</h3>
             <h1>Thank You</h1>
 
             <p class="lead">
-                Your {{ $gift }} protects communities from wildfire, drought, and flooding
+                Your {{ $donation }} protects communities from wildfire, drought, and flooding
                 while restoring habitat for future generations.
             </p>
 
@@ -31,15 +31,15 @@
             </p>
 
             @if ($recurring && filled($portalLoginUrl))
-                <div class="manage-gift">
-                    <h2>Your Recurring Gift</h2>
+                <div class="manage-donation">
+                    <h2>Your Recurring Donation</h2>
 
                     <p class="detail">
-                        To update your payment method or cancel your gift, sign in with the email address
+                        To update your payment method or cancel your recurring donation, sign in with the email address
                         you used today. Stripe, our payment processor, will email you a secure sign-in link.
                     </p>
 
-                    <a class="button full" href="{{ $portalLoginUrl }}">Manage Your Recurring Gift</a>
+                    <a class="button full" href="{{ $portalLoginUrl }}">Manage Your Recurring Donation</a>
                 </div>
             @endif
 

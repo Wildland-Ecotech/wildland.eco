@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * A tax receipt sent to a donor: for a single gift, or a year-end summary
+ * A tax receipt sent to a donor: for a single donation, or a year-end summary
  * of their giving. The receipt number format and email are built with
  * receipts (milestone 7). Deleting a receipt soft-deletes it, so it is
  * hidden but never lost, and its number is never reused.
@@ -57,7 +57,7 @@ class DonationReceipt extends Model
     }
 
     /**
-     * The gift a single-gift receipt is for.
+     * The donation this receipt is for, when it covers a single donation.
      *
      * @return BelongsTo<Donation, $this>
      */
