@@ -22,6 +22,12 @@ class DonationReceiptsTest extends TestCase
 {
     use FakesStripeApi, RefreshDatabase;
 
+    /**
+     * A receipt number for 2026: the year, then six characters without the
+     * lookalikes 0, 1, I, L, and O.
+     */
+    private const NUMBER_2026 = '/^WET-2026-[2-9A-HJKMNP-Z]{6}$/';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -59,7 +65,7 @@ class DonationReceiptsTest extends TestCase
 
         $receipt = DonationReceipt::sole();
 
-        $this->assertSame('WET-2026-00001', $receipt->receipt_number);
+        $this->assertMatchesRegularExpression(self::NUMBER_2026, $receipt->receipt_number);
         $this->assertSame(DonationReceipt::TYPE_SINGLE, $receipt->type);
         $this->assertSame(2026, $receipt->tax_year);
         $this->assertSame(2500, $receipt->amount_cents);
@@ -94,20 +100,38 @@ class DonationReceiptsTest extends TestCase
         // The evening of December 31st in Fort Collins is already January
         // 1st in UTC, and still counts toward that year
         $december = $this->receipts()->issue($this->donation(['paid_at' => Carbon::parse('2026-12-31 22:00', 'America/Denver')]));
-        $second = $this->receipts()->issue($this->donation(['paid_at' => Carbon::parse('2026-12-31 23:00', 'America/Denver')]));
         $january = $this->receipts()->issue($this->donation(['paid_at' => Carbon::parse('2027-01-01 08:00', 'America/Denver')]));
 
-        $this->assertSame('WET-2026-00001', $december->receipt_number);
+        $this->assertMatchesRegularExpression(self::NUMBER_2026, $december->receipt_number);
         $this->assertSame(2026, $december->tax_year);
-        $this->assertSame('WET-2026-00002', $second->receipt_number);
-        $this->assertSame('WET-2027-00001', $january->receipt_number);
+        $this->assertStringStartsWith('WET-2027-', $january->receipt_number);
+        $this->assertSame(2027, $january->tax_year);
     }
 
-    public function test_a_deleted_receipts_number_is_never_reused(): void
+    public function test_receipt_numbers_are_random_rather_than_sequential(): void
     {
-        $this->receipts()->issue($this->donation())->delete();
+        $numbers = collect(range(1, 20))->map(fn () => $this->receipts()->issue($this->donation())->receipt_number);
 
-        $this->assertSame('WET-2026-00002', $this->receipts()->issue($this->donation())->receipt_number);
+        $this->assertCount(20, $numbers->unique());
+        $numbers->each(fn ($number) => $this->assertMatchesRegularExpression(self::NUMBER_2026, $number));
+    }
+
+    public function test_a_number_already_used_is_drawn_again_even_if_its_receipt_was_deleted(): void
+    {
+        // Draws the same code twice, then a new one
+        $receipts = new class extends DonationReceipts
+        {
+            public array $codes = ['AAAAAA', 'AAAAAA', 'BBBBBB'];
+
+            protected function randomCode(): string
+            {
+                return array_shift($this->codes);
+            }
+        };
+
+        $receipts->issue($this->donation())->delete();
+
+        $this->assertSame('WET-2026-BBBBBB', $receipts->issue($this->donation())->receipt_number);
     }
 
     public function test_the_database_refuses_a_second_receipt_for_a_donation(): void
@@ -192,10 +216,11 @@ class DonationReceiptsTest extends TestCase
 
     public function test_the_receipt_has_everything_donors_need_for_their_taxes(): void
     {
-        $mail = new DonationReceiptMail($this->receipts()->issue($this->donation()));
+        $receipt = $this->receipts()->issue($this->donation());
+        $mail = new DonationReceiptMail($receipt);
 
-        $mail->assertHasSubject('Your donation receipt from Wildland Ecotech (WET-2026-00001)');
-        $mail->assertSeeInOrderInHtml(['Dear Jamie Rivera,', 'WET-2026-00001', 'October 25, 2026', '$25.00', 'One-time donation'], false);
+        $mail->assertHasSubject("Your donation receipt from Wildland Ecotech ({$receipt->receipt_number})");
+        $mail->assertSeeInOrderInHtml(['Dear Jamie Rivera,', $receipt->receipt_number, 'October 25, 2026', '$25.00', 'One-time donation'], false);
         $mail->assertSeeInHtml('No goods or services were provided in exchange for this contribution.');
         $mail->assertSeeInHtml('Wildland Ecology Technologies');
         $mail->assertSeeInHtml('242 Linden Street');
@@ -246,7 +271,7 @@ class DonationReceiptsTest extends TestCase
 
         $preview = (new DonationReceiptPreviewController)('monthly');
 
-        $preview->assertSeeInHtml('WET-2026-00001');
+        $preview->assertSeeInHtml('WET-2026-K7Q2MX');
         $preview->assertSeeInHtml('Monthly recurring donation');
         $this->assertSame(0, DonationReceipt::count());
         Mail::assertNothingSent();

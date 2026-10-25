@@ -147,7 +147,7 @@ Tax receipts sent to donors. Model: `App\Models\DonationReceipt`. Issued and sen
 |--------|-------|
 | user_id | Foreign key; restricts deletes |
 | donation_id | Nullable foreign key; set for receipts for a single donation. At most one `single` receipt per donation, including soft-deleted receipts: a partial unique index (`donation_receipts_single_donation_unique`) makes the database refuse a second one |
-| receipt_number | `WET-<tax year>-<sequence>`, such as `WET-2026-00001`, with the sequence restarting each tax year. Unique, including among soft-deleted receipts, so a number is never reused |
+| receipt_number | `WET-<tax year>-<random code>`, such as `WET-2026-K7Q2MX`. Random rather than sequential, so it reveals nothing about how many donations we receive. Unique, including among soft-deleted receipts, so a number is never reused |
 | type | String: `single` or `annual_summary` (`DonationReceipt::TYPES`) |
 | tax_year, amount_cents | Integers. The tax year is the year the donation was paid in Fort Collins time |
 | sent_at | Nullable timestamp; set once the email is sent. A receipt issued but not sent, such as after an email failure, is sent on the next try |

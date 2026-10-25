@@ -86,7 +86,7 @@ To bring in payments made while nothing was listening, such as before the CLI st
 **Servers** receive events from a webhook endpoint registered in that server's Stripe sandbox (staging) or live account (production), in Workbench → Webhooks → **Create an event destination**:
 
 1. Events from **Your account**, with the **Snapshot** payload, and the API version set to our pinned version (`services.stripe.api_version` in `config/services.php`).
-2. The events listed in `STRIPE_EVENTS` in `docker-compose.yml`.
+2. The events listed in `STRIPE_EVENTS` in `docker-compose.dev.yml`.
 3. A **Webhook endpoint** at `https://<server's APP_URL host>/webhooks/stripe`: `https://stage.wildland.eco/webhooks/stripe` or `https://wildland.eco/webhooks/stripe`.
 4. Copy the endpoint's signing secret (**Reveal secret**) into that server's `STRIPE_WEBHOOK_SECRET`, then deploy by hand (`sudo systemctl start wildland-deploy`) so the configuration is cached again.
 

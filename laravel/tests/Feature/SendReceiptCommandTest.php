@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Mail\DonationReceiptMail;
 use App\Models\Donation;
+use App\Models\DonationReceipt;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
@@ -46,8 +47,10 @@ class SendReceiptCommandTest extends TestCase
         $this->artisan('receipt:send', ['payment' => 'pi_old'])
             ->expectsOutputToContain('$40.00')
             ->expectsConfirmation('Send this receipt to jamie@example.com?', 'yes')
-            ->expectsOutputToContain('Sent receipt WET-2026-00001 to jamie@example.com.')
+            ->expectsOutputToContain('Sent receipt WET-')
             ->assertSuccessful();
+
+        $this->assertMatchesRegularExpression('/^WET-\d{4}-[2-9A-HJKMNP-Z]{6}$/', DonationReceipt::sole()->receipt_number);
 
         Mail::assertSent(DonationReceiptMail::class, 1);
         Mail::assertSent(DonationReceiptMail::class, fn ($mail) => $mail->hasTo('jamie@example.com'));

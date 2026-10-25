@@ -28,7 +28,7 @@ class DonationReceiptPreviewController extends Controller
         });
 
         $receipt = new DonationReceipt([
-            'receipt_number' => 'WET-' . now()->year . '-00001',
+            'receipt_number' => 'WET-' . now()->year . '-K7Q2MX',
             'type' => DonationReceipt::TYPE_SINGLE,
             'tax_year' => now()->year,
             'amount_cents' => 2500,

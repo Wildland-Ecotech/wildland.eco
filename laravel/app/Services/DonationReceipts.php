@@ -21,11 +21,22 @@ use Illuminate\Support\Facades\Mail;
 class DonationReceipts
 {
     /**
-     * Receipt numbers are WET-<tax year>-<sequence>, such as WET-2026-00001,
-     * with the sequence restarting each tax year. "WET" is short for
-     * Wildland Ecology Technologies, and is only used in receipt numbers.
+     * Receipt numbers are WET-<tax year>-<code>, such as WET-2026-K7Q2MX,
+     * with a random code rather than a sequence, so a number reveals nothing
+     * about how many donations we receive. "WET" is short for Wildland
+     * Ecology Technologies, and is only used in receipt numbers.
      */
     public const PREFIX = 'WET';
+
+    /**
+     * The characters of the random code: digits and capital letters without
+     * the lookalikes 0, 1, I, L, and O, so a number can be read aloud or
+     * typed without mistakes. 31 characters, six long, gives over 887
+     * million codes per tax year.
+     */
+    public const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+
+    public const CODE_LENGTH = 6;
 
     /**
      * Dates and tax years are in Fort Collins time, so a donation on the
@@ -40,10 +51,10 @@ class DonationReceipts
     public const AUTOMATIC_WINDOW_HOURS = 24;
 
     /**
-     * Arbitrary key for the database lock that serializes issuing receipt
-     * numbers.
+     * Arbitrary key for the database lock that serializes issuing receipts,
+     * so two attempts for the same donation never both create one.
      */
-    private const NUMBER_LOCK = 8_211_734;
+    private const ISSUE_LOCK = 8_211_734;
 
     /**
      * Queue a donation's receipt if it should be sent automatically. Called
@@ -103,14 +114,15 @@ class DonationReceipts
     }
 
     /**
-     * The donation's receipt, issued with the next number for its tax year
-     * if it doesn't have one. Numbers are issued one at a time under a
-     * database lock, so two receipts can never get the same number.
+     * The donation's receipt, issued with a new number for its tax year if
+     * it doesn't have one. Receipts are issued one at a time under a database
+     * lock, and a number already used is drawn again, so two receipts can
+     * never get the same number.
      */
     public function issue(Donation $donation): DonationReceipt
     {
         return DB::transaction(function () use ($donation) {
-            DB::statement('SELECT pg_advisory_xact_lock(?)', [self::NUMBER_LOCK]);
+            DB::statement('SELECT pg_advisory_xact_lock(?)', [self::ISSUE_LOCK]);
 
             $existing = DonationReceipt::withTrashed()
                 ->where('donation_id', $donation->id)
@@ -123,18 +135,35 @@ class DonationReceipts
 
             $taxYear = $donation->paid_at->copy()->timezone(self::TIMEZONE)->year;
 
-            $last = DonationReceipt::withTrashed()
-                ->where('tax_year', $taxYear)
-                ->max(DB::raw("CAST(split_part(receipt_number, '-', 3) AS INTEGER)"));
+            // Draws again in the rare case the number was ever issued,
+            // including to a deleted receipt, so a number is never reused
+            do {
+                $number = sprintf('%s-%d-%s', self::PREFIX, $taxYear, $this->randomCode());
+            } while (DonationReceipt::withTrashed()->where('receipt_number', $number)->exists());
 
             return DonationReceipt::create([
                 'user_id' => $donation->user_id,
                 'donation_id' => $donation->id,
-                'receipt_number' => sprintf('%s-%d-%05d', self::PREFIX, $taxYear, ((int) $last) + 1),
+                'receipt_number' => $number,
                 'type' => DonationReceipt::TYPE_SINGLE,
                 'tax_year' => $taxYear,
                 'amount_cents' => $donation->amount_cents,
             ]);
         });
+    }
+
+    /**
+     * A random code for a receipt number, from a cryptographically secure
+     * source, so numbers can't be predicted.
+     */
+    protected function randomCode(): string
+    {
+        $code = '';
+
+        for ($i = 0; $i < self::CODE_LENGTH; $i++) {
+            $code .= self::CODE_ALPHABET[random_int(0, strlen(self::CODE_ALPHABET) - 1)];
+        }
+
+        return $code;
     }
 }

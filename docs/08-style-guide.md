@@ -84,7 +84,7 @@ Other mail components can be overridden the same way, by adding a file with the 
 
 ## Writing
 
-- **Name:** "Wildland Ecotech". Use the legal name, Wildland Ecology Technologies, only where it matters (once, as in the FAQ's first answer, or on donation receipts), and never "WET". The one exception is the `WET` prefix of receipt numbers, such as `WET-2026-00001`.
+- **Name:** "Wildland Ecotech". Use the legal name, Wildland Ecology Technologies, only where it matters (once, as in the FAQ's first answer, or on donation receipts), and never "WET". The one exception is the `WET` prefix of receipt numbers, such as `WET-2026-K7Q2MX`.
 - **Donations, not gifts:** call what donors give a "donation" ("monthly donation", "recurring donation") in everything visitors and donors read, including page text, buttons, error messages, and emails. Wildland Ecotech is a nonprofit charity, and "gift" reads like a present.
 - **Plain language:** say what we do and why, not legalese. For example, the Privacy section explains what we share and why instead of listing terms.
 - **Familiar section names:** keep names people look for, such as "Privacy", even when the content is written conversationally.
