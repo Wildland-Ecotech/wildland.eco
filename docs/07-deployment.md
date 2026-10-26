@@ -75,7 +75,7 @@ The Stripe CLI is for local development only, and three things keep it off the s
 
 - It is defined only in `docker-compose.dev.yml`, which servers never load, so a server cannot create the container or pull its image.
 - `deploy/deploy.sh` refuses to deploy if `COMPOSE_FILE` includes `docker-compose.dev.yml`.
-- Every deploy removes containers of services that aren't in `docker-compose.yml` (`up --remove-orphans`), including a Stripe CLI started from the development file. To remove one right away, deploy by hand (`sudo systemctl start wildland-deploy`).
+- Every deploy removes containers of services that aren't in `docker-compose.yml` (`up --remove-orphans`), including a Stripe CLI started from the development file. To remove one right away, deploy by hand (`sudo systemctl start --no-block wildland-deploy`).
 
 The CLI also refuses to start without a test mode key, so it can never connect to live mode.
 
@@ -88,7 +88,7 @@ To bring in payments made while nothing was listening, such as before the CLI st
 1. Events from **Your account**, with the **Snapshot** payload, and the API version set to our pinned version (`services.stripe.api_version` in `config/services.php`).
 2. The events listed in `STRIPE_EVENTS` in `docker-compose.dev.yml`.
 3. A **Webhook endpoint** at `https://<server's APP_URL host>/webhooks/stripe`: `https://stage.wildland.eco/webhooks/stripe` or `https://wildland.eco/webhooks/stripe`.
-4. Copy the endpoint's signing secret (**Reveal secret**) into that server's `STRIPE_WEBHOOK_SECRET`, then deploy by hand (`sudo systemctl start wildland-deploy`) so the configuration is cached again.
+4. Copy the endpoint's signing secret (**Reveal secret**) into that server's `STRIPE_WEBHOOK_SECRET`, then deploy by hand (`sudo systemctl start --no-block wildland-deploy`) so the configuration is cached again.
 
 Stripe shows each delivery under the endpoint's **Event deliveries**, and a stored copy of every event is in the `webhook_events` table. Secrets can be rolled from the endpoint's ⋯ menu, keeping the old one valid for up to 24 hours while the server's `.env` is updated.
 
@@ -288,8 +288,10 @@ The script is safe to re-run. It keeps existing `.env` files (updating only the 
 ### Operating a Server
 
 ```bash
-# Deploy the latest commit by hand
-sudo systemctl start wildland-deploy
+# Deploy the latest commit by hand. --no-block returns right away instead of
+# waiting for the whole deploy, so follow its output with journalctl.
+# Pressing Ctrl+C while systemctl waits only stops the waiting, not the deploy.
+sudo systemctl start --no-block wildland-deploy
 
 # Follow deploy output
 journalctl -u wildland-deploy -f
@@ -346,7 +348,7 @@ Donations need these steps once per server, after the code that includes them ha
 **Server settings again**
 
 10. **Email:** set the server's AhaSend SMTP credential and the `MAIL_*` settings in `laravel/.env` (see [Email](#email)), unless setup already did. Production needs a live credential.
-11. Set `STRIPE_SECRET`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_DONATION_PRODUCT_ID`, and `STRIPE_PORTAL_LOGIN_URL` in `laravel/.env`, then deploy by hand (`sudo systemctl start wildland-deploy`). The deploy's `stripe:check` fails if a key is for the wrong mode or a setting is missing.
+11. Set `STRIPE_SECRET`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_DONATION_PRODUCT_ID`, and `STRIPE_PORTAL_LOGIN_URL` in `laravel/.env`, then deploy by hand (`sudo systemctl start --no-block wildland-deploy`). The deploy's `stripe:check` fails if a key is for the wrong mode or a setting is missing.
 12. Check email after that deploy: `sudo -u deploy docker compose exec app php artisan mail:test <your address>`. With a live credential, the email should arrive.
 13. Import past history, including Payment Link donations: `sudo -u deploy docker compose exec app php artisan stripe:sync`.
 14. Make a donation (a test card on staging, a small real one on production), and check that it reaches the `donations` table and the endpoint's Event deliveries show `200`s.
@@ -386,7 +388,7 @@ sudo -u deploy git checkout --force -B <branch> origin/<branch>
 sudo -u deploy sed -i '/^COMPOSE_PROFILES=/i COMPOSE_FILE=docker-compose.yml' .env
 
 # Deploy, and follow its output
-sudo systemctl start wildland-deploy
+sudo systemctl start --no-block wildland-deploy
 journalctl -u wildland-deploy -f
 
 # Once it finishes, turn off the maintenance page and resume automatic deploys
@@ -405,7 +407,7 @@ A server deploys the branch named by `DEPLOY_BRANCH` in its root `.env`, so it c
 sudo -u deploy sed -i 's/^DEPLOY_BRANCH=.*/DEPLOY_BRANCH=feature-branch/' .env
 
 # Deploy it now, and follow the output
-sudo systemctl start wildland-deploy
+sudo systemctl start --no-block wildland-deploy
 journalctl -u wildland-deploy -f
 ```
 
