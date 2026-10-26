@@ -282,15 +282,6 @@ $field-width: 400px;
         }
     }
 
-    // Spam trap: kept off-screen rather than display: none, which some bots skip
-    .website-field {
-        position: absolute;
-        left: -10000px;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
-    }
-
     .field-error {
         color: $error;
         font-family: satoshi;

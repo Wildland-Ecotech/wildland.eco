@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\DonationController;
+use App\Http\Requests\StartDonationRequest;
 use App\Models\Checkout;
 use App\Models\User;
 use App\Payments\HostedCheckout;
@@ -100,7 +101,6 @@ class DonateFormTest extends TestCase
             'custom_amount' => '',
             'name' => 'Jamie Rivera',
             'email' => ' Jamie@Example.com ',
-            'website' => '',
             'pow_challenge' => $challenge,
             'pow_nonce' => $this->solve($challenge),
         ], $overrides);
@@ -118,7 +118,7 @@ class DonateFormTest extends TestCase
             ->assertSee('action="' . route('donate.store') . '"', false)
             ->assertSee('data-proof-of-work', false)
             ->assertSee('name="pow_challenge"', false)
-            ->assertSee('name="website"', false)
+            ->assertDontSee('name="website"', false)
             ->assertSee('<noscript>', false)
             ->assertSee('id="name" name="name"', false)
             ->assertSee('id="email" name="email"', false)
@@ -275,10 +275,31 @@ class DonateFormTest extends TestCase
         $this->assertSame($donor->id, Checkout::sole()->user_id);
     }
 
-    public function test_spam_trap_and_missing_proof_of_work_are_rejected(): void
+    public function test_a_field_filled_in_by_autofill_never_blocks_a_donation(): void
     {
-        $this->donate(['website' => 'https://spam.example'])->assertSessionHasErrors('website');
-        $this->donate(['pow_nonce' => ''])->assertSessionHasErrors('pow_nonce');
+        // Browsers and password managers fill in fields such as "website",
+        // which the form once used as a spam trap
+        $this->donate(['website' => 'https://example.com'])->assertSessionHasNoErrors();
+
+        $this->assertSame(1, Checkout::count());
+    }
+
+    public function test_every_rule_has_its_own_message(): void
+    {
+        // A rule without a specific message falls back to the field's own
+        // message, never Laravel's default wording
+        $this->donate(['name' => str_repeat('a', 256)])
+            ->assertSessionHasErrors(['name' => 'Enter a name of 255 characters or fewer.']);
+        $this->donate(['name' => ['not', 'text']])
+            ->assertSessionHasErrors(['name' => 'Enter your name as text.']);
+        $this->donate(['pow_nonce' => str_repeat('1', 17)])
+            ->assertSessionHasErrors(['pow_nonce' => StartDonationRequest::PROOF_OF_WORK_MESSAGE]);
+    }
+
+    public function test_missing_proof_of_work_is_rejected(): void
+    {
+        $this->donate(['pow_nonce' => ''])
+            ->assertSessionHasErrors(['pow_nonce' => StartDonationRequest::PROOF_OF_WORK_MESSAGE]);
 
         $this->assertSame(0, Checkout::count());
         $this->assertEmpty($this->gateway->started);

@@ -68,7 +68,6 @@ class LeafApplicationTest extends TestCase
             'referral_source' => 'A flyer',
             'questions' => '',
             'terms' => '1',
-            'website' => '',
             ...$this->proofOfWork(),
         ], $overrides);
     }
@@ -79,7 +78,7 @@ class LeafApplicationTest extends TestCase
             ->assertOk()
             ->assertSee('action="' . route('leaves.apply.store') . '"', false)
             ->assertSee('id="type-drop-off" name="type" value="drop_off" checked', false)
-            ->assertSee('name="website"', false)
+            ->assertDontSee('name="website"', false)
             ->assertSee('min="2026-10-22"', false)
             ->assertSee('name="pow_challenge"', false)
             ->assertSee('data-proof-of-work', false)
@@ -110,7 +109,7 @@ class LeafApplicationTest extends TestCase
             ->assertOk()
             ->assertSee('Thank you!')
             ->assertSee('schedule your pickup')
-            ->assertDontSee('name="website"', false);
+            ->assertDontSee('name="pow_challenge"', false);
     }
 
     public function test_application_for_bags_ready_later_saves_the_ready_date(): void
@@ -193,12 +192,14 @@ class LeafApplicationTest extends TestCase
             ->assertSee('id="ready-now" name="ready_now" value="1" checked', false);
     }
 
-    public function test_filled_spam_trap_is_rejected(): void
+    public function test_a_field_filled_in_by_autofill_never_blocks_an_application(): void
     {
-        $this->post(route('leaves.apply.store'), $this->application(['website' => 'https://spam.example']))
-            ->assertSessionHasErrors('website');
+        // Browsers and password managers fill in fields such as "website",
+        // which the form once used as a spam trap
+        $this->post(route('leaves.apply.store'), $this->application(['website' => 'https://example.com']))
+            ->assertSessionHasNoErrors();
 
-        $this->assertSame(0, LeafApplication::count());
+        $this->assertSame(1, LeafApplication::count());
     }
 
     public function test_saved_applications_are_limited_per_hour(): void

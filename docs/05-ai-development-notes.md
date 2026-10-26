@@ -198,6 +198,10 @@ All numeric form inputs should be cleaned server-side to strip commas, currency 
 
 All forms must display validation errors visibly to the user (typically in red text above or within the form) and preserve `old()` input values so users don't have to retype after a failure.
 
+Every error a visitor sees must say what went wrong and what to do next; never a vague message such as "Something went wrong" (see "Error messages" in the [Style Guide](08-style-guide.md#writing)). Give every form field a message under its bare name in the request's `messages()`, which Laravel uses for any rule without a specific message, so Laravel's default wording is never shown. `FormMessagesTest` checks each form request.
+
+Don't add hidden spam-trap fields to forms. Browsers and password managers fill them in, which rejects real people; use the proof of work instead.
+
 ## Schema Conventions
 
 All status and type fields use string columns instead of database enum types (MySQL `ENUM` columns or PostgreSQL enum types). Enums are difficult to modify in production migrations and cause issues with schema diffing tools. Expected values are documented in the schema docs and enforced in application logic.

@@ -57,12 +57,6 @@
                         </div>
                     @endif
 
-                    {{-- Hidden from people; spam bots fill in every field. See StoreLeafApplicationRequest. --}}
-                    <div class="website-field" aria-hidden="true">
-                        <label for="website">Leave this field empty</label>
-                        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
-                    </div>
-
                     <fieldset class="field choices">
                         <legend>How would you like to give us your leaves?</legend>
 

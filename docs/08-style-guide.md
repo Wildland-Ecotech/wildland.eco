@@ -85,6 +85,7 @@ Other mail components can be overridden the same way, by adding a file with the 
 ## Writing
 
 - **Name:** "Wildland Ecotech". Use the legal name, Wildland Ecology Technologies, only where it matters (once, as in the FAQ's first answer, or on donation receipts), and never "WET". The one exception is the `WET` prefix of receipt numbers, such as `WET-2026-K7Q2MX`.
+- **Error messages:** every error a visitor sees says what went wrong and what to do next, such as "Enter an amount from $1 to $9,999" or "We could not reach our payment processor. Please try again in a few minutes, or email us at contact@wildland.eco." Never a bare "Something went wrong": when the cause is on our side, say so and give the contact address. On forms, every field has a message under its bare name, which Laravel uses for any rule without its own message (`FormMessagesTest` checks this).
 - **Donations, not gifts:** call what donors give a "donation" ("monthly donation", "recurring donation") in everything visitors and donors read, including page text, buttons, error messages, and emails. Wildland Ecotech is a nonprofit charity, and "gift" reads like a present.
 - **Plain language:** say what we do and why, not legalese. For example, the Privacy section explains what we share and why instead of listing terms.
 - **Familiar section names:** keep names people look for, such as "Privacy", even when the content is written conversationally.

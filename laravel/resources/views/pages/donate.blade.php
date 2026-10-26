@@ -56,12 +56,6 @@
                     </div>
                 @endif
 
-                {{-- Hidden from people; spam bots fill in every field. See StartDonationRequest. --}}
-                <div class="website-field" aria-hidden="true">
-                    <label for="website">Leave this field empty</label>
-                    <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
-                </div>
-
                 {{-- The frequency radios must come before the toggle and the details; see resources/scss/pages/_donate.scss --}}
                 @foreach ($frequencies as $key => $frequency)
                     <input type="radio" class="frequency-radio" name="frequency" id="frequency-{{ $key }}" value="{{ $frequency['value'] }}" data-frequency data-suffix="{{ $frequency['suffix'] }}" @checked($frequency['value'] === $selectedFrequency)>

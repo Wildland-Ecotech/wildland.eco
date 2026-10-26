@@ -63,7 +63,7 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 - The custom amount, name, and email fields share one width (`$field-width` in `_donate.scss`).
 - Custom amount field. `donate.js` filters input as it is typed (digits, one decimal point, two decimal places, $9,999 maximum), clears selections when the frequency changes, shows the amount on the button ("Donate $20/month"), and disables the button until an amount is chosen. Without JavaScript the button says "Donate", and the server checks the amount.
 - Name and email fields, both required. Validation errors appear in a red summary above the form and under each field, and every field keeps its input, including the chosen frequency and suggested amount.
-- An off-screen `website` field as a spam trap, and proof-of-work spam protection (`proof-of-work.js`), as on the leaf form. Paying needs JavaScript anyway, for Stripe's own pages, so a `<noscript>` notice gives the email address to give another way.
+- Proof-of-work spam protection (`proof-of-work.js`), as on the leaf form. There is no hidden spam-trap field: browsers and password managers fill those in, which blocked real donors. Paying needs JavaScript anyway, for Stripe's own pages, so a `<noscript>` notice gives the email address to give another way.
 - While online giving is unavailable (no Stripe key), a notice says so and the button stays disabled (`data-unavailable` on the form).
 - Submitting sends the donor to Stripe Checkout. Every other page's footer links here; the donate and thank-you pages hide the footer's Donate link (`:show-donate="false"`) and link back home instead.
 - "What You're Supporting" cards, impact stats, "Other Ways to Help", and a footer that links back home.
@@ -91,7 +91,7 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 - Drop-off (selected by default, marked Preferred) or pickup, contact details, the address the leaves come from, an estimated bag count, and whether the bags are ready now. Donors never choose a pickup date or time; when the bags aren't ready, they give the soonest date they will be.
 - The "when will they be ready" date is hidden with `:has()` while "Yes, they're ready now" is checked. Browsers without `:has()` always show it, and the server ignores it when the bags are ready.
 - Validation errors appear in a red summary above the form and under each field, and every field keeps its input.
-- Terms with a required "Yes, I agree" checkbox, and an off-screen `website` field as a spam trap
+- Terms with a required "Yes, I agree" checkbox
 - Proof-of-work spam protection (`proof-of-work.js`, attached with `data-proof-of-work`): solving starts when the page loads, and if the form is submitted first, the button shows "Verifying…" until it finishes. The form needs JavaScript to submit: without it, a `<noscript>` notice gives the email address to apply by instead. The browser's `crypto.subtle` is only available over HTTPS and on `localhost`. A page restored from the back/forward cache reloads, since its challenge has already been used.
 - After applying, the page shows a thank-you message for drop-off or pickup instead of the form
 

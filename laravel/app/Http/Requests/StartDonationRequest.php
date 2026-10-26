@@ -67,8 +67,6 @@ class StartDonationRequest extends FormRequest
             'amount' => ['required', 'regex:/^\d+(\.\d{1,2})?$/', 'numeric', 'min:' . self::MIN_AMOUNT, 'max:' . self::MAX_AMOUNT],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255'],
-            // Hidden from people; spam bots fill in every field
-            'website' => ['prohibited'],
             // Proof of work, solved by resources/js/proof-of-work.js; checked in after()
             'pow_challenge' => ['required', 'string', 'max:255'],
             'pow_nonce' => ['required', 'string', 'max:16'],
@@ -108,7 +106,11 @@ class StartDonationRequest extends FormRequest
     }
 
     /**
-     * Get custom error messages.
+     * Get custom error messages. Every field has a message under its bare
+     * name, which Laravel uses for any rule without its own message, so no
+     * one ever sees Laravel's default wording. Each message says what to do
+     * (see "Error messages" in docs/08-style-guide.md); FormMessagesTest
+     * checks that every field has one.
      *
      * @return array<string, string>
      */
@@ -117,19 +119,19 @@ class StartDonationRequest extends FormRequest
         $range = 'Enter an amount from $' . self::MIN_AMOUNT . ' to $' . number_format(self::MAX_AMOUNT) . '. For larger donations, email us at contact@wildland.eco.';
 
         return [
-            'frequency.required' => 'Choose one-time, monthly, or annual.',
-            'frequency.in' => 'Choose one-time, monthly, or annual.',
+            'frequency' => 'Choose one-time, monthly, or annual.',
             'amount.required' => 'Choose an amount, or enter your own.',
-            'amount.regex' => 'Enter an amount in dollars, such as 25 or 25.50.',
-            'amount.numeric' => 'Enter an amount in dollars, such as 25 or 25.50.',
             'amount.min' => $range,
             'amount.max' => $range,
+            'amount' => 'Enter an amount in dollars, such as 25 or 25.50.',
             'name.required' => 'Enter your name.',
+            'name.max' => 'Enter a name of 255 characters or fewer.',
+            'name' => 'Enter your name as text.',
             'email.required' => 'Enter your email address.',
-            'email.email' => 'Enter a valid email address, such as name@example.com.',
-            'website.prohibited' => 'Something went wrong. Please try again.',
-            'pow_challenge.required' => self::PROOF_OF_WORK_MESSAGE,
-            'pow_nonce.required' => self::PROOF_OF_WORK_MESSAGE,
+            'email.max' => 'Enter an email address of 255 characters or fewer.',
+            'email' => 'Enter a valid email address, such as name@example.com.',
+            'pow_challenge' => self::PROOF_OF_WORK_MESSAGE,
+            'pow_nonce' => self::PROOF_OF_WORK_MESSAGE,
         ];
     }
 }

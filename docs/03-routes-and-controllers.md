@@ -28,7 +28,7 @@ Payment happens on the payment gateway's hosted page (Stripe Checkout); payments
 2. `POST /donate` is validated by `StartDonationRequest`:
    - The amount is the custom amount when one is entered, otherwise the suggested amount for the chosen frequency, from that frequency's own field (`amount_one_time`, `amount_monthly`, `amount_annual`). The custom amount is cleaned first (spaces, `$`, and commas removed), so `$1,250.50` is accepted.
    - It must be $1 to $9,999 (`MIN_AMOUNT`, `MAX_AMOUNT`) with at most two decimal places, and is converted to cents exactly from the string (`amountCents()`).
-   - The frequency must be `one_time`, `monthly`, or `annual`; name and email are required; and the `website` spam trap and proof of work are checked as on the leaf form.
+   - The frequency must be `one_time`, `monthly`, or `annual`; name and email are required; and the proof of work is checked as on the leaf form.
    - Failures redirect back with errors and the visitor's input.
 3. The controller refuses if the gateway became unavailable, and allows `DonationController::MAX_PER_HOUR` (10) started checkouts per IP address per hour. Only checkouts that reach the gateway count.
 4. In one transaction, it finds the user by email, including a soft-deleted one, or creates them with the name entered. An existing user's name is only filled in when it is empty: typing an email address proves nothing about owning it. A soft-deleted user is not restored here. It then records a `started` checkout for the General Fund.
@@ -52,7 +52,7 @@ Stripe sends events to `POST /webhooks/stripe`: from each server's registered we
 2. `POST /leaves/apply` is validated by `StoreLeafApplicationRequest`:
    - The bag count is cleaned first (spaces and commas removed), so `1,200` is accepted.
    - `ready_date` is required only when `ready_now` is `0`, and must be after today in `America/Denver` (`StoreLeafApplicationRequest::TIMEZONE`), not the server's UTC date.
-   - `terms` must be accepted, and `website`, a hidden spam trap, must be empty.
+   - `terms` must be accepted.
    - `pow_challenge` and `pow_nonce` must be a solved, unexpired, unused proof of work, checked in the request's `after()` hook. A checked challenge is used up even when other fields fail, and the redisplayed form issues a new one.
    - Failures redirect back with errors and the visitor's input.
 3. The controller allows `LeafApplicationController::MAX_PER_HOUR` (5) saved applications per IP address per hour. Only saved applications count, so validation errors never lock anyone out.
