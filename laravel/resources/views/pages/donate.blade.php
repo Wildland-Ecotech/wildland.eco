@@ -53,14 +53,16 @@
                                 <li>{{ $error }}</li>
                             @endforeach
                         </ul>
+
+                        {{-- Recorded by RecordFormSubmission, so we can find this submission --}}
+                        @if (session('submission_reference'))
+                            <p class="reference">
+                                Reference: <strong>{{ session('submission_reference') }}</strong>.
+                                If you email us at <a href="mailto:contact@wildland.eco">contact@wildland.eco</a>, include it so we can find your submission.
+                            </p>
+                        @endif
                     </div>
                 @endif
-
-                {{-- Hidden from people; spam bots fill in every field. See StartDonationRequest. --}}
-                <div class="website-field" aria-hidden="true">
-                    <label for="website">Leave this field empty</label>
-                    <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
-                </div>
 
                 {{-- The frequency radios must come before the toggle and the details; see resources/scss/pages/_donate.scss --}}
                 @foreach ($frequencies as $key => $frequency)

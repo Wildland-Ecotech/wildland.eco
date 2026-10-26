@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StartDonationRequest;
 use App\Models\Checkout;
+use App\Models\FormSubmission;
 use App\Models\User;
 use App\Payments\PaymentGateway;
 use App\Services\ProofOfWork;
@@ -47,13 +48,20 @@ class DonationController extends Controller
      */
     public function store(StartDonationRequest $request, PaymentGateway $gateway): RedirectResponse
     {
+        // Recorded by RecordFormSubmission as the form arrived
+        $submission = FormSubmission::forRequest($request);
+
         if (! $gateway->isAvailable()) {
+            $submission?->markAs(FormSubmission::OUTCOME_UNAVAILABLE);
+
             return back()->withInput()->withErrors(['form' => self::UNAVAILABLE_MESSAGE]);
         }
 
         $limiterKey = 'donations:' . $request->ip();
 
         if (RateLimiter::tooManyAttempts($limiterKey, self::MAX_PER_HOUR)) {
+            $submission?->markAs(FormSubmission::OUTCOME_RATE_LIMITED);
+
             return back()
                 ->withInput()
                 ->withErrors(['form' => 'You have started several donations in the last hour. Please try again later, or email us at contact@wildland.eco.']);
@@ -79,6 +87,7 @@ class DonationController extends Controller
         } catch (Exception $exception) {
             // The checkout stays recorded as started, without a session
             report($exception);
+            $submission?->markAs(FormSubmission::OUTCOME_PAYMENT_ERROR, ['checkout_id' => $checkout->id]);
 
             return back()
                 ->withInput()
@@ -91,6 +100,7 @@ class DonationController extends Controller
         ]);
 
         RateLimiter::hit($limiterKey, 3600);
+        $submission?->markAs(FormSubmission::OUTCOME_SENT_TO_PAYMENT, ['checkout_id' => $checkout->id]);
 
         return redirect()->away($session->url);
     }

@@ -74,8 +74,6 @@ class StoreLeafApplicationRequest extends FormRequest
             'referral_source' => ['nullable', 'string', 'max:2000'],
             'questions' => ['nullable', 'string', 'max:5000'],
             'terms' => ['accepted'],
-            // Hidden from people; spam bots fill in every field
-            'website' => ['prohibited'],
             // Proof of work, solved by resources/js/proof-of-work.js; checked in after()
             'pow_challenge' => ['required', 'string', 'max:255'],
             'pow_nonce' => ['required', 'string', 'max:16'],
@@ -120,24 +118,43 @@ class StoreLeafApplicationRequest extends FormRequest
     }
 
     /**
-     * Get custom error messages.
+     * Get custom error messages. Every field has a message under its bare
+     * name, which Laravel uses for any rule without its own message, so no
+     * one ever sees Laravel's default wording. Each message says what to do
+     * (see "Error messages" in docs/08-style-guide.md); FormMessagesTest
+     * checks that every field has one.
      *
      * @return array<string, string>
      */
     public function messages(): array
     {
         return [
-            'type.required' => 'Choose drop-off or pickup.',
-            'type.in' => 'Choose drop-off or pickup.',
-            'phone.regex' => 'Enter a phone number using digits, such as (970) 555-0123.',
-            'estimated_bag_count.integer' => 'Enter the number of bags as a whole number. An estimate is fine.',
-            'ready_now.required' => 'Tell us whether your bags are ready now.',
+            'type' => 'Choose drop-off or pickup.',
+            'name.required' => 'Enter your name.',
+            'name.max' => 'Enter a name of 255 characters or fewer.',
+            'name' => 'Enter your name as text.',
+            'email.required' => 'Enter your email address.',
+            'email.max' => 'Enter an email address of 255 characters or fewer.',
+            'email' => 'Enter a valid email address, such as name@example.com.',
+            'phone.required' => 'Enter your phone number, so we can reach you about your leaves.',
+            'phone.max' => 'Enter a phone number of 50 characters or fewer.',
+            'phone' => 'Enter a phone number using digits, such as (970) 555-0123.',
+            'address.required' => 'Enter the address your leaves are coming from.',
+            'address.max' => 'Enter an address of 500 characters or fewer.',
+            'address' => 'Enter the address your leaves are coming from.',
+            'estimated_bag_count.required' => 'Enter about how many bags you have. An estimate is fine.',
+            'estimated_bag_count.min' => 'Enter at least 1 bag.',
+            'estimated_bag_count.max' => 'Enter 10,000 bags or fewer. For more, email us at contact@wildland.eco.',
+            'estimated_bag_count' => 'Enter the number of bags as a whole number. An estimate is fine.',
+            'ready_now' => 'Tell us whether your bags are ready now.',
             'ready_date.required' => 'Tell us when your bags will be ready, or choose that they are ready now.',
             'ready_date.after' => 'Choose a date after today, or choose that your bags are ready now.',
-            'terms.accepted' => 'Please agree to the terms to apply.',
-            'website.prohibited' => 'Something went wrong. Please try again.',
-            'pow_challenge.required' => self::PROOF_OF_WORK_MESSAGE,
-            'pow_nonce.required' => self::PROOF_OF_WORK_MESSAGE,
+            'ready_date' => 'Choose the date your bags will be ready from the calendar.',
+            'referral_source' => 'Keep how you heard about us to 2,000 characters or fewer.',
+            'questions' => 'Keep your questions to 5,000 characters or fewer, or email them to us at contact@wildland.eco.',
+            'terms' => 'Please agree to the terms to apply.',
+            'pow_challenge' => self::PROOF_OF_WORK_MESSAGE,
+            'pow_nonce' => self::PROOF_OF_WORK_MESSAGE,
         ];
     }
 }

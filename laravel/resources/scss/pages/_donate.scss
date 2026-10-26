@@ -280,15 +280,21 @@ $field-width: 400px;
             margin: 0.4em 0;
             padding-left: 1.25em;
         }
-    }
 
-    // Spam trap: kept off-screen rather than display: none, which some bots skip
-    .website-field {
-        position: absolute;
-        left: -10000px;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
+        // The submission's reference, for the visitor to quote if they email us
+        .reference {
+            margin-top: 0.75em;
+            color: rgba(255, 255, 255, 0.75);
+
+            strong {
+                color: #fff;
+                letter-spacing: 0.05em;
+            }
+
+            a {
+                color: inherit;
+            }
+        }
     }
 
     .field-error {
