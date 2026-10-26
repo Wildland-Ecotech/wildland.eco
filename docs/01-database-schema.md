@@ -178,6 +178,23 @@ Requests to donate leaves to the leaf program, by drop-off or pickup. Model: `Ap
 | created_at, updated_at | |
 | deleted_at | Nullable; soft deletes. Deleted applications are kept but hidden, including from `leaves:applications` (see [Deletion](06-planned-features.md#deletion)) |
 
+### form_submissions
+
+Every submission of the donate and leaf application forms, recorded the moment it arrives, before validation or anything else can fail, so a visitor who hits an error can still be reached. Model: `App\Models\FormSubmission`; recorded by the `RecordFormSubmission` middleware (see [Form Submissions](03-routes-and-controllers.md#form-submissions)). Holds visitors' names, emails, and form details, including from submissions that failed; never copy its rows into the repository, issues, or chat. Kept permanently.
+
+| Column | Notes |
+|--------|-------|
+| reference | Six random characters without the lookalikes 0, 1, I, L, and O, such as `F7K2QX`. Unique. Shown to the visitor with any error, so a visitor who emails us can be matched to their submission |
+| form | String: `donation` or `leaf_application` (`FormSubmission::FORMS`). Indexed |
+| name, email | Nullable; as typed, even if invalid. The email is trimmed and lowercased. Email is indexed |
+| data | Nullable JSONB: the other fields as submitted, never the CSRF or proof-of-work tokens. At most 30 fields of up to 5,000 characters each, since anyone can submit anything |
+| outcome | String, default `received` (`FormSubmission::OUTCOMES`): `received` (nothing recorded yet; one left this way stopped without an outcome), `rejected` (by the form's rules), `expired` (the page had expired, a 419), `rate_limited`, `unavailable` (online donations not configured), `payment_error` (the payment processor couldn't be reached), `error` (a server error), `sent_to_payment`, or `saved`. Indexed |
+| errors | Nullable JSONB: the messages the visitor was shown, by field |
+| checkout_id | Nullable foreign key; the checkout a donation started. Its status shows whether the donor finished paying |
+| leaf_application_id | Nullable foreign key; the application saved |
+| user_agent | Nullable, up to 500 characters; the visitor's browser and device |
+| created_at, updated_at | `created_at` is indexed |
+
 ## Framework Tables
 
 Tables Laravel's own features use, generated unchanged from the framework's stubs. They hold no personal data of their own, though a queued job's payload can include the records it works on.

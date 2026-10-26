@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Http\Controllers\DonationController;
 use App\Http\Requests\StartDonationRequest;
 use App\Models\Checkout;
+use App\Models\FormSubmission;
 use App\Models\User;
 use App\Payments\HostedCheckout;
 use App\Payments\PaymentGateway;
@@ -393,5 +394,78 @@ class DonateFormTest extends TestCase
         $this->get('/donate/thank-you/not-a-reference')->assertNotFound();
         $this->get('/donate/thank-you/' . Str::uuid())->assertNotFound();
         $this->get('/donate/thank-you/' . Checkout::factory()->create()->id)->assertNotFound();
+    }
+
+    public function test_every_donation_submission_is_recorded_as_it_arrives(): void
+    {
+        $this->donate()->assertRedirect('https://pay.example/cs_fake_1');
+
+        $submission = FormSubmission::sole();
+
+        $this->assertMatchesRegularExpression('/^[2-9A-HJKMNP-Z]{6}$/', $submission->reference);
+        $this->assertSame(FormSubmission::FORM_DONATION, $submission->form);
+        $this->assertSame(FormSubmission::OUTCOME_SENT_TO_PAYMENT, $submission->outcome);
+        $this->assertSame(Checkout::sole()->id, $submission->checkout_id);
+        $this->assertSame('Jamie Rivera', $submission->name);
+        $this->assertSame('jamie@example.com', $submission->email);
+        $this->assertSame(Checkout::FREQUENCY_MONTHLY, $submission->data['frequency']);
+        $this->assertSame('20', $submission->data['amount_monthly']);
+        $this->assertNull($submission->errors);
+
+        // Security tokens are never stored
+        $this->assertArrayNotHasKey('_token', $submission->data);
+        $this->assertArrayNotHasKey('pow_challenge', $submission->data);
+        $this->assertArrayNotHasKey('pow_nonce', $submission->data);
+    }
+
+    public function test_a_rejected_donation_keeps_what_was_typed_and_shows_its_reference(): void
+    {
+        // Follows the redirect within the same session, as a browser does
+        $response = $this->followingRedirects()->donate(['name' => '', 'email' => 'jamie at example']);
+
+        $submission = FormSubmission::sole();
+
+        $this->assertSame(FormSubmission::OUTCOME_REJECTED, $submission->outcome);
+        $this->assertSame('jamie at example', $submission->email);
+        $this->assertNull($submission->name);
+        $this->assertSame(['Enter your name.'], $submission->errors['name']);
+        $this->assertSame(0, Checkout::count());
+
+        $response
+            ->assertOk()
+            ->assertSee('Enter your name.')
+            ->assertSee("Reference: <strong>{$submission->reference}</strong>", false)
+            ->assertSee('include it so we can find your submission');
+    }
+
+    public function test_a_payment_processor_failure_is_recorded_with_its_checkout(): void
+    {
+        Exceptions::fake();
+        $this->gateway->failure = new RuntimeException('Stripe is unreachable');
+
+        $this->donate()->assertSessionHasErrors('form');
+
+        $submission = FormSubmission::sole();
+
+        $this->assertSame(FormSubmission::OUTCOME_PAYMENT_ERROR, $submission->outcome);
+        $this->assertSame(Checkout::sole()->id, $submission->checkout_id);
+        $this->assertStringContainsString('could not reach our payment processor', $submission->errors['form'][0]);
+    }
+
+    public function test_unavailable_and_rate_limited_donations_are_recorded(): void
+    {
+        $this->gateway->available = false;
+        $this->donate();
+
+        $this->assertSame(FormSubmission::OUTCOME_UNAVAILABLE, FormSubmission::latest('id')->first()->outcome);
+
+        $this->gateway->available = true;
+
+        for ($i = 0; $i <= DonationController::MAX_PER_HOUR; $i++) {
+            $this->donate();
+        }
+
+        $this->assertSame(FormSubmission::OUTCOME_RATE_LIMITED, FormSubmission::latest('id')->first()->outcome);
+        $this->assertSame(DonationController::MAX_PER_HOUR, FormSubmission::where('outcome', FormSubmission::OUTCOME_SENT_TO_PAYMENT)->count());
     }
 }

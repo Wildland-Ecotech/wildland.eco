@@ -280,6 +280,21 @@ $field-width: 400px;
             margin: 0.4em 0;
             padding-left: 1.25em;
         }
+
+        // The submission's reference, for the visitor to quote if they email us
+        .reference {
+            margin-top: 0.75em;
+            color: rgba(255, 255, 255, 0.75);
+
+            strong {
+                color: #fff;
+                letter-spacing: 0.05em;
+            }
+
+            a {
+                color: inherit;
+            }
+        }
     }
 
     .field-error {

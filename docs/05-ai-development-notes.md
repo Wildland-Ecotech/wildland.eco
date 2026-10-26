@@ -200,6 +200,8 @@ All forms must display validation errors visibly to the user (typically in red t
 
 Every error a visitor sees must say what went wrong and what to do next; never a vague message such as "Something went wrong" (see "Error messages" in the [Style Guide](08-style-guide.md#writing)). Give every form field a message under its bare name in the request's `messages()`, which Laravel uses for any rule without a specific message, so Laravel's default wording is never shown. `FormMessagesTest` checks each form request.
 
+A new public form records its submissions like the donate and leaf application forms: add `RecordFormSubmission:<form>` to its POST route, add the form to `FormSubmission::FORMS`, and record its outcomes with `markAs()` (see [Form Submissions](03-routes-and-controllers.md#form-submissions)).
+
 Don't add hidden spam-trap fields to forms. Browsers and password managers fill them in, which rejects real people; use the proof of work instead.
 
 ## Schema Conventions

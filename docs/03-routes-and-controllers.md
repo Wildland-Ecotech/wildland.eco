@@ -20,6 +20,14 @@ Pages with no server-side logic use `Route::view` and need no controller. Link t
 
 Document each route here as it is added, along with the controller responsible and the request flow for anything non-trivial (forms, webhooks, redirects to the payment gateway).
 
+## Form Submissions
+
+Both forms' POST routes (`POST /donate` and `POST /leaves/apply`) record every submission in `form_submissions` the moment it arrives, with the `RecordFormSubmission` middleware (`app/Http/Middleware/RecordFormSubmission.php`, added as `RecordFormSubmission:donation` and `RecordFormSubmission:leaf_application`). Nothing a visitor typed is lost, even when something fails:
+
+1. **Arrival.** The middleware runs right after the session starts and before the CSRF check (its place is set in `bootstrap/app.php` with `appendToPriorityList()`), so even a submission from a page that had expired is recorded. It saves the reference, name, email, the other fields, and the browser, with the outcome `received`, and keeps the submission on the request for the controller (`FormSubmission::forRequest()`).
+2. **Outcome.** Controllers record what happened with `markAs()`: `unavailable`, `rate_limited`, `payment_error`, `sent_to_payment` (with the checkout), or `saved` (with the application). Anything else is worked out from the response when the request ends: a 419 is `expired`, a 5xx is `error`, and errors flashed to the session are `rejected`. The messages the visitor was shown are saved with it.
+3. **Failures.** For a failed submission, the middleware writes a warning to the Laravel log with the reference, form, outcome, and the names of the fields that failed, never what was typed, and flashes the reference to the session. Both forms show it under their errors, asking the visitor to include it if they email us.
+
 ## Donations
 
 Payment happens on the payment gateway's hosted page (Stripe Checkout); payments are recorded from the gateway's webhooks, not by these routes. See [Donation Flow](06-planned-features.md#donation-flow).
@@ -29,7 +37,7 @@ Payment happens on the payment gateway's hosted page (Stripe Checkout); payments
    - The amount is the custom amount when one is entered, otherwise the suggested amount for the chosen frequency, from that frequency's own field (`amount_one_time`, `amount_monthly`, `amount_annual`). The custom amount is cleaned first (spaces, `$`, and commas removed), so `$1,250.50` is accepted.
    - It must be $1 to $9,999 (`MIN_AMOUNT`, `MAX_AMOUNT`) with at most two decimal places, and is converted to cents exactly from the string (`amountCents()`).
    - The frequency must be `one_time`, `monthly`, or `annual`; name and email are required; and the proof of work is checked as on the leaf form.
-   - Failures redirect back with errors and the visitor's input.
+   - Failures redirect back with errors and the visitor's input. Like every outcome, they are recorded in `form_submissions` (see [Form Submissions](#form-submissions)).
 3. The controller refuses if the gateway became unavailable, and allows `DonationController::MAX_PER_HOUR` (10) started checkouts per IP address per hour. Only checkouts that reach the gateway count.
 4. In one transaction, it finds the user by email, including a soft-deleted one, or creates them with the name entered. An existing user's name is only filled in when it is empty: typing an email address proves nothing about owning it. A soft-deleted user is not restored here. It then records a `started` checkout for the General Fund.
 5. `PaymentGateway::startCheckout()` creates the gateway session, with the thank-you URL as the success URL and `/donate` as the cancel URL. The checkout's `gateway_session_id` and `expires_at` are saved, and the donor is redirected to the gateway. If the gateway call fails, the error is reported, the donor is sent back with a message and their input, and the checkout stays recorded without a session.

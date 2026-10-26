@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\LeafApplicationController;
 use App\Http\Requests\StoreLeafApplicationRequest;
+use App\Models\FormSubmission;
 use App\Models\LeafApplication;
 use App\Services\ProofOfWork;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -293,5 +294,32 @@ class LeafApplicationTest extends TestCase
             'pow_challenge' => $easier,
             'pow_nonce' => '0',
         ]))->assertSessionHasErrors('pow_nonce');
+    }
+
+    public function test_every_application_submission_is_recorded_as_it_arrives(): void
+    {
+        $this->post(route('leaves.apply.store'), $this->application())->assertSessionHasNoErrors();
+
+        $submission = FormSubmission::sole();
+
+        $this->assertSame(FormSubmission::FORM_LEAF_APPLICATION, $submission->form);
+        $this->assertSame(FormSubmission::OUTCOME_SAVED, $submission->outcome);
+        $this->assertSame(LeafApplication::sole()->id, $submission->leaf_application_id);
+        $this->assertSame('donor@example.com', $submission->email);
+        $this->assertSame('(970) 555-0123', $submission->data['phone']);
+    }
+
+    public function test_a_rejected_application_keeps_what_was_typed(): void
+    {
+        $this->post(route('leaves.apply.store'), $this->application(['phone' => 'call me', 'terms' => '']))
+            ->assertSessionHasErrors(['phone', 'terms']);
+
+        $submission = FormSubmission::sole();
+
+        $this->assertSame(FormSubmission::OUTCOME_REJECTED, $submission->outcome);
+        $this->assertSame('call me', $submission->data['phone']);
+        $this->assertSame('Test Donor', $submission->name);
+        $this->assertSame(0, LeafApplication::count());
+        $this->assertSame($submission->reference, session('submission_reference'));
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreLeafApplicationRequest;
+use App\Models\FormSubmission;
 use App\Models\LeafApplication;
 use App\Services\ProofOfWork;
 use Illuminate\Http\RedirectResponse;
@@ -37,9 +38,14 @@ class LeafApplicationController extends Controller
      */
     public function store(StoreLeafApplicationRequest $request): RedirectResponse
     {
+        // Recorded by RecordFormSubmission as the form arrived
+        $submission = FormSubmission::forRequest($request);
+
         $limiterKey = 'leaf-applications:' . $request->ip();
 
         if (RateLimiter::tooManyAttempts($limiterKey, self::MAX_PER_HOUR)) {
+            $submission?->markAs(FormSubmission::OUTCOME_RATE_LIMITED);
+
             return back()
                 ->withInput()
                 ->withErrors(['form' => 'You have sent several applications in the last hour. Please try again later, or email us at contact@wildland.eco.']);
@@ -47,7 +53,7 @@ class LeafApplicationController extends Controller
 
         $readyNow = $request->boolean('ready_now');
 
-        LeafApplication::create([
+        $application = LeafApplication::create([
             ...$request->safe()->only([
                 'type',
                 'name',
@@ -64,6 +70,7 @@ class LeafApplicationController extends Controller
         ]);
 
         RateLimiter::hit($limiterKey, 3600);
+        $submission?->markAs(FormSubmission::OUTCOME_SAVED, ['leaf_application_id' => $application->id]);
 
         return redirect()
             ->route('leaves.apply')
