@@ -185,6 +185,27 @@ docker compose exec app php artisan stripe:sync
 docker compose exec app php artisan stripe:sync --days=7
 ```
 
+### submissions:list (`app/Console/Commands/ListFormSubmissions.php`)
+
+Lists recent submissions of the donate and leaf application forms that didn't succeed, oldest first, so we can reach out to the people who made them (see [form_submissions](01-database-schema.md#form_submissions)). It shows submissions the form rejected, from expired pages, rate-limited, or failed with an error; submissions that stopped without an outcome (still `received` after 5 minutes); and donors who went to pay but left the payment page without finishing (their checkout expired). For each: the reference, time in Fort Collins, form, what happened in plain words, name, email, the main details entered (amount and frequency, or pickup or drop-off and bag count), the errors shown, and the browser.
+
+| Option | Default | Effect |
+|--------|---------|--------|
+| `--days=N` | 7 | Submissions from the last N days |
+| `--form=FORM` | both | Only `donation` or `leaf_application` |
+| `--all` | off | Include submissions that succeeded |
+| `--csv` | off | CSV with a header row, for importing into a spreadsheet |
+
+```bash
+docker compose exec app php artisan submissions:list
+docker compose exec app php artisan submissions:list --days=30 --form=donation
+docker compose exec -T app php artisan submissions:list --csv > ~/form-submissions.csv
+```
+
+On a server, run it from the clone's directory as the clone's owner (`sudo -u deploy docker compose exec ...`). To find one submission a visitor quotes by reference, use `--all` with enough `--days`, or look it up in the `form_submissions` table.
+
+The output contains visitors' names, emails, and form details: never paste it into issues or chat, and never save the CSV inside the repository. CSV values starting with `=`, `+`, `-`, or `@` get a leading apostrophe, as in `leaves:applications`.
+
 ### leaves:applications (`app/Console/Commands/ListLeafApplications.php`)
 
 Lists leaf program applications from `/leaves/apply`, oldest first, for reviewing them until the administrator pages are built (milestone 10). Times are shown in Fort Collins time. Soft-deleted applications are not listed.

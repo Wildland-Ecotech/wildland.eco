@@ -311,6 +311,10 @@ docker compose logs -f queue scheduler
 # storage volume, not in laravel/storage on the host.
 sudo -u deploy docker compose exec app tail -n 100 storage/logs/stripe-sync.log
 
+# Form submissions that didn't succeed in the last week, to follow up with the
+# visitors who made them (contains their names and emails)
+sudo -u deploy docker compose exec app php artisan submissions:list
+
 # Send one donation's receipt, by its Stripe payment ID, such as one synced
 # too late to be receipted automatically
 sudo -u deploy docker compose exec app php artisan receipt:send pi_...

@@ -28,6 +28,8 @@ Both forms' POST routes (`POST /donate` and `POST /leaves/apply`) record every s
 2. **Outcome.** Controllers record what happened with `markAs()`: `unavailable`, `rate_limited`, `payment_error`, `sent_to_payment` (with the checkout), or `saved` (with the application). Anything else is worked out from the response when the request ends: a 419 is `expired`, a 5xx is `error`, and errors flashed to the session are `rejected`. The messages the visitor was shown are saved with it.
 3. **Failures.** For a failed submission, the middleware writes a warning to the Laravel log with the reference, form, outcome, and the names of the fields that failed, never what was typed, and flashes the reference to the session. Both forms show it under their errors, asking the visitor to include it if they email us.
 
+`php artisan submissions:list` lists the submissions that need a follow-up (see [submissions:list](02-services-and-commands.md#submissionslist-appconsolecommandslistformsubmissionsphp)).
+
 ## Donations
 
 Payment happens on the payment gateway's hosted page (Stripe Checkout); payments are recorded from the gateway's webhooks, not by these routes. See [Donation Flow](06-planned-features.md#donation-flow).
