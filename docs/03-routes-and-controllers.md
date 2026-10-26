@@ -14,7 +14,10 @@
 | GET | `/leaves/apply` | `leaves.apply` | `LeafApplicationController@create` → `pages.leaves-apply` | Application form, or the thank-you message after applying |
 | POST | `/leaves/apply` | `leaves.apply.store` | `LeafApplicationController@store` | Saves an application to `leaf_applications` |
 | GET | `/faq` | `faq` | `Route::view` → `pages.faq` | Frequently asked questions |
+| GET | `/form-tokens` | `form-tokens` | `FormTokenController` | JSON with a fresh CSRF token (`csrf`) and proof-of-work challenge (`challenge`), for a form that has been open a while; see [Stale Forms](#stale-forms). Not cached; 30 requests per minute per visitor |
 | GET | `/dev/receipt-preview/{frequency?}` | | `DonationReceiptPreviewController` | Local development only (`APP_ENV=local`): the receipt email with sample details, for `one-time`, `monthly`, or `annual`. Nothing is saved or sent |
+
+Errors render the branded pages in `resources/views/errors` (see [Error Pages](04-frontend.md#error-page-error-page-and-error-pages)).
 
 Pages with no server-side logic use `Route::view` and need no controller. Link to pages by route name (`route('donate')`) rather than hard-coded paths.
 
@@ -29,6 +32,16 @@ Both forms' POST routes (`POST /donate` and `POST /leaves/apply`) record every s
 3. **Failures.** For a failed submission, the middleware writes a warning to the Laravel log with the reference, form, outcome, and the names of the fields that failed, never what was typed, and flashes the reference to the session. Both forms show it under their errors, asking the visitor to include it if they email us.
 
 `php artisan submissions:list` lists the submissions that need a follow-up (see [submissions:list](02-services-and-commands.md#submissionslist-appconsolecommandslistformsubmissionsphp)).
+
+## Stale Forms
+
+A form's CSRF token stops working when its session expires (`SESSION_LIFETIME`, 120 minutes), and its proof-of-work challenge expires after two hours (`ProofOfWork::LIFETIME`). A visitor coming back to a form left open would otherwise get a "page expired" error or a proof-of-work error. Both forms carry `data-form-tokens-url`, and `resources/js/proof-of-work.js` fetches fresh tokens from `GET /form-tokens`:
+
+1. **Before submitting**, if the page was loaded (or last refreshed) more than 30 minutes ago, it replaces the form's `_token` and challenge, solves the new challenge, then submits. A newer page submits right away.
+2. **When the visitor comes back** to the tab (it becomes visible or focused) after 30 minutes, it refreshes them ahead of time, so the submit doesn't wait.
+3. If the request fails, the form is sent with its current tokens, and the server explains any problem (the branded "page expired" page, or the proof-of-work message).
+
+If the session had expired, fetching the token starts a new one, so the refreshed token matches the cookie the response sets. Only the site's own pages can read the response, so it gives other sites no way to get a token.
 
 ## Donations
 

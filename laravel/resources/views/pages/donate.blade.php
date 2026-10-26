@@ -26,7 +26,7 @@
             </p>
 
             {{-- Payment happens on the gateway's page; see DonationController --}}
-            <form class="donate-form" method="POST" action="{{ route('donate.store') }}" novalidate data-donate-form @if ($paymentsAvailable) data-proof-of-work @else data-unavailable @endif>
+            <form class="donate-form" method="POST" action="{{ route('donate.store') }}" novalidate data-donate-form @if ($paymentsAvailable) data-proof-of-work data-form-tokens-url="{{ route('form-tokens') }}" @else data-unavailable @endif>
                 @csrf
 
                 {{-- Spam protection solved in the browser; see resources/js/proof-of-work.js --}}

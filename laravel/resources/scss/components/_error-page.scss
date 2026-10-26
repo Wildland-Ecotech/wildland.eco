@@ -1,0 +1,60 @@
+// The error pages (the error-page component, resources/views/errors): a
+// card like the opening cards on content pages, with Lead and Detail text
+// and buttons.
+
+@use '../typography' as type;
+
+.error-page {
+    .error-card {
+        max-width: 880px;
+        margin: 0 auto 4em;
+        padding: 1.75em 1.5em 2em;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 16px;
+        text-align: center;
+
+        // Smaller than page headings, so the heading fits on one line
+        h1 {
+            font-size: 44px;
+            margin-bottom: 0.4em;
+        }
+
+        // The full width of the card, so the lead fits on one line
+        .lead {
+            margin: 0 auto 1em;
+            @include type.lead;
+        }
+
+        .detail {
+            max-width: 600px;
+            margin: 0 auto 1.5em;
+            @include type.detail;
+
+            a {
+                color: #2ECF9E;
+            }
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 1em;
+
+            .button {
+                margin: 0;
+            }
+        }
+    }
+}
+
+@media screen and (max-width: 600px) {
+    .error-page .error-card {
+        padding: 1.25em 1em 2em;
+        margin-bottom: 2em;
+
+        h1 {
+            font-size: 32px;
+        }
+    }
+}

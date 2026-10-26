@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DonationController;
 use App\Http\Controllers\DonationReceiptPreviewController;
+use App\Http\Controllers\FormTokenController;
 use App\Http\Controllers\LeafApplicationController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Middleware\RecordFormSubmission;
@@ -26,6 +27,12 @@ Route::post('/leaves/apply', [LeafApplicationController::class, 'store'])
     ->middleware(RecordFormSubmission::class . ':' . FormSubmission::FORM_LEAF_APPLICATION)
     ->name('leaves.apply.store');
 Route::view('/faq', 'pages.faq')->name('faq');
+
+// Fresh CSRF token and proof-of-work challenge for a form that has been open
+// a while; see resources/js/proof-of-work.js
+Route::get('/form-tokens', FormTokenController::class)
+    ->middleware('throttle:30,1')
+    ->name('form-tokens');
 
 // Called by Stripe, which can't send a CSRF token; requests are verified by
 // their signature instead. Webhooks have no visitor, so they also skip the

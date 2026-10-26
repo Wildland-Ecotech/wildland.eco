@@ -14,6 +14,8 @@ Proof-of-work spam protection for public forms, used by the leaf application for
 
 Raising `DIFFICULTY` by one makes the work 16 times harder for people as well as bots.
 
+A form open for more than 30 minutes gets a fresh challenge from `GET /form-tokens` before it submits, along with a fresh CSRF token (see [Stale Forms](03-routes-and-controllers.md#stale-forms)).
+
 ### DonationReceipts (`app/Services/DonationReceipts.php`)
 
 Tax receipts for donations, one per donation and never more.

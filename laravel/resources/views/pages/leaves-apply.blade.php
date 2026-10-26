@@ -31,7 +31,7 @@
                     Tell us about your leaves, and we'll be in touch once we've reviewed your application.
                 </p>
 
-                <form class="apply-form" method="POST" action="{{ route('leaves.apply.store') }}" novalidate data-proof-of-work>
+                <form class="apply-form" method="POST" action="{{ route('leaves.apply.store') }}" novalidate data-proof-of-work data-form-tokens-url="{{ route('form-tokens') }}">
                     @csrf
 
                     {{-- Spam protection solved in the browser; see resources/js/proof-of-work.js --}}

@@ -92,7 +92,7 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 - The "when will they be ready" date is hidden with `:has()` while "Yes, they're ready now" is checked. Browsers without `:has()` always show it, and the server ignores it when the bags are ready.
 - Validation errors appear in a red summary above the form and under each field, and every field keeps its input. The summary ends with the submission's reference (see [Form Submissions](03-routes-and-controllers.md#form-submissions)).
 - Terms with a required "Yes, I agree" checkbox
-- Proof-of-work spam protection (`proof-of-work.js`, attached with `data-proof-of-work`): solving starts when the page loads, and if the form is submitted first, the button shows "Verifying…" until it finishes. The form needs JavaScript to submit: without it, a `<noscript>` notice gives the email address to apply by instead. The browser's `crypto.subtle` is only available over HTTPS and on `localhost`. A page restored from the back/forward cache reloads, since its challenge has already been used.
+- Proof-of-work spam protection (`proof-of-work.js`, attached with `data-proof-of-work`): solving starts when the page loads, and if the form is submitted first, the button shows "Verifying…" until it finishes. The form needs JavaScript to submit: without it, a `<noscript>` notice gives the email address to apply by instead. The browser's `crypto.subtle` is only available over HTTPS and on `localhost`. A page restored from the back/forward cache reloads, since its challenge has already been used. A page open for more than 30 minutes fetches a fresh challenge and CSRF token before submitting, or when the visitor returns to the tab, from the form's `data-form-tokens-url` (see [Stale Forms](03-routes-and-controllers.md#stale-forms)).
 - After applying, the page shows a thank-you message for drop-off or pickup instead of the form
 
 ### FAQ (`/faq`) — `pages/faq.blade.php`
@@ -145,6 +145,19 @@ Wraps page content so it fades out as it scrolls under the top nav. `disappearin
 ### Social Links (`social-links`) and Social Icon (`social-icon`)
 
 `social-links` is a row of icon links to Instagram, LinkedIn, and Facebook, in the menu overlay and on `/menu`; each link has an `aria-label`, since it has no text. `social-icon` draws one outlined icon in the current text color (`<x-social-icon name="facebook" />`; names: `instagram`, `linkedin`, `facebook`), and is also used in the project modals' buttons.
+
+### Error Page (`error-page`) and Error Pages
+
+Laravel renders `resources/views/errors/<status>.blade.php` for an error, or `4xx` / `5xx` for any status without a page of its own. Laravel ships its own pages for 401, 402, 403, 404, 419, 429, 500, and 503, which it uses before falling back to `4xx` or `5xx`, so each has one of ours: `401`, `402`, and `403` include `4xx`, and `500` includes `5xx` (`ErrorPagesTest` checks that none of Laravel's are left). Each is built on the `error-page` component, a content page with a card holding a label, a heading, what happened and what to do, and buttons (`_error-page.scss`). Every page says what went wrong and what to do next (see "Error messages" in the [Style Guide](08-style-guide.md#writing)):
+
+| Page | Says |
+|------|------|
+| `404` | The link may be out of date or mistyped; links home and to donate |
+| `419` | The page expired, so the form wasn't processed and nothing was charged; reload and submit again. Links back to the form. Rare, since forms refresh their tokens first (see [Stale Forms](03-routes-and-controllers.md#stale-forms)) |
+| `429` | Too many requests from the connection; wait a minute |
+| `503` | Maintenance mode (`php artisan down`); on servers, Caddy shows its own matching page instead |
+| `4xx` | Any other client error, with its status code |
+| `5xx` | A server error, which is logged; anyone donating should check for a receipt before trying again. Shown when `APP_DEBUG` is false |
 
 ### Modal (`modal`)
 
