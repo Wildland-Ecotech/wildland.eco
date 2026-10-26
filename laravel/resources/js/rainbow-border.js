@@ -3,7 +3,7 @@
 // conic gradients are unavailable.
 //
 // The canvas is positioned and sized in CSS to extend BORDER_WIDTH past
-// each edge of the element (see .social-cta canvas in _home.scss).
+// each edge of the element (see .donate-cta canvas in _home.scss).
 //
 // Drawing stops while the element is off screen, so the animation never
 // competes with scrolling further down the page.

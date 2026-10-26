@@ -12,7 +12,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Lists recent leaf program applications, for reviewing them until the
- * administrator pages are built (milestone 9). The output contains donors'
+ * administrator pages are built (milestone 10). The output contains donors'
  * personal contact details: never paste it into issues, chat, or the repository.
  */
 class ListLeafApplications extends Command

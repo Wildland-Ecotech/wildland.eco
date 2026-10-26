@@ -48,19 +48,33 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 ### Home (`/`) — `pages/home.blade.php`
 
 - Illustrated mountain background with a firefly forest transition
-- Social media banner with a rotating rainbow border (`rainbow-border.js`), drawn only while the banner is on screen; without JavaScript the border cycles colors in CSS
+- Banner asking visitors to get involved ("Get involved and help us fight back against wildfires"), with a Donate link to `/donate` and a Volunteer link that emails volunteer@wildland.eco, separated by a vertical line, and a rotating rainbow border (`rainbow-border.js`), drawn only while the banner is on screen; without JavaScript the border cycles colors in CSS
+- The project modals link to Instagram, LinkedIn, and Facebook
 - Three sections: Our Mission, What We Do (programs accordion), Our Projects (project cards that open modals)
 - The Collecting Leaves program ends with a plain text link to `/leaves` ("Learn more about leaf collection"), styled as a link rather than a button so it isn't mistaken for the buttons that open sections
-- Footer, with its Donate link hidden until donations are enabled (milestone 6)
+- Footer, with a Donate link
 
 ### Donate (`/donate`) — `pages/donate.blade.php`
 
-- Built on the Content Page component
+- Built on the Content Page component; a plain HTML form validated on the server (see [Routes & Controllers](03-routes-and-controllers.md#donations))
 - Frequency toggle (One-Time / Monthly / Annual) and tier cards: `[5, 20, 50]` one-time, `[20, 50, 100]` monthly, `[100, 1000, 5000]` annual. The amounts are defined in the `$frequencies` array at the top of the view.
-- Frequencies and tiers are visually hidden radio inputs styled through their labels. The frequency radios come first in the form, so a sibling selector (`~`) shows the tier set for the checked frequency without JavaScript. Each frequency's tiers use their own field name (`amount_one_time`, `amount_monthly`, `amount_annual`).
-- Custom amount field. `donate.js` filters input as it is typed (digits, one decimal point, two decimal places, $9,999 maximum), clears selections when the frequency changes, and shows the amount on the button ("Donate $20/month").
-- The donate button is disabled until Stripe is integrated (milestone 6), and no page links to `/donate` until then.
+- No frequency is chosen when the page loads, and only the frequency toggle shows, so the opening card stays short for visitors who want to read about our work first. Choosing a frequency reveals everything else (`.donate-details`): the tier cards, custom amount, name, email, and button. After a validation error, the chosen frequency stays checked, so the details stay open.
+- Frequencies and tiers are visually hidden radio inputs styled through their labels. The frequency radios come first in the form, so a sibling selector (`~`) shows `.donate-details` once any frequency is checked, and the tier set for the checked frequency inside it, without JavaScript. Each frequency's tiers use their own field name (`amount_one_time`, `amount_monthly`, `amount_annual`).
+- The custom amount, name, and email fields share one width (`$field-width` in `_donate.scss`).
+- Custom amount field. `donate.js` filters input as it is typed (digits, one decimal point, two decimal places, $9,999 maximum), clears selections when the frequency changes, shows the amount on the button ("Donate $20/month"), and disables the button until an amount is chosen. Without JavaScript the button says "Donate", and the server checks the amount.
+- Name and email fields, both required. Validation errors appear in a red summary above the form and under each field, and every field keeps its input, including the chosen frequency and suggested amount.
+- An off-screen `website` field as a spam trap, and proof-of-work spam protection (`proof-of-work.js`), as on the leaf form. Paying needs JavaScript anyway, for Stripe's own pages, so a `<noscript>` notice gives the email address to give another way.
+- While online giving is unavailable (no Stripe key), a notice says so and the button stays disabled (`data-unavailable` on the form).
+- Submitting sends the donor to Stripe Checkout. Every other page's footer links here; the donate and thank-you pages hide the footer's Donate link (`:show-donate="false"`) and link back home instead.
 - "What You're Supporting" cards, impact stats, "Other Ways to Help", and a footer that links back home.
+
+### Donation Thank-You (`/donate/thank-you/{reference}`) — `pages/donate-thank-you.blade.php`
+
+- Where Stripe returns the donor after paying, in the same card style as the donate page
+- Thanks the donor for their donation by amount and frequency ("monthly donation of $20"), never showing their name or email, since the URL is the only thing protecting the page
+- Notes that bank payments can take a few business days
+- For monthly and annual donations, a "Manage Your Recurring Donation" button links to the Stripe Customer Portal login (`STRIPE_PORTAL_LOGIN_URL`), where the donor signs in with an emailed link
+- A footer that links back home
 
 ### Leaves (`/leaves`) — `pages/leaves.blade.php`
 
@@ -78,7 +92,7 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 - The "when will they be ready" date is hidden with `:has()` while "Yes, they're ready now" is checked. Browsers without `:has()` always show it, and the server ignores it when the bags are ready.
 - Validation errors appear in a red summary above the form and under each field, and every field keeps its input.
 - Terms with a required "Yes, I agree" checkbox, and an off-screen `website` field as a spam trap
-- Proof-of-work spam protection (`proof-of-work.js`, attached with `data-proof-of-work`): solving starts when the page loads, and if the form is submitted first, the button shows "Verifying…" until it finishes. This is the one page that needs JavaScript to submit: without it, a `<noscript>` notice gives the email address to apply by instead. The browser's `crypto.subtle` is only available over HTTPS and on `localhost`.
+- Proof-of-work spam protection (`proof-of-work.js`, attached with `data-proof-of-work`): solving starts when the page loads, and if the form is submitted first, the button shows "Verifying…" until it finishes. The form needs JavaScript to submit: without it, a `<noscript>` notice gives the email address to apply by instead. The browser's `crypto.subtle` is only available over HTTPS and on `localhost`. A page restored from the back/forward cache reloads, since its challenge has already been used.
 - After applying, the page shows a thank-you message for drop-off or pickup instead of the form
 
 ### FAQ (`/faq`) — `pages/faq.blade.php`
@@ -89,7 +103,7 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 
 ### Menu (`/menu`) — `pages/menu.blade.php`
 
-A full-page menu for visitors without JavaScript, with the same links as the menu overlay.
+A full-page menu for visitors without JavaScript, with the same links and social media icons as the menu overlay.
 
 ## Components
 
@@ -107,11 +121,11 @@ A 44px square link to `/menu` with a three-bar icon drawn as an inline SVG, cent
 
 ### Menu Overlay (`menu-overlay`)
 
-Full-screen blurred overlay with links to Home, Leaf Collection (`/leaves`, the page visitors from our flyers are looking for), FAQ (`/faq`), and Contact Us. It repeats the top nav layout with an invisible wordmark, so its close button sits exactly where the menu button is. Escape or following a link closes it.
+Full-screen blurred overlay with links to Home, Leaf Collection (`/leaves`, the page visitors from our flyers are looking for), FAQ (`/faq`), Volunteer (an email to volunteer@wildland.eco until there's a volunteers page), Contact Us, and Donate (`/donate`), the filled main-action button. Below the links, social media icons (`social-links`), left-aligned with the links. It scrolls when it's taller than the window. It repeats the top nav layout with an invisible wordmark, so its close button sits exactly where the menu button is. Escape or following a link closes it.
 
 ### Footer (`footer`)
 
-Gradient footer with decorative bubbles. Props with defaults:
+Gradient footer with decorative bubbles, links to Instagram, LinkedIn, and Facebook under "Follow our progress", and the organization's EIN. Props with defaults:
 
 - `color` (default: `'green'`)
 - `heading` (default: `'Want to make a difference?'`)
@@ -122,11 +136,15 @@ Gradient footer with decorative bubbles. Props with defaults:
 
 ### Content Page (`content-page`)
 
-Shell for standalone content pages such as `/donate`: the mountain and firefly backgrounds (the fireflies image fades in and out at its edges with a mask, as on the home page), a centered content column wrapped in Disappearing Content, and the page's footer in a `footer` slot. Pages add their own root class for their styles (`<x-content-page class="donate-page">`). `_content-page.scss` also provides `.section-divider`, the gradient line between sections, and `.prose`, a left-aligned 680px text column under centered headings. Text in `.prose` is Detail text, or Lead text with `.prose.lead` (see [Text Roles](08-style-guide.md#text-roles)).
+Shell for standalone content pages such as `/donate`: the mountain and firefly backgrounds (the fireflies image fades in and out at its edges with a mask, as on the home page, and the backgrounds are cut off at the bottom of the page, so they never extend past the footer of a short page), a centered content column wrapped in Disappearing Content, and the page's footer in a `footer` slot. Pages add their own root class for their styles (`<x-content-page class="donate-page">`). `_content-page.scss` also provides `.section-divider`, the gradient line between sections, and `.prose`, a left-aligned 680px text column under centered headings. Text in `.prose` is Detail text, or Lead text with `.prose.lead` (see [Text Roles](08-style-guide.md#text-roles)).
 
 ### Disappearing Content (`disappearing-content`)
 
 Wraps page content so it fades out as it scrolls under the top nav. `disappearing-content.js` recalculates a mask image on scroll and resize. The fade is positioned from the top of the content, so it stays correct when something below changes height (opening a `<details>` element, showing a form field) without being recalculated, and never flickers.
+
+### Social Links (`social-links`) and Social Icon (`social-icon`)
+
+`social-links` is a row of icon links to Instagram, LinkedIn, and Facebook, in the menu overlay and on `/menu`; each link has an `aria-label`, since it has no text. `social-icon` draws one outlined icon in the current text color (`<x-social-icon name="facebook" />`; names: `instagram`, `linkedin`, `facebook`), and is also used in the project modals' buttons.
 
 ### Modal (`modal`)
 

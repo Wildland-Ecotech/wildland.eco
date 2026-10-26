@@ -10,13 +10,19 @@
 $fireflies-fade: 400px;
 
 .content-page {
+    // The backgrounds are positioned within the page and cut off at its
+    // bottom, so on a short page, such as the donation thank-you page, the
+    // fireflies image never extends past the footer
+    position: relative;
     overflow-x: hidden;
 
     .backgrounds {
         position: absolute;
         top: 0;
+        bottom: 0;
         left: 0;
         width: 100%;
+        overflow: hidden;
         z-index: 0;
         pointer-events: none;
 

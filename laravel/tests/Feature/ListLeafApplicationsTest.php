@@ -110,6 +110,27 @@ class ListLeafApplicationsTest extends TestCase
             ->assertSuccessful();
     }
 
+    public function test_deleted_applications_are_kept_but_not_listed(): void
+    {
+        $this->application(['name' => 'Kept Donor']);
+        $deleted = $this->application(['name' => 'Deleted Donor']);
+
+        $deleted->delete();
+
+        $this->assertSoftDeleted($deleted);
+
+        $this->artisan('leaves:applications')
+            ->expectsOutputToContain('Kept Donor')
+            ->doesntExpectOutputToContain('Deleted Donor')
+            ->expectsOutputToContain('1 application in the last 30 days.')
+            ->assertSuccessful();
+
+        $rows = $this->csvRows();
+
+        $this->assertCount(2, $rows);
+        $this->assertSame('Kept Donor', $rows[1][3]);
+    }
+
     public function test_says_when_there_are_no_applications(): void
     {
         $this->artisan('leaves:applications')

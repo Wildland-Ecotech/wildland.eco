@@ -70,9 +70,22 @@ Headings, section labels, buttons, form fields, badges, and stats have their own
 - Anything that animates every frame pauses while it is off screen (`watchOnScreen()` in `on-screen.js`), so it never makes scrolling stutter.
 - Every animation has a static or CSS fallback without JavaScript.
 
+## Email
+
+Markdown mail, such as donation receipts, uses the `wildland` theme (`laravel/resources/views/vendor/mail/html/themes/wildland.css`), set in `config/mail.php`:
+
+- **Page:** the `#010902` page background, with the wordmark ("Wildland" in white, "Ecotech" in `#2ECF9E`) at the top, from the header override in `laravel/resources/views/vendor/mail/html/header.blade.php`.
+- **Card:** the message sits in a white card with 16px corners and a 3px `#2ECF9E` top border. Unlike the site's dark cards, it's white with dark text (`#3f4a43`, headings `#010902`), so receipts stay readable when printed without background colors.
+- **Accents:** green text on white uses the darker `#137a5a`, since `#2ECF9E` is too light to read on white. Table labels are uppercase like section labels, over a 2px green line.
+- **Buttons:** filled `#2ECF9E` with dark text and 10px corners.
+- **Fonts:** email clients can't load the site's fonts, so emails use system fonts.
+
+Other mail components can be overridden the same way, by adding a file with the same name to `laravel/resources/views/vendor/mail/html`.
+
 ## Writing
 
-- **Name:** "Wildland Ecotech". Use the legal name, Wildland Ecology Technologies, only where it matters (once, as in the FAQ's first answer), and never "WET".
+- **Name:** "Wildland Ecotech". Use the legal name, Wildland Ecology Technologies, only where it matters (once, as in the FAQ's first answer, or on donation receipts), and never "WET". The one exception is the `WET` prefix of receipt numbers, such as `WET-2026-K7Q2MX`.
+- **Donations, not gifts:** call what donors give a "donation" ("monthly donation", "recurring donation") in everything visitors and donors read, including page text, buttons, error messages, and emails. Wildland Ecotech is a nonprofit charity, and "gift" reads like a present.
 - **Plain language:** say what we do and why, not legalese. For example, the Privacy section explains what we share and why instead of listing terms.
 - **Familiar section names:** keep names people look for, such as "Privacy", even when the content is written conversationally.
 - **Accurate places:** the New York property is next to the GE Moreau Superfund site, not in it.

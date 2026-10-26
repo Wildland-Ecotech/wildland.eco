@@ -5,10 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * A request to donate leaves to the leaf program, by drop-off or pickup.
- * Holds the donor's contact details, which are never shared.
+ * Holds the donor's contact details, which are never shared. Deleting an
+ * application soft-deletes it, so it is hidden but never lost.
  */
 #[Fillable([
     'type',
@@ -25,6 +27,8 @@ use Illuminate\Database\Eloquent\Model;
 ])]
 class LeafApplication extends Model
 {
+    use SoftDeletes;
+
     public const TYPE_DROP_OFF = 'drop_off';
 
     public const TYPE_PICKUP = 'pickup';

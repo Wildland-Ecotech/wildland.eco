@@ -46,6 +46,9 @@ return [
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
             'timeout' => null,
+            // Refuse to send unless the connection is encrypted, so the SMTP
+            // password never travels in the clear. AhaSend requires TLS.
+            'require_tls' => true,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
@@ -113,6 +116,37 @@ return [
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Markdown Mail Settings
+    |--------------------------------------------------------------------------
+    |
+    | Markdown mail, such as donation receipts, uses the Wildland Ecotech
+    | theme (resources/views/vendor/mail/html/themes/wildland.css). Mail
+    | components in resources/views/vendor/mail override Laravel's, such as
+    | the header with the site's wordmark.
+    |
+    */
+
+    'markdown' => [
+        'theme' => 'wildland',
+
+        'paths' => [
+            resource_path('views/vendor/mail'),
+        ],
+    ],
+
+    /*
+    | Replies go to a mailbox people read, since the from address
+    | (no-reply@from.wildland.eco) isn't one. Unlike the from address, it
+    | doesn't need to be on the sending domain verified in AhaSend.
+    */
+
+    'reply_to' => [
+        'address' => env('MAIL_REPLY_TO_ADDRESS', 'contact@wildland.eco'),
+        'name' => env('MAIL_REPLY_TO_NAME', 'Wildland Ecotech'),
     ],
 
 ];

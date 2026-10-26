@@ -7,6 +7,7 @@ We restore landscapes damaged by wildfire and pollution, working at the intersec
 **Website:** [wildland.eco](https://wildland.eco)
 **Instagram:** [@wildland.ecotech](https://www.instagram.com/wildland.ecotech)
 **LinkedIn:** [Wildland Ecotech](https://www.linkedin.com/company/wildland-ecotech/)
+**Facebook:** [Wildland Ecotech](https://www.facebook.com/people/Wildland-Ecotech/61593137854373/)
 **EIN:** 33-3738514
 
 ## About This Repository
@@ -28,7 +29,7 @@ docker compose run --rm node npm ci
 docker compose run --rm node npm run build
 ```
 
-Set a real `DB_PASSWORD` in both `.env` files first. The site will be available at `http://localhost:8080`. See [Deployment](docs/07-deployment.md) for details, including hot reloading.
+Set a real `DB_PASSWORD` in both `.env` files first. The site will be available at `http://localhost:8080`. The root `.env` loads `docker-compose.dev.yml`, which mounts your working copy into the containers. See [Deployment](docs/07-deployment.md) for details, including hot reloading.
 
 ## Documentation
 

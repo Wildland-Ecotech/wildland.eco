@@ -2,12 +2,18 @@
 //
 // Frequency and tier choices are radio inputs, visually hidden and styled
 // through their labels, so the selector works without JavaScript. The
-// frequency radios sit before the toggle and tier grids in the form, which
-// lets the sibling selector (~) show the tier set for the checked frequency.
+// frequency radios sit before the toggle and .donate-details in the form,
+// which lets the sibling selector (~) show the details only once a frequency
+// is checked, and the tier set for the checked frequency inside them.
 
 @use '../typography' as type;
 
 $frequencies: one-time, monthly, annual;
+$green: #2ECF9E;
+$error: #FF8A80;
+
+// The custom amount, name, and email fields share one width
+$field-width: 400px;
 
 .donate-page {
     // Donate section
@@ -84,6 +90,15 @@ $frequencies: one-time, monthly, annual;
         }
     }
 
+    // Everything after the frequency toggle, until a frequency is chosen
+    .donate-details {
+        display: none;
+    }
+
+    .frequency-radio:checked ~ .donate-details {
+        display: block;
+    }
+
     .tier-grid {
         display: none;
         gap: 1em;
@@ -107,7 +122,7 @@ $frequencies: one-time, monthly, annual;
             z-index: 2;
         }
 
-        #frequency-#{$frequency}:checked ~ .tier-grid--#{$frequency} {
+        #frequency-#{$frequency}:checked ~ .donate-details .tier-grid--#{$frequency} {
             display: grid;
         }
     }
@@ -154,7 +169,7 @@ $frequencies: one-time, monthly, annual;
     }
 
     .custom-amount {
-        max-width: 300px;
+        max-width: $field-width;
         margin: 0 auto 2em;
 
         label {
@@ -228,9 +243,138 @@ $frequencies: one-time, monthly, annual;
         }
     }
 
+    // Shown without JavaScript, or while online giving is unavailable
+    .notice {
+        max-width: 560px;
+        margin: 0 auto 1.5em;
+        border: 2px solid rgba(46, 207, 158, 0.6);
+        border-radius: 10px;
+        background: rgba(46, 207, 158, 0.1);
+        padding: 0.75em 1.25em;
+        text-align: left;
+        @include type.detail;
+
+        a {
+            color: $green;
+            text-decoration: underline;
+        }
+    }
+
+    .error-summary {
+        max-width: 560px;
+        margin: 0 auto 1.5em;
+        border: 2px solid $error;
+        border-radius: 10px;
+        background: rgba(255, 138, 128, 0.1);
+        color: $error;
+        padding: 0.75em 1.25em;
+        text-align: left;
+        font-family: satoshi;
+
+        p, li {
+            font-size: 16px;
+            margin: 0.4em 0;
+        }
+
+        ul {
+            margin: 0.4em 0;
+            padding-left: 1.25em;
+        }
+    }
+
+    // Spam trap: kept off-screen rather than display: none, which some bots skip
+    .website-field {
+        position: absolute;
+        left: -10000px;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+    }
+
+    .field-error {
+        color: $error;
+        font-family: satoshi;
+        font-size: 15px;
+        margin: 0.4em 0 0;
+    }
+
+    .custom-amount input[aria-invalid="true"] {
+        border-color: $error;
+    }
+
+    // Name and email, after the amount
+    .donor-fields {
+        max-width: $field-width;
+        margin: 0 auto 2em;
+        text-align: left;
+
+        .field {
+            margin-bottom: 1.25em;
+        }
+
+        label {
+            display: block;
+            font-family: satoshi;
+            font-size: 15px;
+            color: rgba(255, 255, 255, 0.75);
+            margin-bottom: 0.4em;
+        }
+
+        .hint {
+            margin: -0.2em 0 0.5em;
+            @include type.fine-print;
+        }
+
+        input {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(46, 207, 158, 0.3);
+            border-radius: 10px;
+            padding: 0.7em 1em;
+            color: #fff;
+            font-family: satoshi;
+            font-size: 17px;
+            outline: none;
+
+            &:focus {
+                border-color: $green;
+            }
+
+            &[aria-invalid="true"] {
+                border-color: $error;
+            }
+        }
+    }
+
     .tax-note {
         @include type.fine-print;
         margin-top: 1em;
+    }
+
+    // Thank-you page (pages/donate-thank-you.blade.php), in the donate card
+    .thanks {
+        .lead {
+            max-width: 600px;
+            margin: 0 auto 1em;
+            @include type.lead;
+        }
+
+        .detail {
+            max-width: 600px;
+            margin: 0 auto 1.5em;
+            @include type.detail;
+        }
+
+        .manage-donation {
+            margin: 2em auto 1.5em;
+
+            h2 {
+                font-size: 26px;
+                margin-bottom: 0.5em;
+            }
+        }
     }
 
     // Story section
