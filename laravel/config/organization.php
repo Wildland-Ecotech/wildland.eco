@@ -1,7 +1,8 @@
 <?php
 
 /*
-| Wildland Ecotech's legal details, as they appear on donation receipts.
+| Wildland Ecotech's legal details, as they appear on donation receipts, and
+| the time zone reports are shown in.
 | See the Writing section of docs/08-style-guide.md for how to use the names.
 */
 
@@ -21,5 +22,9 @@ return [
     ],
 
     'email' => 'contact@wildland.eco',
+
+    // Fort Collins time. Dates are stored in UTC (config/app.php) and shown
+    // in this time zone by the report commands
+    'timezone' => 'America/Denver',
 
 ];

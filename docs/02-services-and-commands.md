@@ -133,6 +133,15 @@ Tasks are scheduled in `routes/console.php` and run by the `scheduler` container
 
 ## Artisan Commands
 
+### Shared Report Helpers (`app/Console/Concerns/`)
+
+Traits shared by the commands that list records or report on them until the administrator pages are built (milestone 10), so each command has only its own query and fields:
+
+- **`ListsRecords`:** `daysOption()` reads `--days`, a whole number of at least 1, or shows an error and returns null so the command can exit with `INVALID`. `writeRecord($heading, $fields)` writes one record as a heading followed by one `Label: value` line per field, with a dash for an empty value; the heading may use console formatting tags, and field values are escaped so submitted text cannot add any. `localTime($time)` formats a time in Fort Collins time, such as `Wed, Oct 21, 2026 7:30 PM MDT`.
+- **`WritesCsv`:** `writeCsv($header, $rows)` writes a header row and the rows as CSV, raw and in one piece. Values starting with `=`, `+`, `-`, or `@` get a leading apostrophe, which keeps spreadsheets from running them as formulas.
+
+Fort Collins time is `timezone` in `config/organization.php` (`America/Denver`); dates are stored in UTC.
+
 ### stripe:check (`app/Console/Commands/CheckStripeConfiguration.php`)
 
 Checks that the Stripe settings match the mode this site must use, without calling Stripe. Deploys run it after caching the configuration, so a wrong key fails the deploy instead of taking payments in the wrong mode.
@@ -206,7 +215,7 @@ docker compose exec -T app php artisan submissions:list --csv > ~/form-submissio
 
 On a server, run it from the clone's directory as the clone's owner (`sudo -u deploy docker compose exec ...`). To find one submission a visitor quotes by reference, use `--all` with enough `--days`, or look it up in the `form_submissions` table.
 
-The output contains visitors' names, emails, and form details: never paste it into issues or chat, and never save the CSV inside the repository. CSV values starting with `=`, `+`, `-`, or `@` get a leading apostrophe, as in `leaves:applications`.
+The output contains visitors' names, emails, and form details: never paste it into issues or chat, and never save the CSV inside the repository. CSV values starting with `=`, `+`, `-`, or `@` get a leading apostrophe (see [Shared Report Helpers](#shared-report-helpers-appconsoleconcerns)).
 
 ### leaves:applications (`app/Console/Commands/ListLeafApplications.php`)
 
@@ -225,4 +234,4 @@ docker compose exec -T app php artisan leaves:applications --csv > ~/leaf-applic
 
 On a server, run it from the clone's directory as the clone's owner (`sudo -u deploy docker compose exec ...`).
 
-The output contains donors' personal contact details: never paste it into issues or chat, and never save the CSV inside the repository. Anyone can submit the form, so CSV values starting with `=`, `+`, `-`, or `@` get a leading apostrophe, which keeps spreadsheets from running them as formulas.
+The output contains donors' personal contact details: never paste it into issues or chat, and never save the CSV inside the repository. Anyone can submit the form, so CSV values starting with `=`, `+`, `-`, or `@` get a leading apostrophe, which keeps spreadsheets from running them as formulas (see [Shared Report Helpers](#shared-report-helpers-appconsoleconcerns)).

@@ -2,14 +2,14 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\ListsRecords;
+use App\Console\Concerns\WritesCsv;
 use App\Models\Checkout;
 use App\Models\FormSubmission;
 use App\Models\LeafApplication;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-use Symfony\Component\Console\Formatter\OutputFormatter;
-use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Lists recent submissions of the donate and leaf application forms that
@@ -21,6 +21,8 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class ListFormSubmissions extends Command
 {
+    use ListsRecords, WritesCsv;
+
     /**
      * @var string
      */
@@ -36,11 +38,6 @@ class ListFormSubmissions extends Command
     protected $description = 'List recent form submissions that did not succeed';
 
     /**
-     * Time zone for submission times, matching the rest of the site's dates.
-     */
-    private const TIMEZONE = 'America/Denver';
-
-    /**
      * A submission still marked received this long after it arrived stopped
      * without an outcome; newer ones may still be in progress.
      */
@@ -53,12 +50,10 @@ class ListFormSubmissions extends Command
 
     public function handle(): int
     {
-        $days = $this->option('days');
+        $days = $this->daysOption();
         $form = $this->option('form');
 
-        if (! ctype_digit((string) $days) || (int) $days < 1) {
-            $this->components->error('--days must be a whole number of at least 1.');
-
+        if ($days === null) {
             return self::INVALID;
         }
 
@@ -70,7 +65,7 @@ class ListFormSubmissions extends Command
 
         $submissions = FormSubmission::query()
             ->with('checkout')
-            ->where('created_at', '>=', now()->subDays((int) $days))
+            ->where('created_at', '>=', now()->subDays($days))
             ->when($form, fn ($query) => $query->where('form', $form))
             ->orderBy('created_at')
             ->get()
@@ -78,7 +73,14 @@ class ListFormSubmissions extends Command
             ->values();
 
         if ($this->option('csv')) {
-            $this->output->write($this->csv($submissions), false, OutputInterface::OUTPUT_RAW);
+            $this->writeCsv(
+                ['Reference', 'Submitted', ...self::LABELS],
+                $submissions->map(fn (FormSubmission $submission) => [
+                    $submission->reference,
+                    $this->localTime($submission->created_at),
+                    ...array_values($this->fields($submission)),
+                ]),
+            );
 
             return self::SUCCESS;
         }
@@ -92,13 +94,10 @@ class ListFormSubmissions extends Command
         }
 
         foreach ($submissions as $submission) {
-            $this->newLine();
-            $this->line("<options=bold>{$submission->reference}</> " . $this->submittedAt($submission));
-
-            foreach ($this->fields($submission) as $label => $value) {
-                // Escaped so submitted text cannot add console formatting tags
-                $this->line("  <fg=gray>{$label}:</> " . ($value === '' ? '—' : OutputFormatter::escape($value)));
-            }
+            $this->writeRecord(
+                "<options=bold>{$submission->reference}</> " . $this->localTime($submission->created_at),
+                $this->fields($submission),
+            );
         }
 
         $this->newLine();
@@ -199,51 +198,5 @@ class ListFormSubmissions extends Command
             $data['phone'] ?? null,
             $data['address'] ?? null,
         ])->filter()->implode(', ');
-    }
-
-    /**
-     * When the submission arrived, in Fort Collins time.
-     */
-    private function submittedAt(FormSubmission $submission): string
-    {
-        return $submission->created_at->setTimezone(self::TIMEZONE)->format('D, M j, Y g:i A T');
-    }
-
-    /**
-     * All submissions as CSV, one row each, oldest first.
-     *
-     * @param  Collection<int, FormSubmission>  $submissions
-     */
-    private function csv(Collection $submissions): string
-    {
-        $handle = fopen('php://temp', 'r+');
-
-        fputcsv($handle, ['Reference', 'Submitted', ...self::LABELS], escape: '');
-
-        foreach ($submissions as $submission) {
-            $row = [$submission->reference, $this->submittedAt($submission), ...array_values($this->fields($submission))];
-
-            fputcsv($handle, array_map($this->spreadsheetSafe(...), $row), escape: '');
-        }
-
-        rewind($handle);
-        $csv = stream_get_contents($handle);
-        fclose($handle);
-
-        return $csv;
-    }
-
-    /**
-     * Anyone can submit the forms, so a value starting with =, +, -, or @
-     * could run as a formula when the CSV is opened in a spreadsheet. A
-     * leading apostrophe makes spreadsheets treat it as text.
-     */
-    private function spreadsheetSafe(mixed $value): mixed
-    {
-        if (is_string($value) && preg_match('/^[=+\-@\t\r]/', $value)) {
-            return "'" . $value;
-        }
-
-        return $value;
     }
 }

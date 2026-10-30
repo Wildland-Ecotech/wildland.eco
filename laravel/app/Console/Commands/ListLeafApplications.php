@@ -2,13 +2,11 @@
 
 namespace App\Console\Commands;
 
-use App\Http\Requests\StoreLeafApplicationRequest;
+use App\Console\Concerns\ListsRecords;
+use App\Console\Concerns\WritesCsv;
 use App\Models\LeafApplication;
 use Illuminate\Console\Command;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-use Symfony\Component\Console\Formatter\OutputFormatter;
-use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Lists recent leaf program applications, for reviewing them until the
@@ -17,6 +15,8 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class ListLeafApplications extends Command
 {
+    use ListsRecords, WritesCsv;
+
     /**
      * @var string
      */
@@ -46,21 +46,26 @@ class ListLeafApplications extends Command
 
     public function handle(): int
     {
-        $days = $this->option('days');
+        $days = $this->daysOption();
 
-        if (! ctype_digit((string) $days) || (int) $days < 1) {
-            $this->components->error('--days must be a whole number of at least 1.');
-
+        if ($days === null) {
             return self::INVALID;
         }
 
         $applications = LeafApplication::query()
-            ->where('created_at', '>=', now()->subDays((int) $days))
+            ->where('created_at', '>=', now()->subDays($days))
             ->orderBy('created_at')
             ->get();
 
         if ($this->option('csv')) {
-            $this->output->write($this->csv($applications), false, OutputInterface::OUTPUT_RAW);
+            $this->writeCsv(
+                ['ID', 'Applied', ...self::LABELS],
+                $applications->map(fn (LeafApplication $application) => [
+                    $application->id,
+                    $this->localTime($application->created_at),
+                    ...array_values($this->fields($application)),
+                ]),
+            );
 
             return self::SUCCESS;
         }
@@ -72,13 +77,10 @@ class ListLeafApplications extends Command
         }
 
         foreach ($applications as $application) {
-            $this->newLine();
-            $this->line("<options=bold>#{$application->id}</> " . $this->appliedAt($application));
-
-            foreach ($this->fields($application) as $label => $value) {
-                // Escaped so submitted text cannot add console formatting tags
-                $this->line("  <fg=gray>{$label}:</> " . ($value === '' ? '—' : OutputFormatter::escape($value)));
-            }
+            $this->writeRecord(
+                "<options=bold>#{$application->id}</> " . $this->localTime($application->created_at),
+                $this->fields($application),
+            );
         }
 
         $this->newLine();
@@ -106,53 +108,5 @@ class ListLeafApplications extends Command
             (string) $application->referral_source,
             (string) $application->questions,
         ]);
-    }
-
-    /**
-     * When the application was made, in the leaf program's local time.
-     */
-    private function appliedAt(LeafApplication $application): string
-    {
-        return $application->created_at
-            ->setTimezone(StoreLeafApplicationRequest::TIMEZONE)
-            ->format('D, M j, Y g:i A T');
-    }
-
-    /**
-     * All applications as CSV, one row each, oldest first.
-     *
-     * @param  Collection<int, LeafApplication>  $applications
-     */
-    private function csv(Collection $applications): string
-    {
-        $handle = fopen('php://temp', 'r+');
-
-        fputcsv($handle, ['ID', 'Applied', ...self::LABELS], escape: '');
-
-        foreach ($applications as $application) {
-            $row = [$application->id, $this->appliedAt($application), ...array_values($this->fields($application))];
-
-            fputcsv($handle, array_map($this->spreadsheetSafe(...), $row), escape: '');
-        }
-
-        rewind($handle);
-        $csv = stream_get_contents($handle);
-        fclose($handle);
-
-        return $csv;
-    }
-
-    /**
-     * Anyone can submit the form, so a value starting with =, +, -, or @ could
-     * run as a formula when the CSV is opened in a spreadsheet. A leading
-     * apostrophe makes spreadsheets treat it as text.
-     */
-    private function spreadsheetSafe(mixed $value): mixed
-    {
-        if (is_string($value) && preg_match('/^[=+\-@\t\r]/', $value)) {
-            return "'" . $value;
-        }
-
-        return $value;
     }
 }
