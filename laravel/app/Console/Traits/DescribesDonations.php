@@ -2,15 +2,17 @@
 
 namespace App\Console\Traits;
 
+use App\Models\Checkout;
 use App\Models\Donation;
 use App\Models\Subscription;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 
 /**
- * How report commands describe a donation, so donations:list and
- * donations:view show the same type, status, date, and amounts. Query
- * donations with donationRelations() loaded.
+ * How report commands describe a donation, so donations:list,
+ * donations:view, and donations:abandoned show the same donor, type,
+ * status, date, and amounts. Query donations with donationRelations()
+ * loaded.
  */
 trait DescribesDonations
 {
@@ -68,12 +70,27 @@ trait DescribesDonations
     }
 
     /**
-     * Who made the donation: their name, or their email address if we
-     * don't have a name, such as for some Payment Link donations.
+     * Who made the donation or started the checkout: their name, or their
+     * email address if we don't have a name, such as for some Payment Link
+     * donations.
      */
-    protected function donor(Donation $donation): string
+    protected function donor(Donation|Checkout $record): string
     {
-        return (string) ($donation->user?->name ?: $donation->user?->email);
+        return (string) ($record->user?->name ?: $record->user?->email);
+    }
+
+    /**
+     * What a checkout was for: a one-time, monthly, or annual donation,
+     * matching donationType().
+     */
+    protected function checkoutType(Checkout $checkout): string
+    {
+        return match ($checkout->frequency) {
+            Checkout::FREQUENCY_ONE_TIME => 'One-time',
+            Checkout::FREQUENCY_MONTHLY => 'Monthly',
+            Checkout::FREQUENCY_ANNUAL => 'Annual',
+            default => $checkout->frequency,
+        };
     }
 
     /**

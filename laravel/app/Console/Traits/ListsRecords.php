@@ -94,4 +94,13 @@ trait ListsRecords
     {
         return $time->copy()->setTimezone(config('organization.timezone'))->format($format);
     }
+
+    /**
+     * A time in Fort Collins time for a table column, without the weekday,
+     * such as "Oct 21, 2026 7:30 PM MDT".
+     */
+    protected function tableTime(CarbonInterface $time): string
+    {
+        return $this->localTime($time, 'M j, Y g:i A T');
+    }
 }

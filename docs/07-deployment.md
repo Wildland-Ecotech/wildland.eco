@@ -315,6 +315,14 @@ sudo -u deploy docker compose exec app tail -n 100 storage/logs/stripe-sync.log
 # visitors who made them (contains their names and emails)
 sudo -u deploy docker compose exec app php artisan submissions:list
 
+# Donation reports: recent payments, one donation in full by its ID, totals by
+# month, quarter, and year, and checkouts left without paying (the list, view,
+# and abandoned reports contain donors' names and emails)
+sudo -u deploy docker compose exec app php artisan donations:list
+sudo -u deploy docker compose exec app php artisan donations:view 12
+sudo -u deploy docker compose exec app php artisan donations:totals
+sudo -u deploy docker compose exec app php artisan donations:abandoned
+
 # Send one donation's receipt, by its Stripe payment ID, such as one synced
 # too late to be receipted automatically
 sudo -u deploy docker compose exec app php artisan receipt:send pi_...

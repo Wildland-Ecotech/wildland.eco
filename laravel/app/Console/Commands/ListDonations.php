@@ -66,11 +66,6 @@ class ListDonations extends Command
     private const TABLE_HEADERS = ['ID', 'Date', 'Donor', 'Type', 'Amount', 'Status'];
 
     /**
-     * Dates in the table, such as "Oct 21, 2026 7:30 PM MDT".
-     */
-    private const TABLE_DATE_FORMAT = 'M j, Y g:i A T';
-
-    /**
      * When a payment was made, in SQL, matching donationMadeAt(). Times are
      * stored in UTC, without a time zone.
      */
@@ -118,7 +113,7 @@ class ListDonations extends Command
 
         $this->writeTable(self::TABLE_HEADERS, $donations->map(fn (Donation $donation) => [
             $donation->id,
-            $this->localTime($this->donationMadeAt($donation), self::TABLE_DATE_FORMAT),
+            $this->tableTime($this->donationMadeAt($donation)),
             $this->donor($donation),
             $this->donationType($donation),
             $this->money($donation->amount_cents, $donation->currency),

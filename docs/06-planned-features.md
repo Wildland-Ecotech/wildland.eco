@@ -28,7 +28,7 @@ The development plan for the wildland.eco Laravel platform: accepting donations,
 | 5 | Donation database schema and models | Done |
 | 6 | Stripe Checkout, webhooks, and history import | Done |
 | 7 | Donation receipts and transactional email | Done |
-| 8 | Reporting commands, end-to-end testing in Stripe test mode, then go live | Planned |
+| 8 | Reporting commands, end-to-end testing in Stripe test mode, then go live | In progress: reporting commands done |
 | 9 | Donor accounts and member dashboard | After launch |
 | 10 | Administrator pages and reporting | After launch |
 | 11 | On-site donation flow and recurring donation management, replacing the Stripe-hosted pages | After launch |
@@ -106,7 +106,8 @@ Done, except year-end summaries.
 
 ### 8. Reporting and Go-Live
 
-- Reporting artisan commands, following `leaves:applications`: donations for a date range (with `--csv`), totals by month, quarter, and year, and active recurring donations. The exact commands are decided when they are built.
+- Done: reporting artisan commands, each with `--csv` (see [Services & Commands](02-services-and-commands.md#artisan-commands)): `donations:list`, a table of payments with type filters; `donations:view`, one donation in full; `donations:totals`, by month, calendar quarter, year, and all time, with refunds and Stripe's fees; and `donations:abandoned`, checkouts left without paying.
+- Active recurring donations, with their status, move to a future `subscriptions:list` command; `donations:list` lists their payments.
 - End-to-end runs in Stripe test mode covering one-time and recurring donations, failed payments, refunds, cancellation through the Customer Portal, abandoned checkouts, re-imports, and webhook retries.
 - Privacy policy (including email collection) and refund policy pages.
 - Switch production to live keys, register the live webhook endpoint, and import live account history, including existing Payment Link donations.
@@ -163,7 +164,7 @@ The goal is the least possible friction before a donor has committed, without ex
 
 ## Abandoned Checkouts
 
-- A checkout that expires without payment is marked `expired`. Stripe Checkout Sessions expire after a configurable period, and we receive an expiration webhook. This is recorded from launch.
+- A checkout that expires without payment is marked `expired`. Stripe Checkout Sessions expire after a configurable period, and we receive an expiration webhook. This is recorded from launch, and `donations:abandoned` lists them, with whether each donor donated later.
 - Reminder emails come after launch. At most one reminder is sent per checkout, and reminders to the same address are rate-limited, so the donate form cannot be used to flood someone's inbox.
 - Reminders include an unsubscribe link, and the privacy policy is updated to disclose them before they are sent.
 
@@ -339,3 +340,4 @@ Later phases, built on PostGIS:
 - Designation selector on the donate page
 - Signed release tags for production deploys
 - Campaign tracking and split allocations
+- `subscriptions:list`: recurring donations with their status (active, past due, canceled), until the administrator pages are built
