@@ -140,6 +140,7 @@ Traits shared by the commands that list records or report on them until the admi
 - **`ListsRecords`:** `daysOption()` reads `--days`, a whole number of at least 1, or shows an error and returns null so the command can exit with `INVALID`. `writeTable($headers, $rows, $rightAligned)` writes records as a table, one row each, for an overview, with the columns listed in `$rightAligned` (by index) lined up on the right, for amounts; tests pass the same `rightAlignedColumns()` styles to `expectsTable()`. `writeRecord($heading, $fields)` writes one record in full, as a heading followed by one `Label: value` line per field, with a dash for an empty value; the heading may use console formatting tags. Both escape the values, so submitted text cannot add console formatting. `localTime($time, $format)` formats a time in Fort Collins time, by default such as `Wed, Oct 21, 2026 7:30 PM MDT`, and `tableTime($time)` without the weekday for table columns, such as `Oct 21, 2026 7:30 PM MDT`.
 - **`WritesCsv`:** `writeCsv($header, $rows)` writes a header row and the rows as CSV, raw and in one piece. Values starting with `=`, `+`, `-`, or `@` get a leading apostrophe, which keeps spreadsheets from running them as formulas. Plain negative numbers, such as `-1.75`, are left as they are so spreadsheets can add them up.
 - **`FormatsMoney`:** `money($cents, $currency)` formats an amount for reading the way receipts do, such as `$1,250.00` or `-$1.75`, with the currency code instead of a dollar sign for anything but US dollars (`20.00 EUR`). `decimal($cents)` formats it as a plain number for CSV, such as `1250.00`. Laravel's `Number::currency()` isn't used because it needs PHP's `intl` extension, which the Docker image doesn't install.
+- **`DescribesLeafApplications`:** how `leaves:applications`, its CSV, and `leaves:view` describe a leaf program application: `leafApplicationFields()` (keyed by `LEAF_APPLICATION_LABELS`), `leafApplicationType()` (Pickup or Drop-off), and `bagsReady()` (Now, or the date given).
 - **`DescribesDonations`:** how `donations:list`, `donations:view`, and `donations:abandoned` describe a donation, so they show the same donor, type, status, date, and amounts: `donationFields()` (keyed by `DONATION_LABELS`), `donor()` (the name of a donation's or checkout's donor, or their email address without one), `donationType()` and `checkoutType()` (One-time, Monthly, or Annual), `donationStatus()`, and `donationMadeAt()`. Load donations with `donationRelations()`, which includes soft-deleted donors, subscriptions, and designations. Uses `FormatsMoney`.
 
 Fort Collins time is `timezone` in `config/organization.php` (`America/Denver`); dates are stored in UTC.
@@ -320,12 +321,14 @@ The output contains visitors' names, emails, and form details: never paste it in
 
 ### leaves:applications (`app/Console/Commands/ListLeafApplications.php`)
 
-Lists leaf program applications from `/leaves/apply`, oldest first, for reviewing them until the administrator pages are built (milestone 10). Times are shown in Fort Collins time. Soft-deleted applications are not listed.
+Lists leaf program applications from `/leaves/apply`, oldest first, as a table for an overview until the administrator pages are built (milestone 10). [leaves:view](#leavesview-appconsolecommandsviewleafapplicationphp) shows one in full. Soft-deleted applications are not listed.
+
+The table shows each application's ID (for `leaves:view`), when it was made (Fort Collins time), the donor's name, the type (Pickup or Drop-off), the estimated number of bags, and when the bags are ready (Now, or the date the donor gave).
 
 | Option | Default | Effect |
 |--------|---------|--------|
 | `--days=N` | 30 | Applications from the last N days |
-| `--csv` | off | CSV with a header row, for importing into a spreadsheet |
+| `--csv` | off | CSV with every detail `leaves:view` shows except when the terms were accepted, for importing into a spreadsheet |
 
 ```bash
 docker compose exec app php artisan leaves:applications
@@ -336,3 +339,13 @@ docker compose exec -T app php artisan leaves:applications --csv > ~/leaf-applic
 On a server, run it from the clone's directory as the clone's owner (`sudo -u deploy docker compose exec ...`).
 
 The output contains donors' personal contact details: never paste it into issues or chat, and never save the CSV inside the repository. Anyone can submit the form, so CSV values starting with `=`, `+`, `-`, or `@` get a leading apostrophe, which keeps spreadsheets from running them as formulas (see [Shared Report Helpers](#shared-report-helpers-appconsoletraits)).
+
+### leaves:view (`app/Console/Commands/ViewLeafApplication.php`)
+
+Shows one leaf program application in full, named by its ID from `leaves:applications`: when it was made, the type, the donor's name, email, phone, and address, the estimated number of bags, when they are ready, how the donor heard about us, their questions, and when they accepted the program's terms. A deleted application is shown too, since it was asked for by ID, with a warning saying when it was deleted.
+
+```bash
+docker compose exec app php artisan leaves:view 12
+```
+
+The output contains the donor's personal contact details: never paste it into issues or chat.

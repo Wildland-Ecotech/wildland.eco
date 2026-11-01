@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Traits\DescribesLeafApplications;
 use App\Console\Traits\ListsRecords;
 use App\Console\Traits\WritesCsv;
 use App\Models\LeafApplication;
@@ -9,20 +10,21 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
 /**
- * Lists recent leaf program applications, for reviewing them until the
- * administrator pages are built (milestone 10). The output contains donors'
- * personal contact details: never paste it into issues, chat, or the repository.
+ * Lists recent leaf program applications as a table, for an overview until
+ * the administrator pages are built (milestone 10). leaves:view shows one in
+ * full. The output contains donors' personal contact details: never paste it
+ * into issues, chat, or the repository.
  */
 class ListLeafApplications extends Command
 {
-    use ListsRecords, WritesCsv;
+    use DescribesLeafApplications, ListsRecords, WritesCsv;
 
     /**
      * @var string
      */
     protected $signature = 'leaves:applications
         {--days=30 : Show applications from this many days back}
-        {--csv : Output CSV, for importing into a spreadsheet}';
+        {--csv : Output CSV with every detail, for importing into a spreadsheet}';
 
     /**
      * @var string
@@ -30,19 +32,12 @@ class ListLeafApplications extends Command
     protected $description = 'List recent leaf program applications';
 
     /**
-     * Labels for the fields shown for each application, in order.
+     * The table's columns: the key details of each application. The bag
+     * count lines up on the right.
      */
-    private const LABELS = [
-        'Type',
-        'Name',
-        'Email',
-        'Phone',
-        'Address',
-        'Estimated bags',
-        'Bags ready',
-        'Heard about us',
-        'Questions',
-    ];
+    public const HEADERS = ['ID', 'Applied', 'Name', 'Type', 'Bags', 'Ready'];
+
+    public const NUMBER_COLUMNS = [4];
 
     public function handle(): int
     {
@@ -55,15 +50,16 @@ class ListLeafApplications extends Command
         $applications = LeafApplication::query()
             ->where('created_at', '>=', now()->subDays($days))
             ->orderBy('created_at')
+            ->orderBy('id')
             ->get();
 
         if ($this->option('csv')) {
             $this->writeCsv(
-                ['ID', 'Applied', ...self::LABELS],
+                ['ID', 'Applied', ...self::LEAF_APPLICATION_LABELS],
                 $applications->map(fn (LeafApplication $application) => [
                     $application->id,
                     $this->localTime($application->created_at),
-                    ...array_values($this->fields($application)),
+                    ...array_values($this->leafApplicationFields($application)),
                 ]),
             );
 
@@ -76,37 +72,18 @@ class ListLeafApplications extends Command
             return self::SUCCESS;
         }
 
-        foreach ($applications as $application) {
-            $this->writeRecord(
-                "<options=bold>#{$application->id}</> " . $this->localTime($application->created_at),
-                $this->fields($application),
-            );
-        }
+        $this->writeTable(self::HEADERS, $applications->map(fn (LeafApplication $application) => [
+            $application->id,
+            $this->tableTime($application->created_at),
+            $application->name,
+            $this->leafApplicationType($application),
+            $application->estimated_bag_count,
+            $this->bagsReady($application),
+        ]), self::NUMBER_COLUMNS);
 
-        $this->newLine();
         $count = $applications->count();
-        $this->components->info("{$count} " . Str::plural('application', $count) . " in the last {$days} days.");
+        $this->components->info("{$count} " . Str::plural('application', $count) . " in the last {$days} days. Show one in full with leaves:view and its ID.");
 
         return self::SUCCESS;
-    }
-
-    /**
-     * An application's fields, keyed by LABELS.
-     *
-     * @return array<string, string>
-     */
-    private function fields(LeafApplication $application): array
-    {
-        return array_combine(self::LABELS, [
-            $application->type === LeafApplication::TYPE_PICKUP ? 'Pickup' : 'Drop-off',
-            $application->name,
-            $application->email,
-            $application->phone,
-            $application->address,
-            (string) $application->estimated_bag_count,
-            $application->ready_now ? 'Now' : $application->ready_date->format('D, M j, Y'),
-            (string) $application->referral_source,
-            (string) $application->questions,
-        ]);
     }
 }

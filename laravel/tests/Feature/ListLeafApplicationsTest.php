@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Console\Commands\ListLeafApplications;
 use App\Models\LeafApplication;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -70,28 +71,26 @@ class ListLeafApplicationsTest extends TestCase
         return $rows;
     }
 
-    public function test_lists_recent_applications_with_their_details(): void
+    public function test_lists_recent_applications_in_a_table(): void
     {
-        $this->application();
+        $application = $this->application();
 
         $this->artisan('leaves:applications')
-            ->expectsOutputToContain('Wed, Oct 21, 2026 7:30 PM MDT')
-            ->expectsOutputToContain('Pickup')
-            ->expectsOutputToContain('Test Donor')
-            ->expectsOutputToContain('(970) 555-0123')
-            ->expectsOutputToContain('Tue, Oct 27, 2026')
-            ->expectsOutputToContain('Do you take pine needles?')
+            ->expectsTable(ListLeafApplications::HEADERS, [
+                [$application->id, 'Oct 21, 2026 7:30 PM MDT', 'Test Donor', 'Pickup', '40', 'Tue, Oct 27, 2026'],
+            ], 'default', ListLeafApplications::rightAlignedColumns(ListLeafApplications::NUMBER_COLUMNS))
             ->expectsOutputToContain('1 application in the last 30 days.')
             ->assertSuccessful();
     }
 
     public function test_bags_ready_now_are_shown_as_now(): void
     {
-        $this->application(['type' => LeafApplication::TYPE_DROP_OFF, 'ready_now' => true, 'ready_date' => null]);
+        $application = $this->application(['type' => LeafApplication::TYPE_DROP_OFF, 'ready_now' => true, 'ready_date' => null]);
 
         $this->artisan('leaves:applications')
-            ->expectsOutputToContain('Drop-off')
-            ->expectsOutputToContain('Now')
+            ->expectsTable(ListLeafApplications::HEADERS, [
+                [$application->id, 'Oct 21, 2026 7:30 PM MDT', 'Test Donor', 'Drop-off', '40', 'Now'],
+            ], 'default', ListLeafApplications::rightAlignedColumns(ListLeafApplications::NUMBER_COLUMNS))
             ->assertSuccessful();
     }
 
