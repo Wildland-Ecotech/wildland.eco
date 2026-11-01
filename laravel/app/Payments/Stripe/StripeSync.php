@@ -9,7 +9,7 @@ use App\Models\GatewayCustomer;
 use App\Models\Subscription;
 use App\Models\SubscriptionEvent;
 use App\Models\User;
-use App\Payments\Stripe\Concerns\CallsStripe;
+use App\Payments\Stripe\Traits\CallsStripe;
 use App\Services\DonationReceipts;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Log;

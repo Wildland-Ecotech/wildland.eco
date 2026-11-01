@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\BelongsToDesignation;
-use App\Models\Concerns\HasGatewayId;
+use App\Models\Traits\BelongsToDesignation;
+use App\Models\Traits\HasGatewayId;
 use Database\Factories\DonationFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;

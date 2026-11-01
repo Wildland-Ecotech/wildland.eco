@@ -51,11 +51,11 @@ The Stripe implementation of `PaymentGateway`.
 - **Checkout Sessions.** One-time donations use `payment` mode with a "Donate" button; monthly and annual donations use `subscription` mode with a `month` or `year` interval. Every session uses the one Donation product (`STRIPE_DONATION_PRODUCT_ID`) with the amount set inline (`price_data`), so any amount works without creating prices. No payment methods are listed, so Checkout offers every method enabled in the Stripe dashboard that supports the donation's frequency.
 - **Metadata.** The checkout's `reference` and designation slug are set as the session's `metadata` and `client_reference_id`, and copied to the PaymentIntent or subscription, which outlive the session, so sync and import can match payments to checkouts and designations.
 - **Retries.** Sessions are created with an idempotency key of the checkout reference and customer, so a retried request returns the same session. If a recorded customer was deleted in Stripe, its record is soft-deleted and the session is created again with a current customer.
-- **Notices.** Every call goes through `call()` (see [CallsStripe](#callsstripe-apppaymentsstripeconcernscallsstripephp)).
+- **Notices.** Every call goes through `call()` (see [CallsStripe](#callsstripe-apppaymentsstripetraitscallsstripephp)).
 
 The Stripe client is resolved from the container when first needed, not when the gateway is created, so the gateway can answer `isAvailable()` on a server without Stripe keys.
 
-`tests/Feature/StripeGatewayTest.php` checks the exact requests it sends, without calling Stripe (see [CallsStripe](#callsstripe-apppaymentsstripeconcernscallsstripephp)).
+`tests/Feature/StripeGatewayTest.php` checks the exact requests it sends, without calling Stripe (see [CallsStripe](#callsstripe-apppaymentsstripetraitscallsstripephp)).
 
 ### StripeSync (`app/Payments/Stripe/StripeSync.php`)
 
@@ -100,7 +100,7 @@ Imports Stripe history for `stripe:sync` by listing objects and running each thr
 
 `import($createdSince, $each)` limits everything but subscriptions to objects created since a time, or imports everything when it is null. Lists are paged through automatically. Each object is handed to `$each` with a closure that syncs it, one at a time, so the caller can show progress and handle failures, and the import continues with the next object. The closure returns the synced record, or `null` when there is nothing to record, such as a Payment Link's checkout session or a payment that was never attempted. Stripe keeps its event log for only about 30 days, so history is rebuilt from objects as they are now: a subscription imported long after it was canceled gets its start and cancellation, but not every change between.
 
-### CallsStripe (`app/Payments/Stripe/Concerns/CallsStripe.php`)
+### CallsStripe (`app/Payments/Stripe/Traits/CallsStripe.php`)
 
 Shared by the classes that call Stripe:
 
@@ -108,7 +108,7 @@ Shared by the classes that call Stripe:
 - `call()` wraps every API call. The SDK raises notices Stripe attaches to responses as PHP warnings, which Laravel throws as exceptions, so a notice would fail a call that already succeeded; `call()` logs them as warnings instead (see [Stripe](07-deployment.md#stripe)).
 - `assertLivemode($object)` throws unless a Stripe object's `livemode` matches this site's mode, so test and live data never mix. Deleted objects, such as a deleted customer, come back from Stripe as just their ID and `deleted: true`, with no `livemode`, and are accepted.
 
-Tests run these classes through the real SDK without calling Stripe, using `tests/Concerns/FakesStripeApi.php`, which replaces the SDK's HTTP client (`Stripe\ApiRequestor::setHttpClient()`) with one that records requests and returns queued responses.
+Tests run these classes through the real SDK without calling Stripe, using `tests/Traits/FakesStripeApi.php`, which replaces the SDK's HTTP client (`Stripe\ApiRequestor::setHttpClient()`) with one that records requests and returns queued responses.
 
 ### StripeMode (`app/Payments/Stripe/StripeMode.php`)
 
@@ -133,7 +133,7 @@ Tasks are scheduled in `routes/console.php` and run by the `scheduler` container
 
 ## Artisan Commands
 
-### Shared Report Helpers (`app/Console/Concerns/`)
+### Shared Report Helpers (`app/Console/Traits/`)
 
 Traits shared by the commands that list records or report on them until the administrator pages are built (milestone 10), so each command has only its own query and fields:
 
@@ -215,7 +215,7 @@ docker compose exec -T app php artisan submissions:list --csv > ~/form-submissio
 
 On a server, run it from the clone's directory as the clone's owner (`sudo -u deploy docker compose exec ...`). To find one submission a visitor quotes by reference, use `--all` with enough `--days`, or look it up in the `form_submissions` table.
 
-The output contains visitors' names, emails, and form details: never paste it into issues or chat, and never save the CSV inside the repository. CSV values starting with `=`, `+`, `-`, or `@` get a leading apostrophe (see [Shared Report Helpers](#shared-report-helpers-appconsoleconcerns)).
+The output contains visitors' names, emails, and form details: never paste it into issues or chat, and never save the CSV inside the repository. CSV values starting with `=`, `+`, `-`, or `@` get a leading apostrophe (see [Shared Report Helpers](#shared-report-helpers-appconsoletraits)).
 
 ### leaves:applications (`app/Console/Commands/ListLeafApplications.php`)
 
@@ -234,4 +234,4 @@ docker compose exec -T app php artisan leaves:applications --csv > ~/leaf-applic
 
 On a server, run it from the clone's directory as the clone's owner (`sudo -u deploy docker compose exec ...`).
 
-The output contains donors' personal contact details: never paste it into issues or chat, and never save the CSV inside the repository. Anyone can submit the form, so CSV values starting with `=`, `+`, `-`, or `@` get a leading apostrophe, which keeps spreadsheets from running them as formulas (see [Shared Report Helpers](#shared-report-helpers-appconsoleconcerns)).
+The output contains donors' personal contact details: never paste it into issues or chat, and never save the CSV inside the repository. Anyone can submit the form, so CSV values starting with `=`, `+`, `-`, or `@` get a leading apostrophe, which keeps spreadsheets from running them as formulas (see [Shared Report Helpers](#shared-report-helpers-appconsoletraits)).

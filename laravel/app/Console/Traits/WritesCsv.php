@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Console\Concerns;
+namespace App\Console\Traits;
 
 use Symfony\Component\Console\Output\OutputInterface;
 

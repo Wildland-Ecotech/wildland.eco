@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Console\Concerns\ListsRecords;
-use App\Console\Concerns\WritesCsv;
+use App\Console\Traits\ListsRecords;
+use App\Console\Traits\WritesCsv;
 use App\Models\Checkout;
 use App\Models\FormSubmission;
 use App\Models\LeafApplication;

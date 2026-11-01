@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\Concerns;
+namespace App\Models\Traits;
 
 /**
  * For models synced from a payment gateway, which are identified by the

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Payments\Stripe\Concerns;
+namespace App\Payments\Stripe\Traits;
 
 use App\Payments\Stripe\StripeMode;
 use Illuminate\Support\Facades\Log;

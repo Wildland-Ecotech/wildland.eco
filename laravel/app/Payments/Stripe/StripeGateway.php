@@ -7,7 +7,7 @@ use App\Models\GatewayCustomer;
 use App\Models\User;
 use App\Payments\HostedCheckout;
 use App\Payments\PaymentGateway;
-use App\Payments\Stripe\Concerns\CallsStripe;
+use App\Payments\Stripe\Traits\CallsStripe;
 use Carbon\CarbonImmutable;
 use Stripe\Exception\InvalidRequestException;
 

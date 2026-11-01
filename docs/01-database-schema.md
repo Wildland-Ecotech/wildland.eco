@@ -39,7 +39,7 @@ What a donor directed their donation toward (see [Designations](06-planned-featu
 | created_at, updated_at | |
 | deleted_at | Nullable; soft deletes |
 
-The **General Fund** (`general-fund`, unrestricted) is inserted by the table's migration rather than a seeder, because deploys run migrations but never seeders. `Designation::generalFund()` returns it. Checkouts, subscriptions, and donations created without a designation are assigned it automatically (`App\Models\Concerns\BelongsToDesignation`), including payments imported from outside our donation flow.
+The **General Fund** (`general-fund`, unrestricted) is inserted by the table's migration rather than a seeder, because deploys run migrations but never seeders. `Designation::generalFund()` returns it. Checkouts, subscriptions, and donations created without a designation are assigned it automatically (`App\Models\Traits\BelongsToDesignation`), including payments imported from outside our donation flow.
 
 ### gateway_customers
 
@@ -156,7 +156,7 @@ Tax receipts sent to donors. Model: `App\Models\DonationReceipt`. Issued and sen
 
 ### Finding Records by Gateway ID
 
-Models synced from a payment gateway use `App\Models\Concerns\HasGatewayId`. `findByGatewayId($gateway, $id)` looks a record up by the gateway's own ID, including soft-deleted rows, so receiving the same object again updates its record without restoring it and never creates a duplicate (see [Payment Sync and Import](06-planned-features.md#payment-sync-and-import)). Each model names its ID column in `GATEWAY_ID_COLUMN`: `gateway_customer_id` for gateway customers, `gateway_session_id` for checkouts, `gateway_subscription_id` for subscriptions, and `gateway_payment_id` for donations.
+Models synced from a payment gateway use `App\Models\Traits\HasGatewayId`. `findByGatewayId($gateway, $id)` looks a record up by the gateway's own ID, including soft-deleted rows, so receiving the same object again updates its record without restoring it and never creates a duplicate (see [Payment Sync and Import](06-planned-features.md#payment-sync-and-import)). Each model names its ID column in `GATEWAY_ID_COLUMN`: `gateway_customer_id` for gateway customers, `gateway_session_id` for checkouts, `gateway_subscription_id` for subscriptions, and `gateway_payment_id` for donations.
 
 ### leaf_applications
 

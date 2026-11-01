@@ -14,8 +14,8 @@ use App\Payments\Stripe\StripeEventProcessor;
 use App\Payments\Stripe\StripeSync;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use RuntimeException;
-use Tests\Concerns\FakesStripeApi;
 use Tests\TestCase;
+use Tests\Traits\FakesStripeApi;
 
 /**
  * Payment sync (StripeSync): donations, subscriptions and their history,

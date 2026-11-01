@@ -171,6 +171,18 @@ sleep 1
 docker compose exec app php artisan make:migration create_second_table
 ```
 
+## Traits
+
+Traits live in a `Traits` folder next to the classes that use them: `app/Console/Traits`, `app/Models/Traits`, `app/Payments/Stripe/Traits`, and `tests/Traits`. Laravel accepts both `Concerns` and `Traits` as names for these folders; this project uses `Traits` because the name says what the folder holds.
+
+`make:trait` only looks for a top-level `app/Concerns` or `app/Traits` folder, so give it the full path, which it uses as written:
+
+```bash
+docker compose exec app php artisan make:trait App/Models/Traits/ExampleTrait
+```
+
+Test traits are created by hand, since `make:trait` only writes inside `app/`.
+
 ## Progressive Enhancement
 
 Every public page must render and work without JavaScript. Pages are rendered on the server with Blade, and JavaScript only enhances them (animations, live labels, overlays). Forms are real HTML forms that submit to the server and are validated there. Features that cannot work without JavaScript, such as the canvas border animation, need a CSS fallback.

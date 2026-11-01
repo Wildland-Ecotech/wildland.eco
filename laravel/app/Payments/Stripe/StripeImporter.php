@@ -3,7 +3,7 @@
 namespace App\Payments\Stripe;
 
 use App\Models\SubscriptionEvent;
-use App\Payments\Stripe\Concerns\CallsStripe;
+use App\Payments\Stripe\Traits\CallsStripe;
 use Carbon\CarbonInterface;
 use Closure;
 

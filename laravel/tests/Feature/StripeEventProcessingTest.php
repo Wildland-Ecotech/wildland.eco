@@ -7,8 +7,8 @@ use App\Models\Checkout;
 use App\Models\WebhookEvent;
 use App\Payments\Stripe\StripeEventProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\Concerns\FakesStripeApi;
 use Tests\TestCase;
+use Tests\Traits\FakesStripeApi;
 use Throwable;
 
 /**

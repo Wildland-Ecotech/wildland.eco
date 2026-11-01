@@ -10,8 +10,8 @@ use App\Payments\PaymentGateway;
 use App\Payments\Stripe\StripeGateway;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
-use Tests\Concerns\FakesStripeApi;
 use Tests\TestCase;
+use Tests\Traits\FakesStripeApi;
 
 /**
  * Exercises StripeGateway through the real Stripe SDK without calling

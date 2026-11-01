@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Console\Concerns;
+namespace App\Console\Traits;
 
 use Carbon\CarbonInterface;
 use Symfony\Component\Console\Formatter\OutputFormatter;

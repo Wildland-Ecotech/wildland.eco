@@ -9,8 +9,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
-use Tests\Concerns\FakesStripeApi;
 use Tests\TestCase;
+use Tests\Traits\FakesStripeApi;
 
 /**
  * Receiving Stripe webhooks at POST /webhooks/stripe: signature checks,

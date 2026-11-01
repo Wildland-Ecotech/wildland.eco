@@ -13,8 +13,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Exceptions;
 use Mockery\MockInterface;
 use RuntimeException;
-use Tests\Concerns\FakesStripeApi;
 use Tests\TestCase;
+use Tests\Traits\FakesStripeApi;
 
 /**
  * `php artisan stripe:sync` and StripeImporter: listing Stripe objects and

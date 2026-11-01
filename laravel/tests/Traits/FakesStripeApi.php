@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Concerns;
+namespace Tests\Traits;
 
 use Stripe\ApiRequestor;
 use Stripe\HttpClient\ClientInterface;
