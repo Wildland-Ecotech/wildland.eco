@@ -7,9 +7,9 @@ use Symfony\Component\Console\Formatter\OutputFormatter;
 
 /**
  * Shared parts of the commands that list records for review until the
- * administrator pages are built (milestone 10): the --days option, one
- * block of fields per record, and times in Fort Collins time. For classes
- * extending Illuminate\Console\Command.
+ * administrator pages are built (milestone 10): the --days option, a table
+ * of records or one block of fields per record, and times in Fort Collins
+ * time. For classes extending Illuminate\Console\Command.
  */
 trait ListsRecords
 {
@@ -48,10 +48,29 @@ trait ListsRecords
     }
 
     /**
-     * A time in Fort Collins time, such as "Wed, Oct 21, 2026 7:30 PM MDT".
+     * Write records as a table, one row each. Values are escaped, so
+     * submitted text cannot add console formatting tags.
+     *
+     * @param  array<int, string>  $headers
+     * @param  iterable<int, array<int, mixed>>  $rows
      */
-    protected function localTime(CarbonInterface $time): string
+    protected function writeTable(array $headers, iterable $rows): void
     {
-        return $time->copy()->setTimezone(config('organization.timezone'))->format('D, M j, Y g:i A T');
+        $escaped = [];
+
+        foreach ($rows as $row) {
+            $escaped[] = array_map(fn (mixed $value) => OutputFormatter::escape((string) $value), $row);
+        }
+
+        $this->table($headers, $escaped);
+    }
+
+    /**
+     * A time in Fort Collins time, by default such as "Wed, Oct 21, 2026
+     * 7:30 PM MDT".
+     */
+    protected function localTime(CarbonInterface $time, string $format = 'D, M j, Y g:i A T'): string
+    {
+        return $time->copy()->setTimezone(config('organization.timezone'))->format($format);
     }
 }

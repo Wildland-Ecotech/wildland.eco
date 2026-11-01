@@ -137,8 +137,10 @@ Tasks are scheduled in `routes/console.php` and run by the `scheduler` container
 
 Traits shared by the commands that list records or report on them until the administrator pages are built (milestone 10), so each command has only its own query and fields:
 
-- **`ListsRecords`:** `daysOption()` reads `--days`, a whole number of at least 1, or shows an error and returns null so the command can exit with `INVALID`. `writeRecord($heading, $fields)` writes one record as a heading followed by one `Label: value` line per field, with a dash for an empty value; the heading may use console formatting tags, and field values are escaped so submitted text cannot add any. `localTime($time)` formats a time in Fort Collins time, such as `Wed, Oct 21, 2026 7:30 PM MDT`.
-- **`WritesCsv`:** `writeCsv($header, $rows)` writes a header row and the rows as CSV, raw and in one piece. Values starting with `=`, `+`, `-`, or `@` get a leading apostrophe, which keeps spreadsheets from running them as formulas.
+- **`ListsRecords`:** `daysOption()` reads `--days`, a whole number of at least 1, or shows an error and returns null so the command can exit with `INVALID`. `writeTable($headers, $rows)` writes records as a table, one row each, for an overview. `writeRecord($heading, $fields)` writes one record in full, as a heading followed by one `Label: value` line per field, with a dash for an empty value; the heading may use console formatting tags. Both escape the values, so submitted text cannot add console formatting. `localTime($time, $format)` formats a time in Fort Collins time, by default such as `Wed, Oct 21, 2026 7:30 PM MDT`.
+- **`WritesCsv`:** `writeCsv($header, $rows)` writes a header row and the rows as CSV, raw and in one piece. Values starting with `=`, `+`, `-`, or `@` get a leading apostrophe, which keeps spreadsheets from running them as formulas. Plain negative numbers, such as `-1.75`, are left as they are so spreadsheets can add them up.
+- **`FormatsMoney`:** `money($cents, $currency)` formats an amount for reading the way receipts do, such as `$1,250.00` or `-$1.75`, with the currency code instead of a dollar sign for anything but US dollars (`20.00 EUR`). `decimal($cents)` formats it as a plain number for CSV, such as `1250.00`. Laravel's `Number::currency()` isn't used because it needs PHP's `intl` extension, which the Docker image doesn't install.
+- **`DescribesDonations`:** how `donations:list` and `donations:view` describe a donation, so both show the same type, status, date, and amounts: `donationFields()` (keyed by `DONATION_LABELS`), `donor()` (the name, or the email address without one), `donationType()`, `donationStatus()`, and `donationMadeAt()`. Load donations with `donationRelations()`, which includes soft-deleted donors, subscriptions, and designations. Uses `FormatsMoney`.
 
 Fort Collins time is `timezone` in `config/organization.php` (`America/Denver`); dates are stored in UTC.
 
@@ -195,6 +197,59 @@ Output is shown as the sync runs: a line saying whether it's a live or test mode
 docker compose exec app php artisan stripe:sync
 docker compose exec app php artisan stripe:sync --days=7
 ```
+
+### donations:list (`app/Console/Commands/ListDonations.php`)
+
+Lists donations one payment at a time, oldest first, as a table for an overview of recent giving until the administrator pages are built (milestone 10). Each payment of a monthly or annual donation is its own row. [donations:view](#donationsview-appconsolecommandsviewdonationphp) shows one in full. Recurring donations themselves, with their status (active, past due, canceled), are left to a future `subscriptions:list`. Soft-deleted donations are not listed.
+
+The table has the key details of each payment:
+
+| Column | Notes |
+|--------|-------|
+| ID | The donation's ID, for `donations:view` |
+| Date | Fort Collins time. A received payment's date is when it was paid (`paid_at`); a pending or failed payment's is when the donor tried to pay, from Stripe's creation time of the payment in `gateway_data`, so payments imported later still fall on the right day. `--days` counts from these dates |
+| Donor | The donor's name, or their email address if we don't have a name, such as for some Payment Link donations |
+| Type | One-time, Monthly, or Annual, from the subscription the payment belongs to |
+| Amount | The amount donated, before Stripe's fee |
+| Status | Paid, Pending, Failed, Refunded, or Partially refunded |
+
+| Option | Default | Effect |
+|--------|---------|--------|
+| `--days=N` | 30 | Payments from the last N days |
+| `--one-time` | off | Only one-time donations |
+| `--monthly` | off | Only payments of monthly donations |
+| `--annual` | off | Only payments of annual donations |
+| `--all` | off | Include pending and failed payments; without it, only payments we received are listed, including ones refunded later |
+| `--csv` | off | CSV with every detail `donations:view` shows, plus a Currency column, for importing into a spreadsheet. Amounts are plain numbers, such as `1250.00`; a fee not recorded yet leaves the fee and net empty rather than counting as zero |
+
+The type options can be combined, such as `--monthly --annual` for every recurring payment; with none of them, every type is listed.
+
+```bash
+docker compose exec app php artisan donations:list
+docker compose exec app php artisan donations:list --days=90 --monthly --annual
+docker compose exec app php artisan donations:list --one-time --all
+docker compose exec -T app php artisan donations:list --days=365 --csv > ~/donations.csv
+```
+
+On a server, run it from the clone's directory as the clone's owner (`sudo -u deploy docker compose exec ...`).
+
+The output contains donors' names and email addresses: never paste it into issues or chat, and never save the CSV inside the repository. Donors type their own names, so CSV values starting with `=`, `+`, `-`, or `@` get a leading apostrophe (see [Shared Report Helpers](#shared-report-helpers-appconsoletraits)).
+
+### donations:view (`app/Console/Commands/ViewDonation.php`)
+
+Shows one donation in full, named by its ID from `donations:list` or its Stripe payment ID (`pi_...`): the payment ID, date in Fort Collins time, type, status, the donor's name and email, the amount, Stripe's fee, the amount refunded, the net amount, and the designation.
+
+- **Net** is the amount less refunds and Stripe's fee. Stripe keeps its fee when a payment is refunded, so a full refund has a small negative net.
+- **Fee, refunded, and net** are only shown for payments we received (`Donation::RECEIVED_STATUSES`); pending and failed payments have none.
+- **A fee not recorded yet** shows as "Not recorded yet", with a note that running `stripe:sync` again records it once Stripe has it.
+- **A deleted donation** is shown too, since it was asked for by ID, with a warning saying when it was deleted.
+
+```bash
+docker compose exec app php artisan donations:view 12
+docker compose exec app php artisan donations:view pi_3UUJTNIeELjLGgDr0L3xPGHk
+```
+
+The output contains the donor's name and email address: never paste it into issues or chat.
 
 ### submissions:list (`app/Console/Commands/ListFormSubmissions.php`)
 

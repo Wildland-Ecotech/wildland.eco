@@ -35,11 +35,13 @@ trait WritesCsv
     /**
      * Anyone can submit our forms, so a value starting with =, +, -, or @
      * could run as a formula when the CSV is opened in a spreadsheet. A
-     * leading apostrophe makes spreadsheets treat it as text.
+     * leading apostrophe makes spreadsheets treat it as text. A plain
+     * negative number, such as "-1.75", is left as it is so spreadsheets can
+     * add it up; nothing else gets through.
      */
     private function spreadsheetSafe(mixed $value): mixed
     {
-        if (is_string($value) && preg_match('/^[=+\-@\t\r]/', $value)) {
+        if (is_string($value) && ! preg_match('/^-\d+(\.\d+)?\z/', $value) && preg_match('/^[=+\-@\t\r]/', $value)) {
             return "'" . $value;
         }
 
