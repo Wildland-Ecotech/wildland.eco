@@ -137,7 +137,7 @@ Tasks are scheduled in `routes/console.php` and run by the `scheduler` container
 
 Traits shared by the commands that list records or report on them until the administrator pages are built (milestone 10), so each command has only its own query and fields:
 
-- **`ListsRecords`:** `daysOption()` reads `--days`, a whole number of at least 1, or shows an error and returns null so the command can exit with `INVALID`. `writeTable($headers, $rows)` writes records as a table, one row each, for an overview. `writeRecord($heading, $fields)` writes one record in full, as a heading followed by one `Label: value` line per field, with a dash for an empty value; the heading may use console formatting tags. Both escape the values, so submitted text cannot add console formatting. `localTime($time, $format)` formats a time in Fort Collins time, by default such as `Wed, Oct 21, 2026 7:30 PM MDT`.
+- **`ListsRecords`:** `daysOption()` reads `--days`, a whole number of at least 1, or shows an error and returns null so the command can exit with `INVALID`. `writeTable($headers, $rows, $rightAligned)` writes records as a table, one row each, for an overview, with the columns listed in `$rightAligned` (by index) lined up on the right, for amounts; tests pass the same `rightAlignedColumns()` styles to `expectsTable()`. `writeRecord($heading, $fields)` writes one record in full, as a heading followed by one `Label: value` line per field, with a dash for an empty value; the heading may use console formatting tags. Both escape the values, so submitted text cannot add console formatting. `localTime($time, $format)` formats a time in Fort Collins time, by default such as `Wed, Oct 21, 2026 7:30 PM MDT`.
 - **`WritesCsv`:** `writeCsv($header, $rows)` writes a header row and the rows as CSV, raw and in one piece. Values starting with `=`, `+`, `-`, or `@` get a leading apostrophe, which keeps spreadsheets from running them as formulas. Plain negative numbers, such as `-1.75`, are left as they are so spreadsheets can add them up.
 - **`FormatsMoney`:** `money($cents, $currency)` formats an amount for reading the way receipts do, such as `$1,250.00` or `-$1.75`, with the currency code instead of a dollar sign for anything but US dollars (`20.00 EUR`). `decimal($cents)` formats it as a plain number for CSV, such as `1250.00`. Laravel's `Number::currency()` isn't used because it needs PHP's `intl` extension, which the Docker image doesn't install.
 - **`DescribesDonations`:** how `donations:list` and `donations:view` describe a donation, so both show the same type, status, date, and amounts: `donationFields()` (keyed by `DONATION_LABELS`), `donor()` (the name, or the email address without one), `donationType()`, `donationStatus()`, and `donationMadeAt()`. Load donations with `donationRelations()`, which includes soft-deleted donors, subscriptions, and designations. Uses `FormatsMoney`.
@@ -250,6 +250,28 @@ docker compose exec app php artisan donations:view pi_3UUJTNIeELjLGgDr0L3xPGHk
 ```
 
 The output contains the donor's name and email address: never paste it into issues or chat.
+
+### donations:totals (`app/Console/Commands/ShowDonationTotals.php`)
+
+Totals of the donations we received, for keeping tabs on giving and for quarterly board meetings until the administrator pages are built (milestone 10). It shows four tables, oldest period first: month over month, by quarter (calendar quarters, such as `Q1 2026` for January through March), by year, and all time. Periods without donations are left out.
+
+Each row has the number of donations, the amount donated, the amount refunded, Stripe's fees, and the net: the amount less refunds and fees. Amounts line up on the right.
+
+- **What counts:** payments we received (`Donation::RECEIVED_STATUSES`), including ones refunded later, since their refunds and fees are counted too. Pending and failed payments and soft-deleted donations are left out.
+- **Periods** are by the date a donation was paid in Fort Collins time, so a donation made on the evening of December 31st counts toward that year, matching the receipt's tax year. The database adds up each month; quarters, years, and all time are added up from the months.
+- **Stripe's fees** are the fees Stripe actually charged, recorded from each payment's balance transaction. Stripe keeps its fee when a payment is refunded, so a fully refunded donation still counts its fee. A fee not recorded yet isn't counted, and a warning says how many donations are missing one; running `stripe:sync` again records them once Stripe has them.
+- **Currencies** are totaled separately, so a period with donations in two currencies has a row for each.
+
+| Option | Default | Effect |
+|--------|---------|--------|
+| `--csv` | off | CSV with a Grouping column (Month over month, By quarter, By year, All time) and a Currency column, for importing into a spreadsheet. Amounts are plain numbers, such as `1250.00` |
+
+```bash
+docker compose exec app php artisan donations:totals
+docker compose exec -T app php artisan donations:totals --csv > ~/donation-totals.csv
+```
+
+On a server, run it from the clone's directory as the clone's owner (`sudo -u deploy docker compose exec ...`). The totals contain no personal details.
 
 ### submissions:list (`app/Console/Commands/ListFormSubmissions.php`)
 

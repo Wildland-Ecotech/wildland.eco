@@ -4,6 +4,7 @@ namespace App\Console\Traits;
 
 use Carbon\CarbonInterface;
 use Symfony\Component\Console\Formatter\OutputFormatter;
+use Symfony\Component\Console\Helper\TableStyle;
 
 /**
  * Shared parts of the commands that list records for review until the
@@ -49,12 +50,14 @@ trait ListsRecords
 
     /**
      * Write records as a table, one row each. Values are escaped, so
-     * submitted text cannot add console formatting tags.
+     * submitted text cannot add console formatting tags. Columns listed in
+     * $rightAligned, by index, line up on the right, for amounts.
      *
      * @param  array<int, string>  $headers
      * @param  iterable<int, array<int, mixed>>  $rows
+     * @param  array<int, int>  $rightAligned
      */
-    protected function writeTable(array $headers, iterable $rows): void
+    protected function writeTable(array $headers, iterable $rows, array $rightAligned = []): void
     {
         $escaped = [];
 
@@ -62,7 +65,25 @@ trait ListsRecords
             $escaped[] = array_map(fn (mixed $value) => OutputFormatter::escape((string) $value), $row);
         }
 
-        $this->table($headers, $escaped);
+        $this->table($headers, $escaped, 'default', self::rightAlignedColumns($rightAligned));
+    }
+
+    /**
+     * Column styles that line the given columns up on the right, for
+     * table() and for expectsTable() in tests.
+     *
+     * @param  array<int, int>  $columns
+     * @return array<int, TableStyle>
+     */
+    public static function rightAlignedColumns(array $columns): array
+    {
+        $styles = [];
+
+        foreach ($columns as $column) {
+            $styles[$column] = (new TableStyle)->setPadType(STR_PAD_LEFT);
+        }
+
+        return $styles;
     }
 
     /**
