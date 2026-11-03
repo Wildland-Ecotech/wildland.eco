@@ -17,8 +17,8 @@ Donors and administrators. Model: `App\Models\User`. Donors are created automati
 | name | Nullable |
 | email | Unique, including among soft-deleted users, so a deleted account keeps its address reserved. Stored lowercase by the model, so finding a user by email is case-insensitive |
 | email_verified_at | Nullable timestamp |
-| password | Nullable; hashed by the model. Donors can always sign in with an email link once accounts are built |
-| role | String, default `donor`: `donor` or `admin` (`User::ROLES`). Board members are given `admin` until they need different permissions. Not mass assignable, so form input can never change it |
+| password | Nullable; hashed by the model. Admins' passwords are set with [users:admin](02-services-and-commands.md#usersadmin-appconsolecommandsmanageadminphp), at least 12 characters. Donors can always sign in with an email link once accounts are built |
+| role | String, default `donor`: `donor` or `admin` (`User::ROLES`). Board members are given `admin` until they need different permissions. Not mass assignable, so form input can never change it; admins are made with `users:admin` |
 | remember_token | Nullable |
 | created_at, updated_at | |
 | deleted_at | Nullable; soft deletes (see [Deletion](06-planned-features.md#deletion)) |
