@@ -327,6 +327,11 @@ sudo -u deploy docker compose exec app php artisan donations:abandoned
 # too late to be receipted automatically
 sudo -u deploy docker compose exec app php artisan receipt:send pi_...
 
+# Make someone an admin and set their password, or set an admin's new
+# password; --remove makes them a donor again. The password prompts need a
+# terminal, so don't add -T
+sudo -u deploy docker compose exec app php artisan users:admin name@example.com
+
 # List failed queued jobs, then retry one by its ID, or all of them
 sudo -u deploy docker compose exec app php artisan queue:failed
 sudo -u deploy docker compose exec app php artisan queue:retry <id>

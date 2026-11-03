@@ -160,6 +160,7 @@ The goal is the least possible friction before a donor has committed, without ex
 - **Email login links.** Donors can always sign in with a one-time link sent by email, so a password is never required. The request form always responds the same way, whether or not an account exists, so it cannot be used to find out who has donated.
 - **Existing accounts.** If the email already belongs to a verified account, the thank-you page asks the donor to sign in instead of offering a password.
 - **Roles:** `donor` and `admin`. Board members are given `admin`; a separate role is added only once board members need different permissions.
+- **Admins are created on the command line** with `users:admin`, with a password of at least 12 characters; there is no public registration (see [users:admin](02-services-and-commands.md#usersadmin-appconsolecommandsmanageadminphp)).
 - Authentication uses Laravel Fortify, with views written in the site's own design.
 
 ## Abandoned Checkouts

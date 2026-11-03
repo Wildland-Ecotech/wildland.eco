@@ -182,6 +182,26 @@ docker compose exec app php artisan receipt:send pi_3UUJTNIeELjLGgDr0L3xPGHk
 
 On a server, run it from the clone's directory as the clone's owner (`sudo -u deploy docker compose exec app ...`).
 
+### users:admin (`app/Console/Commands/ManageAdmin.php`)
+
+Makes a user an admin and sets their password, or makes an admin a donor again. There is no public registration: admins are only created with this command, since `role` can't be mass assigned (see [users](01-database-schema.md#users)).
+
+- **Account:** the email address is matched case-insensitively. A donor with that address keeps their account, so a board member who has already donated has one record with their whole history. A new address creates an account. A soft-deleted account can't be made an admin.
+- **Confirmation:** it shows the email address, the name, and whether the account is new, a donor (and since when), or already an admin, then asks before changing anything, so a mistyped address can't promote the wrong donor.
+- **Name:** asked for when the account doesn't have one.
+- **Password:** typed hidden, then again to confirm, and hashed by the model. It must be at least 12 characters (`ManageAdmin::MIN_PASSWORD_LENGTH`), with no other rules. Running the command again for an admin sets a new password; there is no other way to reset one yet.
+
+| Option | Effect |
+|--------|--------|
+| `--remove` | Makes the admin a donor again and removes their password |
+
+```bash
+docker compose exec app php artisan users:admin board-member@example.com
+docker compose exec app php artisan users:admin board-member@example.com --remove
+```
+
+On a server, run it from the clone's directory as the clone's owner (`sudo -u deploy docker compose exec app ...`). The password prompts need a terminal, so don't add `-T`.
+
 ### stripe:sync (`app/Console/Commands/SyncStripe.php`)
 
 Imports donations, recurring donations, refunds, and checkouts from Stripe through the same sync functions as webhooks (see [StripeImporter](#stripeimporter-apppaymentsstripestripeimporterphp)). Safe to run any number of times: every record is keyed on its Stripe ID.
