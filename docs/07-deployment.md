@@ -247,10 +247,14 @@ The rules are in `deploy/caddy/site.caddy`, which both Caddyfiles import. nginx 
 | `laravel/.env` | `APP_ENV` | `production` | `production` |
 | `laravel/.env` | `APP_DEBUG` | `false` | `false` |
 | `laravel/.env` | `APP_URL` | `https://stage.wildland.eco` | `https://wildland.eco` |
+| `laravel/.env` | `SESSION_DRIVER` | `database` | `database` |
+| `laravel/.env` | `SESSION_SECURE_COOKIE` | `true` | `true` |
 | `laravel/.env` | `STRIPE_*` | Test mode keys and IDs | Live mode keys and IDs |
 | `laravel/.env` | `MAIL_USERNAME`, `MAIL_PASSWORD` | AhaSend SMTP credential, sandbox or live | Live AhaSend SMTP credential |
 
 Staging uses `APP_ENV=production` so it behaves exactly like production. Each server gets its own `APP_KEY`, database password, and webhook secret.
+
+`SESSION_SECURE_COOKIE=true` sends the session cookie only over HTTPS. It isn't in `laravel/.env.example`, since local development uses plain HTTP, so add it to every server's `laravel/.env` by hand. Servers set up before sign-in was added have `SESSION_DRIVER=file`: switch it to `database` only after a deploy has migrated the `sessions` table, then deploy by hand. Switching earlier breaks every page, and switching signs everyone out, though forms left open recover through [Stale Forms](03-routes-and-controllers.md#stale-forms).
 
 ### Setting Up a Server
 

@@ -74,6 +74,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Whether the user can sign in and see the admin pages.
+     */
+    public function isAdmin(): bool
+    {
+        return $this->role === self::ROLE_ADMIN;
+    }
+
+    /**
      * Whether we have actually received a payment from the user, including
      * one refunded or soft-deleted later. Failed payments, unpaid checkouts,
      * and subscriptions that never collected a payment do not count.

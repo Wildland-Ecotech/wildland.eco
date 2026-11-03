@@ -14,6 +14,10 @@
 | GET | `/leaves/apply` | `leaves.apply` | `LeafApplicationController@create` → `pages.leaves-apply` | Application form, or the thank-you message after applying |
 | POST | `/leaves/apply` | `leaves.apply.store` | `LeafApplicationController@store` | Saves an application to `leaf_applications` |
 | GET | `/faq` | `faq` | `Route::view` → `pages.faq` | Frequently asked questions |
+| GET | `/login` | `login` | `LoginController@create` → `pages.login` | Sign-in form; see [Signing In](#signing-in). Someone already signed in goes to `/admin` |
+| POST | `/login` | `login.store` | `LoginController@store` | Signs in with an email address and password |
+| POST | `/logout` | `logout` | `LoginController@destroy` | Signs out and returns to `/login` |
+| GET | `/admin` | `admin` | `Route::view` → `pages.admin.home` | Admin page: who is signed in, and signing out. Admins only (`auth`, `auth.session`, `AdminOnly`) |
 | GET | `/form-tokens` | `form-tokens` | `FormTokenController` | JSON with a fresh CSRF token (`csrf`) and proof-of-work challenge (`challenge`), for a form that has been open a while; see [Stale Forms](#stale-forms). Not cached; 30 requests per minute per visitor |
 | GET | `/dev/receipt-preview/{frequency?}` | | `DonationReceiptPreviewController` | Local development only (`APP_ENV=local`): the receipt email with sample details, for `one-time`, `monthly`, or `annual`. Nothing is saved or sent |
 
@@ -80,3 +84,21 @@ Stripe sends events to `POST /webhooks/stripe`: from each server's registered we
    - Failures redirect back with errors and the visitor's input.
 3. The controller allows `LeafApplicationController::MAX_PER_HOUR` (5) saved applications per IP address per hour. Only saved applications count, so validation errors never lock anyone out.
 4. The application is saved, with `ready_date` cleared when the bags are ready now and `terms_accepted_at` set to the current time, and the visitor is redirected to `GET /leaves/apply` with `applied` (the application type) flashed to the session, which shows the thank-you message.
+
+## Signing In
+
+Admins sign in with their email address and password at `/login`, using Laravel's built-in session authentication (`Auth::attempt()`) rather than an authentication package. Admins are created, and their passwords set, with [users:admin](02-services-and-commands.md#usersadmin-appconsolecommandsmanageadminphp); there is no registration or password reset page yet. The same sign-in page will serve donors once donor accounts are built (see [Accounts](06-planned-features.md#accounts)).
+
+1. `POST /login` is validated by `LoginRequest`: the email address is trimmed and lowercased, since addresses are stored lowercase, and both fields are required.
+2. `LoginController` allows `MAX_ATTEMPTS_PER_MINUTE` (5) failed attempts per email address and IP address per minute. After that, even the right password is refused with a message to wait a minute. A successful sign-in clears the count.
+3. Only users with the `admin` role can sign in until donor accounts are built, and soft-deleted users never can. A wrong password, an unknown email address, and a donor's account all get the same message, so the form can't be used to find out who has an account.
+4. Failures redirect back with the email address only, never the password. The sign-in form isn't recorded in `form_submissions`: that table is for following up with visitors, and the form holds a password.
+5. A successful sign-in gets a new session ID, then goes to the admin page the admin first asked for, or `/admin`. There is no "remember me": a session lasts `SESSION_LIFETIME` (120 minutes) after the last request.
+
+Admin pages use three middleware:
+
+- **`auth`** sends guests to `/login`, and back to the page they asked for afterwards.
+- **`auth.session`** (Laravel's `AuthenticateSession`) signs out every other session when an admin's password changes, such as after `users:admin` sets a new one.
+- **`AdminOnly`** (`app/Http/Middleware/AdminOnly.php`) refuses anyone without the `admin` role with a 403, checked on every request so `users:admin --remove` takes effect right away. Responses are sent with `Cache-Control: no-store, private` and `X-Robots-Tag: noindex, nofollow`, since admin pages show donors' personal details.
+
+Sessions are stored in the `sessions` table (`SESSION_DRIVER=database`), and servers set `SESSION_SECURE_COOKIE=true` so the session cookie is only sent over HTTPS (see [Server Settings](07-deployment.md#server-settings)).

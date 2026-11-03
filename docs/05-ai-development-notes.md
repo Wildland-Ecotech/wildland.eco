@@ -208,11 +208,11 @@ All numeric form inputs should be cleaned server-side to strip commas, currency 
 
 ## Validation Errors
 
-All forms must display validation errors visibly to the user (typically in red text above or within the form) and preserve `old()` input values so users don't have to retype after a failure.
+All forms must display validation errors visibly to the user (typically in red text above or within the form) and preserve `old()` input values so users don't have to retype after a failure. Passwords are the exception: they are never sent back to the form.
 
 Every error a visitor sees must say what went wrong and what to do next; never a vague message such as "Something went wrong" (see "Error messages" in the [Style Guide](08-style-guide.md#writing)). Give every form field a message under its bare name in the request's `messages()`, which Laravel uses for any rule without a specific message, so Laravel's default wording is never shown. `FormMessagesTest` checks each form request.
 
-A new public form records its submissions like the donate and leaf application forms: add `RecordFormSubmission:<form>` to its POST route, add the form to `FormSubmission::FORMS`, and record its outcomes with `markAs()` (see [Form Submissions](03-routes-and-controllers.md#form-submissions)).
+A new public form records its submissions like the donate and leaf application forms: add `RecordFormSubmission:<form>` to its POST route, add the form to `FormSubmission::FORMS`, and record its outcomes with `markAs()` (see [Form Submissions](03-routes-and-controllers.md#form-submissions)). The sign-in form is the exception: it holds a password, and `form_submissions` is for following up with visitors.
 
 Don't add hidden spam-trap fields to forms. Browsers and password managers fill them in, which rejects real people; use the proof of work instead.
 

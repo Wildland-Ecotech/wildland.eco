@@ -105,6 +105,21 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 
 A full-page menu for visitors without JavaScript, with the same links and social media icons as the menu overlay.
 
+### Sign In (`/login`) — `pages/login.blade.php`
+
+- Built on the Content Page component, in an opening card like the error pages, with no footer; styles are in `_admin.scss`, shared with the admin pages
+- A plain HTML form (email and password) that works without JavaScript and is validated on the server (see [Signing In](03-routes-and-controllers.md#signing-in))
+- Field errors appear under each field; a wrong password or too many attempts appears in a red box above the fields. The email address is kept after an error, the password never is.
+- The email field uses `autocomplete="username"` and the password `current-password`, so password managers fill them in
+- "Forgot your password?" points to contact@wildland.eco, since passwords are set with `users:admin`
+- Not linked from any menu yet
+
+### Admin (`/admin`) — `pages/admin/home.blade.php`
+
+- Built on the Content Page component, with the sign-in page's card style (`_admin.scss`)
+- Shows who is signed in, by name and email address, and a Sign Out button (a form posting to `/logout`)
+- Admin pages live in `resources/views/pages/admin/`
+
 ## Components
 
 ### Layout (`layout`)
