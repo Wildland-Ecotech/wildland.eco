@@ -1,0 +1,137 @@
+// The sign-in page (/login) and the admin pages (/admin), inside the content
+// page shell (components/_content-page.scss). The form styles match the leaf
+// application form's (pages/_leaves-apply.scss).
+
+@use '../typography' as type;
+
+$green: #2ECF9E;
+$error: #FF8A80;
+
+.admin-page {
+    .card {
+        max-width: 640px;
+        margin: 0 auto 4em;
+        padding: 2em 2em 2.5em;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 16px;
+        text-align: center;
+
+        h1 {
+            margin-bottom: 0.4em;
+        }
+    }
+
+    .status,
+    .signed-in {
+        @include type.detail;
+        margin: 0 auto 1.5em;
+    }
+
+    .signed-in strong {
+        color: #fff;
+    }
+
+    .sign-in-form {
+        max-width: 420px;
+        margin: 0 auto;
+        text-align: left;
+        font-family: satoshi;
+    }
+
+    .error-summary {
+        border: 2px solid $error;
+        border-radius: 10px;
+        background: rgba(255, 138, 128, 0.1);
+        color: $error;
+        padding: 0.75em 1.25em;
+        margin-bottom: 1.5em;
+
+        p {
+            font-size: 16px;
+            margin: 0.4em 0;
+        }
+    }
+
+    .field {
+        margin: 0 0 1.5em;
+    }
+
+    label {
+        display: block;
+        font-size: 17px;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 0.4em;
+    }
+
+    input[type="email"],
+    input[type="password"] {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        background: rgba(0, 0, 0, 0.4);
+        border: 2px solid rgba(46, 207, 158, 0.3);
+        border-radius: 10px;
+        padding: 0.7em 1em;
+        color: #fff;
+        font-family: satoshi;
+        font-size: 17px;
+        outline: none;
+        color-scheme: dark;
+
+        &:focus {
+            border-color: $green;
+        }
+
+        &[aria-invalid="true"] {
+            border-color: $error;
+        }
+    }
+
+    .field-error {
+        color: $error;
+        font-size: 15px;
+        margin: 0.4em 0 0;
+    }
+
+    .submit-button {
+        display: block;
+        width: 100%;
+        background: rgba(46, 207, 158, 0.25);
+        border: 3px solid $green;
+        border-radius: 10px;
+        color: #fff;
+        font-family: satoshi;
+        font-size: 21px;
+        font-weight: 1000;
+        padding: 0.7em 2em;
+        cursor: pointer;
+        transition: background 0.2s;
+
+        &:hover {
+            background: transparent;
+        }
+    }
+
+    .help {
+        @include type.fine-print;
+        margin: 1.25em 0 0;
+        text-align: center;
+
+        a {
+            color: $green;
+            text-decoration: underline;
+        }
+    }
+}
+
+@media screen and (max-width: 499px) {
+    .admin-page .card {
+        padding: 1.25em 1em 2em;
+        margin-bottom: 2em;
+
+        h1 {
+            font-size: 44px;
+        }
+    }
+}

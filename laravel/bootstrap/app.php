@@ -23,6 +23,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // Forms record each submission as soon as the session starts, before
         // the CSRF check, so a submission from an expired page is recorded too
         $middleware->appendToPriorityList(StartSession::class, RecordFormSubmission::class);
+
+        // Someone already signed in who opens the sign-in page goes to the
+        // admin page instead. Guests are sent to the `login` route.
+        $middleware->redirectUsersTo(fn () => route('admin'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

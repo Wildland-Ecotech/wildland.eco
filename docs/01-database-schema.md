@@ -6,7 +6,7 @@ The planned donation schema is described in [Planned Features](06-planned-featur
 
 ## Current Tables
 
-Laravel's default migrations were removed so that every migration in this project is generated with `php artisan make:migration` and carries the timestamp of when it was created (see [Migration Generation](05-ai-development-notes.md#migration-generation)). Framework tables are generated with their own Artisan commands (see [Framework Tables](#framework-tables)); the session and password reset tables come with accounts (milestone 9).
+Laravel's default migrations were removed so that every migration in this project is generated with `php artisan make:migration` and carries the timestamp of when it was created (see [Migration Generation](05-ai-development-notes.md#migration-generation)). Framework tables are generated with their own Artisan commands (see [Framework Tables](#framework-tables)); a password reset table comes with donor accounts (milestone 9).
 
 ### users
 
@@ -197,13 +197,14 @@ Every submission of the donate and leaf application forms, recorded the moment i
 
 ## Framework Tables
 
-Tables Laravel's own features use, generated unchanged from the framework's stubs. They hold no personal data of their own, though a queued job's payload can include the records it works on.
+Tables Laravel's own features use, generated unchanged from the framework's stubs. They hold little personal data of their own: a queued job's payload can include the records it works on, and a session records the visitor's IP address, browser, and, once signed in, their user ID.
 
 | Tables | Generated with | Used by |
 |--------|----------------|---------|
-| `cache`, `cache_locks` | `php artisan make:cache-table` | The `database` cache store: proof-of-work challenges already used, `queue:restart` signals, and later rate limits |
+| `cache`, `cache_locks` | `php artisan make:cache-table` | The `database` cache store: proof-of-work challenges already used, `queue:restart` signals, and rate limits, such as failed sign-in attempts |
 | `jobs` | `php artisan make:queue-table` | The `database` queue: jobs waiting for the queue worker |
 | `failed_jobs` | `php artisan make:queue-failed-table` | Jobs that failed, kept for `queue:retry` (see [Operating a Server](07-deployment.md#operating-a-server)) |
+| `sessions` | `php artisan make:session-table` | The `database` session driver: every visitor's session, including who is signed in |
 
 ## Framework Drivers
 
@@ -213,6 +214,6 @@ The drivers set in `laravel/.env.example`. A driver switches to `database` once 
 |---------|-------|-------|
 | `CACHE_STORE` | `database` | Uses the `cache` and `cache_locks` tables |
 | `QUEUE_CONNECTION` | `database` | Uses the `jobs` and `failed_jobs` tables; the `queue` container runs the jobs |
-| `SESSION_DRIVER` | `file` | Switches to `database` when accounts are built (milestone 9) |
+| `SESSION_DRIVER` | `database` | Uses the `sessions` table. Servers switched from `file` by hand when sign-in was added (see [Server Settings](07-deployment.md#server-settings)) |
 
 Tests use in-memory stores instead (`array` for the cache and sessions, `sync` for the queue), set in `phpunit.xml`.

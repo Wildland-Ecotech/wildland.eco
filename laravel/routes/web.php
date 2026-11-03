@@ -4,7 +4,9 @@ use App\Http\Controllers\DonationController;
 use App\Http\Controllers\DonationReceiptPreviewController;
 use App\Http\Controllers\FormTokenController;
 use App\Http\Controllers\LeafApplicationController;
+use App\Http\Controllers\LoginController;
 use App\Http\Controllers\StripeWebhookController;
+use App\Http\Middleware\AdminOnly;
 use App\Http\Middleware\RecordFormSubmission;
 use App\Models\FormSubmission;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -27,6 +29,19 @@ Route::post('/leaves/apply', [LeafApplicationController::class, 'store'])
     ->middleware(RecordFormSubmission::class . ':' . FormSubmission::FORM_LEAF_APPLICATION)
     ->name('leaves.apply.store');
 Route::view('/faq', 'pages.faq')->name('faq');
+
+// Signing in and out. Only admins can sign in until donor accounts are built.
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [LoginController::class, 'create'])->name('login');
+    Route::post('/login', [LoginController::class, 'store'])->name('login.store');
+});
+Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
+
+// Admin pages. `auth.session` signs out other sessions when an admin's
+// password changes.
+Route::middleware(['auth', 'auth.session', AdminOnly::class])->group(function () {
+    Route::view('/admin', 'pages.admin.home')->name('admin');
+});
 
 // Fresh CSRF token and proof-of-work challenge for a form that has been open
 // a while; see resources/js/proof-of-work.js

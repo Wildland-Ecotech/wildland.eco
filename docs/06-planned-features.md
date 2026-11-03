@@ -30,7 +30,7 @@ The development plan for the wildland.eco Laravel platform: accepting donations,
 | 7 | Donation receipts and transactional email | Done |
 | 8 | Reporting commands, end-to-end testing in Stripe test mode, then go live | In progress: reporting commands done |
 | 9 | Donor accounts and member dashboard | After launch |
-| 10 | Administrator pages and reporting | After launch |
+| 10 | Administrator pages and reporting | In progress: admin accounts and sign-in done |
 | 11 | On-site donation flow and recurring donation management, replacing the Stripe-hosted pages | After launch |
 
 Milestones 5 through 8 are the minimum for accepting donations. Content pages can be built any time after milestone 4. Stripe test mode is used from milestone 6 onward, not only in milestone 8.
@@ -74,7 +74,7 @@ The queue worker and scheduler containers were added in milestone 5, with the qu
 
 ### 5. Database Schema
 
-Done. The tables are documented in [Database Schema](01-database-schema.md), and the queue worker and scheduler in [Deployment](07-deployment.md). See [Planned Schema](#planned-schema) for the original plan. Includes the users table, models, relationships, factories, soft deletes and the rules in [Deletion](#deletion), and creating the General Fund designation in its migration, since deploys run migrations but never seeders. The framework tables for the cache and queue were generated in this milestone, with `queue` and `scheduler` containers running in every environment, and local development switches `CACHE_STORE` and `QUEUE_CONNECTION` to `database`. Servers keep their existing `laravel/.env`, so once the merge has deployed the tables, staging and production switch both settings to `database` by hand (see [Server Settings](07-deployment.md#server-settings)). The session and password reset tables come with accounts (milestone 9).
+Done. The tables are documented in [Database Schema](01-database-schema.md), and the queue worker and scheduler in [Deployment](07-deployment.md). See [Planned Schema](#planned-schema) for the original plan. Includes the users table, models, relationships, factories, soft deletes and the rules in [Deletion](#deletion), and creating the General Fund designation in its migration, since deploys run migrations but never seeders. The framework tables for the cache and queue were generated in this milestone, with `queue` and `scheduler` containers running in every environment, and local development switches `CACHE_STORE` and `QUEUE_CONNECTION` to `database`. Servers keep their existing `laravel/.env`, so once the merge has deployed the tables, staging and production switch both settings to `database` by hand (see [Server Settings](07-deployment.md#server-settings)). The sessions table came with admin sign-in (milestone 10), and a password reset table comes with donor accounts (milestone 9).
 
 The test database was set up ahead of this milestone, for the leaf program's application form: the `db-test` service is a separate PostgreSQL + PostGIS database matching production, replacing the in-memory SQLite database that Laravel's default `phpunit.xml` configured. Tests never run against SQLite or the development database (see [Running Tests](07-deployment.md#running-tests)).
 
@@ -118,7 +118,7 @@ After launch. See [Accounts](#accounts). The dashboard shows donation history, a
 
 ### 10. Administrator Pages
 
-After launch. Pages for users with the `admin` role, which board members are given too: donor search, donation and subscription lists with filters, a donor detail page with full history, CSV export, and the reports below. Refunds are issued from the Stripe dashboard and synced back automatically. Administrators can soft-delete spam accounts that have no transaction history (see [Deletion](#deletion)).
+In progress. Admins are created with `users:admin` and sign in at `/login` with an email address and password (see [Signing In](03-routes-and-controllers.md#signing-in)). Planned: pages for users with the `admin` role, which board members are given too: donor search, donation and subscription lists with filters, a donor detail page with full history, CSV export, and the reports below. Refunds are issued from the Stripe dashboard and synced back automatically. Administrators can soft-delete spam accounts that have no transaction history (see [Deletion](#deletion)).
 
 **Reports:**
 
@@ -161,7 +161,7 @@ The goal is the least possible friction before a donor has committed, without ex
 - **Existing accounts.** If the email already belongs to a verified account, the thank-you page asks the donor to sign in instead of offering a password.
 - **Roles:** `donor` and `admin`. Board members are given `admin`; a separate role is added only once board members need different permissions.
 - **Admins are created on the command line** with `users:admin`, with a password of at least 12 characters; there is no public registration (see [users:admin](02-services-and-commands.md#usersadmin-appconsolecommandsmanageadminphp)).
-- Authentication uses Laravel Fortify, with views written in the site's own design.
+- **Sign-in uses Laravel's built-in session authentication** (`Auth::attempt()`) with our own controller and views in the site's design. Laravel Fortify was considered and not used: it is larger and more opinionated than a simple sign-in needs. Admins and donors share one sign-in page, `/login`; until donor accounts are built, only admins can sign in.
 
 ## Abandoned Checkouts
 
