@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Console\Traits\DescribesLeafApplications;
 use App\Console\Traits\ListsRecords;
 use App\Models\LeafApplication;
+use App\Reports\Traits\DescribesLeafApplications;
 use Illuminate\Console\Command;
 
 /**

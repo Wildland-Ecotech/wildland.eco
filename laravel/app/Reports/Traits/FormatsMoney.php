@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Console\Traits;
+namespace App\Reports\Traits;
 
 /**
- * Amounts in report commands. Money is stored as integer cents with a
- * currency (see the schema conventions), and shown the way donation
- * receipts show it.
+ * Amounts in reports, in commands and admin pages. Money is stored as
+ * integer cents with a currency (see the schema conventions), and shown the
+ * way donation receipts show it.
  */
 trait FormatsMoney
 {

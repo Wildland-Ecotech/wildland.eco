@@ -2,11 +2,11 @@
 
 namespace App\Console\Commands;
 
-use App\Console\Traits\DescribesDonations;
 use App\Console\Traits\ListsRecords;
 use App\Console\Traits\WritesCsv;
 use App\Models\Donation;
 use App\Models\Subscription;
+use App\Reports\Traits\DescribesDonations;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;

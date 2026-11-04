@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Console\Traits;
+namespace App\Reports\Traits;
 
 use App\Models\Checkout;
 use App\Models\Donation;
@@ -9,8 +9,8 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 
 /**
- * How report commands describe a donation, so donations:list,
- * donations:view, and donations:abandoned show the same donor, type,
+ * How reports describe a donation, so donations:list, donations:view,
+ * donations:abandoned, and the admin pages show the same donor, type,
  * status, date, and amounts. Query donations with donationRelations()
  * loaded.
  */

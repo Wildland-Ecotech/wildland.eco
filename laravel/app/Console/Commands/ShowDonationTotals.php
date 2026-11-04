@@ -2,10 +2,10 @@
 
 namespace App\Console\Commands;
 
-use App\Console\Traits\FormatsMoney;
 use App\Console\Traits\ListsRecords;
 use App\Console\Traits\WritesCsv;
 use App\Models\Donation;
+use App\Reports\Traits\FormatsMoney;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;

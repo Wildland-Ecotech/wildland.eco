@@ -133,15 +133,22 @@ Tasks are scheduled in `routes/console.php` and run by the `scheduler` container
 
 ## Artisan Commands
 
-### Shared Report Helpers (`app/Console/Traits/`)
+### Shared Report Helpers (`app/Reports/Traits/`, `app/Console/Traits/`)
 
-Traits shared by the commands that list records or report on them until the administrator pages are built (milestone 10), so each command has only its own query and fields:
+Traits shared by the report commands, so each command has only its own query and fields. Those in `app/Reports/Traits/` describe and format records for reading anywhere, so the admin pages can show the same values as the commands; those in `app/Console/Traits/` write to the console.
 
-- **`ListsRecords`:** `daysOption()` reads `--days`, a whole number of at least 1, or shows an error and returns null so the command can exit with `INVALID`. `writeTable($headers, $rows, $rightAligned)` writes records as a table, one row each, for an overview, with the columns listed in `$rightAligned` (by index) lined up on the right, for amounts; tests pass the same `rightAlignedColumns()` styles to `expectsTable()`. `writeRecord($heading, $fields)` writes one record in full, as a heading followed by one `Label: value` line per field, with a dash for an empty value; the heading may use console formatting tags. Both escape the values, so submitted text cannot add console formatting. `localTime($time, $format)` formats a time in Fort Collins time, by default such as `Wed, Oct 21, 2026 7:30 PM MDT`, and `tableTime($time)` without the weekday for table columns, such as `Oct 21, 2026 7:30 PM MDT`.
-- **`WritesCsv`:** `writeCsv($header, $rows)` writes a header row and the rows as CSV, raw and in one piece. Values starting with `=`, `+`, `-`, or `@` get a leading apostrophe, which keeps spreadsheets from running them as formulas. Plain negative numbers, such as `-1.75`, are left as they are so spreadsheets can add them up.
-- **`FormatsMoney`:** `money($cents, $currency)` formats an amount for reading the way receipts do, such as `$1,250.00` or `-$1.75`, with the currency code instead of a dollar sign for anything but US dollars (`20.00 EUR`). `decimal($cents)` formats it as a plain number for CSV, such as `1250.00`. Laravel's `Number::currency()` isn't used because it needs PHP's `intl` extension, which the Docker image doesn't install.
-- **`DescribesLeafApplications`:** how `leaves:applications`, its CSV, and `leaves:view` describe a leaf program application: `leafApplicationFields()` (keyed by `LEAF_APPLICATION_LABELS`), `leafApplicationType()` (Pickup or Drop-off), and `bagsReady()` (Now, or the date given).
+**`app/Reports/Traits/`:**
+
 - **`DescribesDonations`:** how `donations:list`, `donations:view`, and `donations:abandoned` describe a donation, so they show the same donor, type, status, date, and amounts: `donationFields()` (keyed by `DONATION_LABELS`), `donor()` (the name of a donation's or checkout's donor, or their email address without one), `donationType()` and `checkoutType()` (One-time, Monthly, or Annual), `donationStatus()`, and `donationMadeAt()`. Load donations with `donationRelations()`, which includes soft-deleted donors, subscriptions, and designations. Uses `FormatsMoney`.
+- **`DescribesLeafApplications`:** how `leaves:applications`, its CSV, and `leaves:view` describe a leaf program application: `leafApplicationFields()` (keyed by `LEAF_APPLICATION_LABELS`), `leafApplicationType()` (Pickup or Drop-off), and `bagsReady()` (Now, or the date given).
+- **`FormatsMoney`:** `money($cents, $currency)` formats an amount for reading the way receipts do, such as `$1,250.00` or `-$1.75`, with the currency code instead of a dollar sign for anything but US dollars (`20.00 EUR`). `decimal($cents)` formats it as a plain number for CSV, such as `1250.00`. Laravel's `Number::currency()` isn't used because it needs PHP's `intl` extension, which the Docker image doesn't install.
+- **`FormatsTimes`:** `localTime($time, $format)` formats a time in Fort Collins time, by default such as `Wed, Oct 21, 2026 7:30 PM MDT`, and `tableTime($time)` without the weekday for table columns, such as `Oct 21, 2026 7:30 PM MDT`.
+- **`FormatsCsv`:** `csv($header, $rows)` returns a header row and the rows as CSV text. Values starting with `=`, `+`, `-`, or `@` get a leading apostrophe, which keeps spreadsheets from running them as formulas. Plain negative numbers, such as `-1.75`, are left as they are so spreadsheets can add them up.
+
+**`app/Console/Traits/`:**
+
+- **`ListsRecords`:** `daysOption()` reads `--days`, a whole number of at least 1, or shows an error and returns null so the command can exit with `INVALID`. `writeTable($headers, $rows, $rightAligned)` writes records as a table, one row each, for an overview, with the columns listed in `$rightAligned` (by index) lined up on the right, for amounts; tests pass the same `rightAlignedColumns()` styles to `expectsTable()`. `writeRecord($heading, $fields)` writes one record in full, as a heading followed by one `Label: value` line per field, with a dash for an empty value; the heading may use console formatting tags. Both escape the values, so submitted text cannot add console formatting. Uses `FormatsTimes`.
+- **`WritesCsv`:** `writeCsv($header, $rows)` writes `FormatsCsv`'s CSV to the console, raw and in one piece, so values are never read as console formatting tags.
 
 Fort Collins time is `timezone` in `config/organization.php` (`America/Denver`); dates are stored in UTC.
 
@@ -254,7 +261,7 @@ docker compose exec -T app php artisan donations:list --days=365 --csv > ~/donat
 
 On a server, run it from the clone's directory as the clone's owner (`sudo -u deploy docker compose exec ...`).
 
-The output contains donors' names and email addresses: never paste it into issues or chat, and never save the CSV inside the repository. Donors type their own names, so CSV values starting with `=`, `+`, `-`, or `@` get a leading apostrophe (see [Shared Report Helpers](#shared-report-helpers-appconsoletraits)).
+The output contains donors' names and email addresses: never paste it into issues or chat, and never save the CSV inside the repository. Donors type their own names, so CSV values starting with `=`, `+`, `-`, or `@` get a leading apostrophe (see [Shared Report Helpers](#shared-report-helpers-appreportstraits-appconsoletraits)).
 
 ### donations:view (`app/Console/Commands/ViewDonation.php`)
 
@@ -337,7 +344,7 @@ docker compose exec -T app php artisan submissions:list --csv > ~/form-submissio
 
 On a server, run it from the clone's directory as the clone's owner (`sudo -u deploy docker compose exec ...`). To find one submission a visitor quotes by reference, use `--all` with enough `--days`, or look it up in the `form_submissions` table.
 
-The output contains visitors' names, emails, and form details: never paste it into issues or chat, and never save the CSV inside the repository. CSV values starting with `=`, `+`, `-`, or `@` get a leading apostrophe (see [Shared Report Helpers](#shared-report-helpers-appconsoletraits)).
+The output contains visitors' names, emails, and form details: never paste it into issues or chat, and never save the CSV inside the repository. CSV values starting with `=`, `+`, `-`, or `@` get a leading apostrophe (see [Shared Report Helpers](#shared-report-helpers-appreportstraits-appconsoletraits)).
 
 ### leaves:applications (`app/Console/Commands/ListLeafApplications.php`)
 
@@ -358,7 +365,7 @@ docker compose exec -T app php artisan leaves:applications --csv > ~/leaf-applic
 
 On a server, run it from the clone's directory as the clone's owner (`sudo -u deploy docker compose exec ...`).
 
-The output contains donors' personal contact details: never paste it into issues or chat, and never save the CSV inside the repository. Anyone can submit the form, so CSV values starting with `=`, `+`, `-`, or `@` get a leading apostrophe, which keeps spreadsheets from running them as formulas (see [Shared Report Helpers](#shared-report-helpers-appconsoletraits)).
+The output contains donors' personal contact details: never paste it into issues or chat, and never save the CSV inside the repository. Anyone can submit the form, so CSV values starting with `=`, `+`, `-`, or `@` get a leading apostrophe, which keeps spreadsheets from running them as formulas (see [Shared Report Helpers](#shared-report-helpers-appreportstraits-appconsoletraits)).
 
 ### leaves:view (`app/Console/Commands/ViewLeafApplication.php`)
 
