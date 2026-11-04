@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Console\Traits\ListsRecords;
-use App\Models\LeafApplication;
+use App\Reports\LeafApplicationReport;
 use App\Reports\Traits\DescribesLeafApplications;
 use Illuminate\Console\Command;
 
@@ -29,7 +29,7 @@ class ViewLeafApplication extends Command
      */
     protected $description = 'Show one leaf program application in full';
 
-    public function handle(): int
+    public function handle(LeafApplicationReport $report): int
     {
         $id = (string) $this->argument('application');
 
@@ -39,7 +39,7 @@ class ViewLeafApplication extends Command
             return self::INVALID;
         }
 
-        $application = LeafApplication::withTrashed()->find((int) $id);
+        $application = $report->find((int) $id);
 
         if (! $application) {
             $this->components->error("No application has the ID {$id}. Check the ID in leaves:applications, with --days for older ones.");

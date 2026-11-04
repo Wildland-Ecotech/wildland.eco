@@ -5,10 +5,9 @@ namespace App\Console\Commands;
 use App\Console\Traits\ListsRecords;
 use App\Console\Traits\WritesCsv;
 use App\Models\Checkout;
-use App\Models\Donation;
+use App\Reports\AbandonedCheckoutReport;
 use App\Reports\Traits\DescribesDonations;
 use Illuminate\Console\Command;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 
 /**
@@ -41,7 +40,7 @@ class ListAbandonedCheckouts extends Command
 
     public const AMOUNT_COLUMNS = [3];
 
-    public function handle(): int
+    public function handle(AbandonedCheckoutReport $report): int
     {
         $days = $this->daysOption();
 
@@ -49,22 +48,7 @@ class ListAbandonedCheckouts extends Command
             return self::INVALID;
         }
 
-        $checkouts = Checkout::query()
-            ->select('checkouts.*')
-            ->addSelect(['donated_later' => $this->donatedLater()])
-            ->with(['user' => fn ($query) => $query->withTrashed()])
-            ->where(fn (Builder $query) => $query
-                ->where('status', Checkout::STATUS_EXPIRED)
-                // Expired without the webhook saying so yet, such as during
-                // an outage; the nightly sync catches up on these
-                ->orWhere(fn (Builder $query) => $query
-                    ->where('status', Checkout::STATUS_STARTED)
-                    ->whereNotNull('gateway_session_id')
-                    ->where('expires_at', '<', now())))
-            ->where('created_at', '>=', now()->subDays($days))
-            ->orderBy('created_at')
-            ->orderBy('id')
-            ->get();
+        $checkouts = $report->list($days);
 
         if ($this->option('csv')) {
             $this->writeCsv(
@@ -104,21 +88,5 @@ class ListAbandonedCheckouts extends Command
         $this->components->info("{$count} abandoned " . Str::plural('checkout', $count) . " in the last {$days} days; {$donatedLater} donated later.");
 
         return self::SUCCESS;
-    }
-
-    /**
-     * Whether the checkout's donor has a donation we received, paid after
-     * the checkout was started, as a subquery: 1, or null.
-     *
-     * @return Builder<Donation>
-     */
-    private function donatedLater(): Builder
-    {
-        return Donation::query()
-            ->received()
-            ->selectRaw('1')
-            ->whereColumn('donations.user_id', 'checkouts.user_id')
-            ->whereColumn('donations.paid_at', '>=', 'checkouts.created_at')
-            ->limit(1);
     }
 }

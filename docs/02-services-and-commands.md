@@ -133,14 +133,29 @@ Tasks are scheduled in `routes/console.php` and run by the `scheduler` container
 
 ## Artisan Commands
 
+### Report Classes (`app/Reports/`)
+
+The queries behind the report commands, as plain classes, so the commands and the admin pages list the same records. Each command validates its options, asks its report class for the records, and writes them; the report classes take plain values, such as a number of days, and never read options or requests. Resolve them from the container, as the commands' `handle()` methods do.
+
+| Class | Methods | Used by |
+|-------|---------|---------|
+| `DonationReport` | `list($days, $types, $all)`: payments by the date they were made, oldest first, limited to some of `TYPES` (`one-time`, `monthly`, `annual`), received only unless `$all`. `find($id)`: one donation by its ID or Stripe payment ID, including a deleted one | `donations:list`, `donations:view` |
+| `DonationTotalsReport` | `totals()`: totals by month, quarter, year, and all time, keyed by `GROUPINGS`. `net($total)` and `missingFees($totals)` | `donations:totals` |
+| `AbandonedCheckoutReport` | `list($days)`: abandoned checkouts with `donated_later` | `donations:abandoned` |
+| `LeafApplicationReport` | `list($days)` and `find($id)`, including a deleted application | `leaves:applications`, `leaves:view` |
+| `FormSubmissionReport` | `list($days, $form, $all)`: submissions that need a follow-up, or all of them with `$all`. `needsAttention($submission)` | `submissions:list` |
+
+What each list includes, such as which payments count as received or when a checkout counts as abandoned, is described with its command below.
+
 ### Shared Report Helpers (`app/Reports/Traits/`, `app/Console/Traits/`)
 
-Traits shared by the report commands, so each command has only its own query and fields. Those in `app/Reports/Traits/` describe and format records for reading anywhere, so the admin pages can show the same values as the commands; those in `app/Console/Traits/` write to the console.
+Traits shared by the report commands, so each command has only its own fields. Those in `app/Reports/Traits/` describe and format records for reading anywhere, so the admin pages can show the same values as the commands; those in `app/Console/Traits/` write to the console.
 
 **`app/Reports/Traits/`:**
 
 - **`DescribesDonations`:** how `donations:list`, `donations:view`, and `donations:abandoned` describe a donation, so they show the same donor, type, status, date, and amounts: `donationFields()` (keyed by `DONATION_LABELS`), `donor()` (the name of a donation's or checkout's donor, or their email address without one), `donationType()` and `checkoutType()` (One-time, Monthly, or Annual), `donationStatus()`, and `donationMadeAt()`. Load donations with `donationRelations()`, which includes soft-deleted donors, subscriptions, and designations. Uses `FormatsMoney`.
 - **`DescribesLeafApplications`:** how `leaves:applications`, its CSV, and `leaves:view` describe a leaf program application: `leafApplicationFields()` (keyed by `LEAF_APPLICATION_LABELS`), `leafApplicationType()` (Pickup or Drop-off), and `bagsReady()` (Now, or the date given).
+- **`DescribesFormSubmissions`:** how `submissions:list` and its CSV describe a form submission: `formSubmissionFields()` (keyed by `FORM_SUBMISSION_LABELS`), `formSubmissionOutcome()` (what happened, in plain words), and `formSubmissionDetails()` (the amount and frequency, or the pickup or drop-off details). Load submissions with their checkout.
 - **`FormatsMoney`:** `money($cents, $currency)` formats an amount for reading the way receipts do, such as `$1,250.00` or `-$1.75`, with the currency code instead of a dollar sign for anything but US dollars (`20.00 EUR`). `decimal($cents)` formats it as a plain number for CSV, such as `1250.00`. Laravel's `Number::currency()` isn't used because it needs PHP's `intl` extension, which the Docker image doesn't install.
 - **`FormatsTimes`:** `localTime($time, $format)` formats a time in Fort Collins time, by default such as `Wed, Oct 21, 2026 7:30 PM MDT`, and `tableTime($time)` without the weekday for table columns, such as `Oct 21, 2026 7:30 PM MDT`.
 - **`FormatsCsv`:** `csv($header, $rows)` returns a header row and the rows as CSV text. Values starting with `=`, `+`, `-`, or `@` get a leading apostrophe, which keeps spreadsheets from running them as formulas. Plain negative numbers, such as `-1.75`, are left as they are so spreadsheets can add them up.

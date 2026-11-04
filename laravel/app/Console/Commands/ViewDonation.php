@@ -3,8 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Console\Traits\ListsRecords;
-use App\Models\Donation;
-use App\Payments\Stripe\StripeGateway;
+use App\Reports\DonationReport;
 use App\Reports\Traits\DescribesDonations;
 use Illuminate\Console\Command;
 
@@ -29,7 +28,7 @@ class ViewDonation extends Command
      */
     protected $description = 'Show one donation in full';
 
-    public function handle(): int
+    public function handle(DonationReport $report): int
     {
         $id = (string) $this->argument('donation');
 
@@ -39,9 +38,7 @@ class ViewDonation extends Command
             return self::INVALID;
         }
 
-        $donation = ctype_digit($id)
-            ? Donation::withTrashed()->with($this->donationRelations())->find((int) $id)
-            : Donation::findByGatewayId(StripeGateway::NAME, $id)?->load($this->donationRelations());
+        $donation = $report->find($id);
 
         if (! $donation) {
             $this->components->error("No donation has the ID {$id}. Check the ID in donations:list, with --all for pending and failed payments.");
