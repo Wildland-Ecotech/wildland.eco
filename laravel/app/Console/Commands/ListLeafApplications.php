@@ -4,15 +4,13 @@ namespace App\Console\Commands;
 
 use App\Console\Traits\ListsRecords;
 use App\Console\Traits\WritesCsv;
-use App\Models\LeafApplication;
 use App\Reports\LeafApplicationReport;
 use App\Reports\Traits\DescribesLeafApplications;
 use Illuminate\Console\Command;
-use Illuminate\Support\Str;
 
 /**
- * Lists recent leaf program applications as a table, for an overview until
- * the administrator pages are built (milestone 10). leaves:view shows one in
+ * Lists recent leaf program applications as a table, for an overview, like
+ * the admin leaf applications page (/admin/leaves). leaves:view shows one in
  * full. The output contains donors' personal contact details: never paste it
  * into issues, chat, or the repository.
  */
@@ -36,7 +34,7 @@ class ListLeafApplications extends Command
      * The table's columns: the key details of each application. The bag
      * count lines up on the right.
      */
-    public const HEADERS = ['ID', 'Applied', 'Name', 'Type', 'Bags', 'Ready'];
+    public const HEADERS = self::LEAF_APPLICATION_TABLE_HEADERS;
 
     public const NUMBER_COLUMNS = [4];
 
@@ -51,14 +49,7 @@ class ListLeafApplications extends Command
         $applications = $report->list($days);
 
         if ($this->option('csv')) {
-            $this->writeCsv(
-                ['ID', 'Applied', ...self::LEAF_APPLICATION_LABELS],
-                $applications->map(fn (LeafApplication $application) => [
-                    $application->id,
-                    $this->localTime($application->created_at),
-                    ...array_values($this->leafApplicationFields($application)),
-                ]),
-            );
+            $this->writeCsv($this->leafApplicationCsvHeader(), $applications->map($this->leafApplicationCsvRow(...)));
 
             return self::SUCCESS;
         }
@@ -69,17 +60,10 @@ class ListLeafApplications extends Command
             return self::SUCCESS;
         }
 
-        $this->writeTable(self::HEADERS, $applications->map(fn (LeafApplication $application) => [
-            $application->id,
-            $this->tableTime($application->created_at),
-            $application->name,
-            $this->leafApplicationType($application),
-            $application->estimated_bag_count,
-            $this->bagsReady($application),
-        ]), self::NUMBER_COLUMNS);
+        $this->writeTable(self::HEADERS, $applications->map($this->leafApplicationTableRow(...)), self::NUMBER_COLUMNS);
 
         $count = $applications->count();
-        $this->components->info("{$count} " . Str::plural('application', $count) . " in the last {$days} days. Show one in full with leaves:view and its ID.");
+        $this->components->info("{$count} {$this->leafApplicationListName([], $count)} in the last {$days} days. Show one in full with leaves:view and its ID.");
 
         return self::SUCCESS;
     }

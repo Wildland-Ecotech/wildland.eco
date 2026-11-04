@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Traits\FiltersByPeriod;
 use App\Http\Controllers\Controller;
 use App\Models\Donation;
 use App\Reports\DonationReport;
@@ -19,27 +20,7 @@ use Illuminate\View\View;
  */
 class DonationController extends Controller
 {
-    use DescribesDonations, FormatsCsv;
-
-    /**
-     * The periods the list can show, keyed by the `period` query value: a
-     * number of days back, or null for all time.
-     */
-    public const PERIODS = [
-        '30' => 30,
-        '90' => 90,
-        '365' => 365,
-        'all' => null,
-    ];
-
-    public const PERIOD_LABELS = [
-        '30' => 'Last 30 days',
-        '90' => 'Last 90 days',
-        '365' => 'Last 365 days',
-        'all' => 'All time',
-    ];
-
-    public const DEFAULT_PERIOD = '30';
+    use DescribesDonations, FiltersByPeriod, FormatsCsv;
 
     /**
      * The type filters' labels, keyed by DonationReport::TYPES.
@@ -131,11 +112,10 @@ class DonationController extends Controller
      */
     private function filters(Request $request): array
     {
-        $period = $request->query('period');
         $types = $request->query('type');
 
         return [
-            'period' => is_string($period) && array_key_exists($period, self::PERIODS) ? $period : self::DEFAULT_PERIOD,
+            'period' => $this->periodFilter($request),
             'types' => is_array($types) ? array_values(array_intersect(DonationReport::TYPES, $types)) : [],
             'all' => $request->query('all') === '1',
         ];
@@ -164,16 +144,6 @@ class DonationController extends Controller
      */
     private function summary(array $filters, int $count): string
     {
-        $days = self::PERIODS[$filters['period']];
-
-        if ($count === 0) {
-            $name = $this->donationListName($filters['types'], $filters['all'], 2);
-
-            return $days === null ? "No {$name} yet." : "No {$name} in the last {$days} days.";
-        }
-
-        $name = $this->donationListName($filters['types'], $filters['all'], $count);
-
-        return $days === null ? "{$count} {$name} to date." : "{$count} {$name} in the last {$days} days.";
+        return $this->periodSummary($filters['period'], $count, $this->donationListName($filters['types'], $filters['all'], $count));
     }
 }

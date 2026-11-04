@@ -21,6 +21,9 @@
 | GET | `/admin/donations` | `admin.donations` | `Admin\DonationController@index` → `pages.admin.donations.index` | Donations, one payment at a time, with filters in the query string |
 | GET | `/admin/donations/csv` | `admin.donations.csv` | `Admin\DonationController@download` | The same list as a CSV download, with every detail |
 | GET | `/admin/donations/{donation}` | `admin.donations.show` | `Admin\DonationController@show` → `pages.admin.donations.show` | One donation in full, by its ID or Stripe payment ID (`pi_...`), including a deleted one |
+| GET | `/admin/leaves` | `admin.leaves` | `Admin\LeafApplicationController@index` → `pages.admin.leaves.index` | Leaf program applications, with filters in the query string |
+| GET | `/admin/leaves/csv` | `admin.leaves.csv` | `Admin\LeafApplicationController@download` | The same list as a CSV download, with every detail |
+| GET | `/admin/leaves/{application}` | `admin.leaves.show` | `Admin\LeafApplicationController@show` → `pages.admin.leaves.show` | One application in full, including a deleted one |
 | GET | `/form-tokens` | `form-tokens` | `FormTokenController` | JSON with a fresh CSRF token (`csrf`) and proof-of-work challenge (`challenge`), for a form that has been open a while; see [Stale Forms](#stale-forms). Not cached; 30 requests per minute per visitor |
 | GET | `/dev/receipt-preview/{frequency?}` | | `DonationReceiptPreviewController` | Local development only (`APP_ENV=local`): the receipt email with sample details, for `one-time`, `monthly`, or `annual`. Nothing is saved or sent |
 
@@ -114,8 +117,12 @@ Admin pages show the same records and values as the report commands, from the re
 
 | Query | Values | Default | Like |
 |-------|--------|---------|------|
-| `period` | `30`, `90`, `365`, or `all` (`DonationController::PERIODS`) | `30` | `--days` |
+| `period` | `30`, `90`, `365`, or `all` (`FiltersByPeriod::PERIODS`, shared by admin lists) | `30` | `--days` |
 | `type[]` | `one-time`, `monthly`, `annual`, any combination; none lists every type | none | `--one-time`, `--monthly`, `--annual` |
 | `all` | `1` includes pending and failed payments | received only | `--all` |
 
 Anything else, such as a hand-edited URL, falls back to the defaults, since the form can only send these values. `/admin/donations/csv` takes the same query and downloads `donations-<date>.csv` with the same columns as `donations:list --csv`, including the protection against spreadsheet formulas. `/admin/donations/{donation}` shows what `donations:view` shows, with the same notices for a fee not recorded yet and a deleted donation; an unknown ID is a 404.
+
+**Leaf Applications (`/admin/leaves`)** lists applications like `leaves:applications`, with the same `period` filter and a `type[]` filter that the command doesn't have: `drop_off`, `pickup`, or both (none lists both). `/admin/leaves/csv` takes the same query and downloads `leaf-applications-<date>.csv` with the same columns as `leaves:applications --csv`. `/admin/leaves/{application}` shows what `leaves:view` shows, including when the terms were accepted, with a notice for a deleted application; an unknown ID is a 404.
+
+The Period filter and its summary line, such as "No applications yet.", come from `App\Http\Controllers\Admin\Traits\FiltersByPeriod`, so every admin list offers the same periods.

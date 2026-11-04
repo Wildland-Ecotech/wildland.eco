@@ -386,6 +386,8 @@ $error: #FF8A80;
             color: #fff;
             font-size: 16px;
             overflow-wrap: anywhere;
+            // Keeps the line breaks in answers people typed, such as questions
+            white-space: pre-line;
         }
     }
 
