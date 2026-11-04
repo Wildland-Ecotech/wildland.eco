@@ -173,7 +173,7 @@ docker compose exec app php artisan make:migration create_second_table
 
 ## Traits
 
-Traits live in a `Traits` folder next to the classes that use them: `app/Console/Traits`, `app/Models/Traits`, `app/Payments/Stripe/Traits`, and `tests/Traits`. Laravel accepts both `Concerns` and `Traits` as names for these folders; this project uses `Traits` because the name says what the folder holds.
+Traits live in a `Traits` folder next to the classes that use them: `app/Console/Traits`, `app/Models/Traits`, `app/Payments/Stripe/Traits`, and `tests/Traits`. Traits shared by report commands and admin pages live in `app/Reports/Traits`. Laravel accepts both `Concerns` and `Traits` as names for these folders; this project uses `Traits` because the name says what the folder holds.
 
 `make:trait` only looks for a top-level `app/Concerns` or `app/Traits` folder, so give it the full path, which it uses as written:
 

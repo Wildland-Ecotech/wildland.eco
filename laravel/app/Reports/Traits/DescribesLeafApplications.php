@@ -1,12 +1,13 @@
 <?php
 
-namespace App\Console\Traits;
+namespace App\Reports\Traits;
 
 use App\Models\LeafApplication;
 
 /**
- * How report commands describe a leaf program application, so
- * leaves:applications, its CSV, and leaves:view show the same details.
+ * How reports describe a leaf program application, so
+ * leaves:applications, its CSV, leaves:view, and the admin pages show the
+ * same details.
  */
 trait DescribesLeafApplications
 {

@@ -2,10 +2,10 @@
 
 namespace App\Console\Commands;
 
-use App\Console\Traits\DescribesDonations;
 use App\Console\Traits\ListsRecords;
 use App\Models\Donation;
 use App\Payments\Stripe\StripeGateway;
+use App\Reports\Traits\DescribesDonations;
 use Illuminate\Console\Command;
 
 /**

@@ -2,18 +2,20 @@
 
 namespace App\Console\Traits;
 
-use Carbon\CarbonInterface;
+use App\Reports\Traits\FormatsTimes;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Helper\TableStyle;
 
 /**
- * Shared parts of the commands that list records for review until the
- * administrator pages are built (milestone 10): the --days option, a table
- * of records or one block of fields per record, and times in Fort Collins
- * time. For classes extending Illuminate\Console\Command.
+ * Shared parts of the commands that list records for review: the --days
+ * option, a table of records or one block of fields per record, and times in
+ * Fort Collins time (FormatsTimes). For classes extending
+ * Illuminate\Console\Command.
  */
 trait ListsRecords
 {
+    use FormatsTimes;
+
     /**
      * The --days option as a whole number of at least 1, or null after
      * showing an error.
@@ -84,23 +86,5 @@ trait ListsRecords
         }
 
         return $styles;
-    }
-
-    /**
-     * A time in Fort Collins time, by default such as "Wed, Oct 21, 2026
-     * 7:30 PM MDT".
-     */
-    protected function localTime(CarbonInterface $time, string $format = 'D, M j, Y g:i A T'): string
-    {
-        return $time->copy()->setTimezone(config('organization.timezone'))->format($format);
-    }
-
-    /**
-     * A time in Fort Collins time for a table column, without the weekday,
-     * such as "Oct 21, 2026 7:30 PM MDT".
-     */
-    protected function tableTime(CarbonInterface $time): string
-    {
-        return $this->localTime($time, 'M j, Y g:i A T');
     }
 }
