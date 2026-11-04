@@ -124,6 +124,11 @@ Built on the Admin Page component, with styles in `_admin.scss`. Every admin pag
     - A line saying what is listed, such as "12 donations received in the last 30 days."
     - The list itself (Admin Records): ID, date, donor, type, amount, and status. On a phone, each payment is one line of date, donor, and amount, such as "Oct 18 · Jamie Rivera · $50.00", which opens to show the rest and a View Donation button.
 - **Donation** (`/admin/donations/{id}`, `pages/admin/donations/show.blade.php`): every detail `donations:view` shows, as label and value lines, with a notice when Stripe's fee isn't recorded yet or the donation was deleted, and a link back to Donations.
+- **Leaf Applications** (`/admin/leaves`, `pages/admin/leaves/index.blade.php`):
+    - A filter form like Donations': the Period menu, Drop-off and Pickup checkboxes (neither checked shows both), a Show button, and a Download CSV link.
+    - A line saying what is listed, such as "3 pickup applications in the last 30 days."
+    - The list: ID, when applied, name, type, bags, and when they're ready. On a phone, each application is one line of date, name, type, and bags, such as "Oct 18 · Jamie Rivera · Drop-off · 12 bags", which opens to show the ID, when the bags are ready, and a View Application button.
+- **Application** (`/admin/leaves/{id}`, `pages/admin/leaves/show.blade.php`): every detail `leaves:view` shows, keeping the line breaks in the donor's questions, with a notice when the application was deleted, and a link back to Leaf Applications.
 
 ## Components
 

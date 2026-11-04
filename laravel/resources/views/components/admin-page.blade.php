@@ -15,6 +15,7 @@
     $links = [
         'admin' => 'Dashboard',
         'admin.donations' => 'Donations',
+        'admin.leaves' => 'Leaf Applications',
     ];
 @endphp
 

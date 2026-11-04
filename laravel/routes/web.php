@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\DonationController as AdminDonationController;
+use App\Http\Controllers\Admin\LeafApplicationController as AdminLeafApplicationController;
 use App\Http\Controllers\DonationController;
 use App\Http\Controllers\DonationReceiptPreviewController;
 use App\Http\Controllers\FormTokenController;
@@ -48,6 +49,12 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
     Route::get('/donations/{donation}', [AdminDonationController::class, 'show'])
         ->where('donation', '[0-9]+|pi_[A-Za-z0-9]+')
         ->name('admin.donations.show');
+
+    Route::get('/leaves', [AdminLeafApplicationController::class, 'index'])->name('admin.leaves');
+    Route::get('/leaves/csv', [AdminLeafApplicationController::class, 'download'])->name('admin.leaves.csv');
+    Route::get('/leaves/{application}', [AdminLeafApplicationController::class, 'show'])
+        ->whereNumber('application')
+        ->name('admin.leaves.show');
 });
 
 // Fresh CSRF token and proof-of-work challenge for a form that has been open

@@ -12,15 +12,19 @@ use Illuminate\Database\Eloquent\Collection;
 class LeafApplicationReport
 {
     /**
-     * Applications made in the last $days days, oldest first. Soft-deleted
-     * applications are left out.
+     * Applications made in the last $days days, or ever with null, oldest
+     * first. $types limits the list to some of LeafApplication::TYPES (drop
+     * off or pickup); with none, both are listed. Soft-deleted applications
+     * are left out.
      *
+     * @param  array<int, string>  $types
      * @return Collection<int, LeafApplication>
      */
-    public function list(int $days): Collection
+    public function list(?int $days, array $types = []): Collection
     {
         return LeafApplication::query()
-            ->where('created_at', '>=', now()->subDays($days))
+            ->when($days !== null, fn ($query) => $query->where('created_at', '>=', now()->subDays($days)))
+            ->when($types, fn ($query) => $query->whereIn('type', $types))
             ->orderBy('created_at')
             ->orderBy('id')
             ->get();

@@ -3,6 +3,8 @@
 namespace App\Reports\Traits;
 
 use App\Models\LeafApplication;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 
 /**
  * How reports describe a leaf program application, so
@@ -11,6 +13,13 @@ use App\Models\LeafApplication;
  */
 trait DescribesLeafApplications
 {
+    use FormatsTimes;
+
+    /**
+     * The columns of a list of applications: the key details of each.
+     */
+    protected const LEAF_APPLICATION_TABLE_HEADERS = ['ID', 'Applied', 'Name', 'Type', 'Bags', 'Ready'];
+
     /**
      * Labels for an application's fields, in order.
      */
@@ -25,6 +34,66 @@ trait DescribesLeafApplications
         'Heard about us',
         'Questions',
     ];
+
+    /**
+     * An application's row in a list, matching
+     * LEAF_APPLICATION_TABLE_HEADERS.
+     *
+     * @return array<int, mixed>
+     */
+    protected function leafApplicationTableRow(LeafApplication $application): array
+    {
+        return [
+            $application->id,
+            $this->tableTime($application->created_at),
+            $application->name,
+            $this->leafApplicationType($application),
+            $application->estimated_bag_count,
+            $this->bagsReady($application),
+        ];
+    }
+
+    /**
+     * The header row of a CSV of applications: every detail but when the
+     * terms were accepted.
+     *
+     * @return array<int, string>
+     */
+    protected function leafApplicationCsvHeader(): array
+    {
+        return ['ID', 'Applied', ...self::LEAF_APPLICATION_LABELS];
+    }
+
+    /**
+     * An application's row in a CSV, matching leafApplicationCsvHeader().
+     *
+     * @return array<int, mixed>
+     */
+    protected function leafApplicationCsvRow(LeafApplication $application): array
+    {
+        return [
+            $application->id,
+            $this->localTime($application->created_at),
+            ...array_values($this->leafApplicationFields($application)),
+        ];
+    }
+
+    /**
+     * What a list of applications holds, such as "applications" or "pickup
+     * applications". $types are LeafApplication::TYPES; with none or both,
+     * no type is named.
+     *
+     * @param  array<int, string>  $types
+     */
+    protected function leafApplicationListName(array $types, int $count): string
+    {
+        $names = [LeafApplication::TYPE_DROP_OFF => 'drop-off', LeafApplication::TYPE_PICKUP => 'pickup'];
+        $which = $types === [] || count($types) === count(LeafApplication::TYPES)
+            ? ''
+            : Arr::join(array_map(fn (string $type) => $names[$type], $types), ', ', ' and ');
+
+        return trim("{$which} " . Str::plural('application', $count));
+    }
 
     /**
      * An application's fields, keyed by LEAF_APPLICATION_LABELS.
