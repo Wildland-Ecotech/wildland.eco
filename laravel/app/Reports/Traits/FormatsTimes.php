@@ -27,4 +27,15 @@ trait FormatsTimes
     {
         return $this->localTime($time, 'M j, Y g:i A T');
     }
+
+    /**
+     * A date in Fort Collins time for a short line, such as "Oct 21", with
+     * the year only when it isn't this year, such as "Oct 21, 2025".
+     */
+    protected function shortDate(CarbonInterface $time): string
+    {
+        $local = $time->copy()->setTimezone(config('organization.timezone'));
+
+        return $local->format($local->year === now(config('organization.timezone'))->year ? 'M j' : 'M j, Y');
+    }
 }

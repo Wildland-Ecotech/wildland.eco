@@ -5,8 +5,11 @@ namespace App\Reports\Traits;
 use App\Models\Checkout;
 use App\Models\Donation;
 use App\Models\Subscription;
+use App\Reports\DonationReport;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 
 /**
  * How reports describe a donation, so donations:list, donations:view,
@@ -16,12 +19,78 @@ use Carbon\CarbonInterface;
  */
 trait DescribesDonations
 {
-    use FormatsMoney;
+    use FormatsMoney, FormatsTimes;
 
     /**
      * Labels for a donation's fields, in order.
      */
     protected const DONATION_LABELS = ['Type', 'Status', 'Name', 'Email', 'Amount', 'Stripe fee', 'Refunded', 'Net', 'Designation'];
+
+    /**
+     * The columns of a list of donations: the key details of each payment.
+     */
+    protected const DONATION_TABLE_HEADERS = ['ID', 'Date', 'Donor', 'Type', 'Amount', 'Status'];
+
+    /**
+     * A donation's row in a list, matching DONATION_TABLE_HEADERS.
+     *
+     * @return array<int, mixed>
+     */
+    protected function donationTableRow(Donation $donation): array
+    {
+        return [
+            $donation->id,
+            $this->tableTime($this->donationMadeAt($donation)),
+            $this->donor($donation),
+            $this->donationType($donation),
+            $this->money($donation->amount_cents, $donation->currency),
+            $this->donationStatus($donation),
+        ];
+    }
+
+    /**
+     * The header row of a CSV of donations: every detail, plus the currency.
+     *
+     * @return array<int, string>
+     */
+    protected function donationCsvHeader(): array
+    {
+        return ['ID', 'Payment ID', 'Date', ...self::DONATION_LABELS, 'Currency'];
+    }
+
+    /**
+     * A donation's row in a CSV, matching donationCsvHeader(). Amounts are
+     * plain numbers.
+     *
+     * @return array<int, mixed>
+     */
+    protected function donationCsvRow(Donation $donation): array
+    {
+        return [
+            $donation->id,
+            $donation->gateway_payment_id,
+            $this->localTime($this->donationMadeAt($donation)),
+            ...array_values($this->donationFields($donation, csv: true)),
+            strtoupper($donation->currency),
+        ];
+    }
+
+    /**
+     * What a list of donations holds, such as "monthly and annual donations
+     * received", or "payments" when it includes payments never received
+     * ($all). $types are DonationReport::TYPES; with none or all of them,
+     * no type is named.
+     *
+     * @param  array<int, string>  $types
+     */
+    protected function donationListName(array $types, bool $all, int $count): string
+    {
+        $which = $types === [] || count($types) === count(DonationReport::TYPES) ? '' : Arr::join($types, ', ', ' and ');
+
+        return $all
+            ? trim("{$which} " . Str::plural('payment', $count))
+            : trim("{$which} " . Str::plural('donation', $count)) . ' received';
+    }
 
     /**
      * The related records a donation is described with, for with(),

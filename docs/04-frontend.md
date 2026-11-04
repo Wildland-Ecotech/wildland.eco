@@ -114,11 +114,16 @@ A full-page menu for visitors without JavaScript, with the same links and social
 - "Forgot your password?" points to contact@wildland.eco, since passwords are set with `users:admin`
 - Not linked from any menu yet
 
-### Admin (`/admin`) — `pages/admin/home.blade.php`
+### Admin Pages (`/admin`) — `pages/admin/`
 
-- Built on the Content Page component, with the sign-in page's card style (`_admin.scss`)
-- Shows who is signed in, by name and email address, and a Sign Out button (a form posting to `/logout`)
-- Admin pages live in `resources/views/pages/admin/`
+Built on the Admin Page component, with styles in `_admin.scss`. Every admin page works without JavaScript and on a phone.
+
+- **Dashboard** (`/admin`, `pages/admin/home.blade.php`): who is signed in, by name and email address.
+- **Donations** (`/admin/donations`, `pages/admin/donations/index.blade.php`):
+    - A filter form above the list: a Period menu (Last 30 days, Last 90 days, Last 365 days, All time), One-time, Monthly, and Annual checkboxes (none checked shows every type), "Include pending and failed payments", a Show button, and a Download CSV link for the same filters.
+    - A line saying what is listed, such as "12 donations received in the last 30 days."
+    - The list itself (Admin Records): ID, date, donor, type, amount, and status. On a phone, each payment is one line of date, donor, and amount, such as "Oct 18 · Jamie Rivera · $50.00", which opens to show the rest and a View Donation button.
+- **Donation** (`/admin/donations/{id}`, `pages/admin/donations/show.blade.php`): every detail `donations:view` shows, as label and value lines, with a notice when Stripe's fee isn't recorded yet or the donation was deleted, and a link back to Donations.
 
 ## Components
 
@@ -173,6 +178,19 @@ Laravel renders `resources/views/errors/<status>.blade.php` for an error, or `4x
 | `503` | Maintenance mode (`php artisan down`); on servers, Caddy shows its own matching page instead |
 | `4xx` | Any other client error, with its status code |
 | `5xx` | A server error, which is logged; anyone donating should check for a receipt before trying again. Shown when `APP_DEBUG` is false |
+
+### Admin Page (`admin-page`)
+
+Shell for admin pages (`<x-admin-page title="Donations" current="admin.donations">`): a content page with a wide card holding the "— Admin" label, the page's heading, a row of links to the admin pages with the current one underlined (`aria-current="page"`), and Sign Out. The links are listed in the component; add one only once its page exists. The page's content goes in the slot, left-aligned.
+
+### Admin Records (`admin-records`)
+
+A list of records on an admin page, given headers and rows (`<x-admin-records :headers="..." :rows="..." :summary-columns="[1, 2, 4]" :numeric="[0, 4]" link-label="View Donation" />`):
+
+- **Wider screens:** a table with a View link in each row; `numeric` columns line up on the right.
+- **Phones (under 760px):** one line per record, the row's `summary` words joined by " · ", inside a `<details>`. Opening it shows the other columns (those not in `summary-columns`) as label and value lines, and a button to the record.
+
+Both are rendered, and CSS shows one, so the list works without JavaScript. Empty values show as a dash.
 
 ### Modal (`modal`)
 
