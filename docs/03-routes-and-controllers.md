@@ -17,7 +17,10 @@
 | GET | `/login` | `login` | `LoginController@create` → `pages.login` | Sign-in form; see [Signing In](#signing-in). Someone already signed in goes to `/admin` |
 | POST | `/login` | `login.store` | `LoginController@store` | Signs in with an email address and password |
 | POST | `/logout` | `logout` | `LoginController@destroy` | Signs out and returns to `/login` |
-| GET | `/admin` | `admin` | `Route::view` → `pages.admin.home` | Admin page: who is signed in, and signing out. Admins only (`auth`, `auth.session`, `AdminOnly`) |
+| GET | `/admin` | `admin` | `Route::view` → `pages.admin.home` | Admin dashboard: who is signed in. Admins only, like every `/admin` route (`auth`, `auth.session`, `AdminOnly`); see [Admin Pages](#admin-pages) |
+| GET | `/admin/donations` | `admin.donations` | `Admin\DonationController@index` → `pages.admin.donations.index` | Donations, one payment at a time, with filters in the query string |
+| GET | `/admin/donations/csv` | `admin.donations.csv` | `Admin\DonationController@download` | The same list as a CSV download, with every detail |
+| GET | `/admin/donations/{donation}` | `admin.donations.show` | `Admin\DonationController@show` → `pages.admin.donations.show` | One donation in full, by its ID or Stripe payment ID (`pi_...`), including a deleted one |
 | GET | `/form-tokens` | `form-tokens` | `FormTokenController` | JSON with a fresh CSRF token (`csrf`) and proof-of-work challenge (`challenge`), for a form that has been open a while; see [Stale Forms](#stale-forms). Not cached; 30 requests per minute per visitor |
 | GET | `/dev/receipt-preview/{frequency?}` | | `DonationReceiptPreviewController` | Local development only (`APP_ENV=local`): the receipt email with sample details, for `one-time`, `monthly`, or `annual`. Nothing is saved or sent |
 
@@ -102,3 +105,17 @@ Admin pages use three middleware:
 - **`AdminOnly`** (`app/Http/Middleware/AdminOnly.php`) refuses anyone without the `admin` role with a 403, checked on every request so `users:admin --remove` takes effect right away. Responses are sent with `Cache-Control: no-store, private` and `X-Robots-Tag: noindex, nofollow`, since admin pages show donors' personal details.
 
 Sessions are stored in the `sessions` table (`SESSION_DRIVER=database`), and servers set `SESSION_SECURE_COOKIE=true` so the session cookie is only sent over HTTPS (see [Server Settings](07-deployment.md#server-settings)).
+
+## Admin Pages
+
+Admin pages show the same records and values as the report commands, from the report classes and describing traits in `app/Reports/` (see [Report Classes](02-services-and-commands.md#report-classes-appreports)), so a page and its command can't disagree. Controllers for admin pages live in `app/Http/Controllers/Admin/`, and every route is under `/admin` behind the middleware in [Signing In](#signing-in).
+
+**Donations (`/admin/donations`)** lists payments like `donations:list`. Its filters are a plain `GET` form, so a filtered list is a URL that can be bookmarked or shared with another admin:
+
+| Query | Values | Default | Like |
+|-------|--------|---------|------|
+| `period` | `30`, `90`, `365`, or `all` (`DonationController::PERIODS`) | `30` | `--days` |
+| `type[]` | `one-time`, `monthly`, `annual`, any combination; none lists every type | none | `--one-time`, `--monthly`, `--annual` |
+| `all` | `1` includes pending and failed payments | received only | `--all` |
+
+Anything else, such as a hand-edited URL, falls back to the defaults, since the form can only send these values. `/admin/donations/csv` takes the same query and downloads `donations-<date>.csv` with the same columns as `donations:list --csv`, including the protection against spreadsheet formulas. `/admin/donations/{donation}` shows what `donations:view` shows, with the same notices for a fee not recorded yet and a deleted donation; an unknown ID is a 404.

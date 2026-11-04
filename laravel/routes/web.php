@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\DonationController as AdminDonationController;
 use App\Http\Controllers\DonationController;
 use App\Http\Controllers\DonationReceiptPreviewController;
 use App\Http\Controllers\FormTokenController;
@@ -39,8 +40,14 @@ Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 
 // Admin pages. `auth.session` signs out other sessions when an admin's
 // password changes.
-Route::middleware(['auth', 'auth.session', AdminOnly::class])->group(function () {
-    Route::view('/admin', 'pages.admin.home')->name('admin');
+Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->group(function () {
+    Route::view('/', 'pages.admin.home')->name('admin');
+
+    Route::get('/donations', [AdminDonationController::class, 'index'])->name('admin.donations');
+    Route::get('/donations/csv', [AdminDonationController::class, 'download'])->name('admin.donations.csv');
+    Route::get('/donations/{donation}', [AdminDonationController::class, 'show'])
+        ->where('donation', '[0-9]+|pi_[A-Za-z0-9]+')
+        ->name('admin.donations.show');
 });
 
 // Fresh CSRF token and proof-of-work challenge for a form that has been open

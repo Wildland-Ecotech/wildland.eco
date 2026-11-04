@@ -1,6 +1,8 @@
 // The sign-in page (/login) and the admin pages (/admin), inside the content
 // page shell (components/_content-page.scss). The form styles match the leaf
-// application form's (pages/_leaves-apply.scss).
+// application form's (pages/_leaves-apply.scss). Admin pages use the
+// admin-page component's wide card, with lists from the admin-records
+// component: a table on wider screens, and one line per record on phones.
 
 @use '../typography' as type;
 
@@ -23,8 +25,8 @@ $error: #FF8A80;
 
     .status,
     .signed-in {
-        @include type.detail;
         margin: 0 auto 1.5em;
+        @include type.detail;
     }
 
     .signed-in strong {
@@ -121,6 +123,296 @@ $error: #FF8A80;
         a {
             color: $green;
             text-decoration: underline;
+        }
+    }
+}
+
+// Admin pages: the wide card, navigation, filters, lists, and records
+.admin-page {
+    $line: rgba(255, 255, 255, 0.15);
+
+    .card.wide {
+        max-width: none;
+    }
+
+    .admin-content {
+        text-align: left;
+        font-family: satoshi;
+    }
+
+    .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .admin-nav {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 0.5em 1.5em;
+        margin: 0.5em 0 2em;
+        padding-bottom: 1.25em;
+        border-bottom: 1px solid $line;
+        font-family: satoshi;
+
+        ul {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.5em 1.5em;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        a {
+            color: $green;
+            font-size: 17px;
+            font-weight: 700;
+
+            &[aria-current="page"] {
+                color: #fff;
+                text-decoration: underline;
+                text-decoration-color: $green;
+                text-decoration-thickness: 2px;
+                text-underline-offset: 6px;
+            }
+        }
+
+        .sign-out {
+            background: none;
+            border: 0;
+            padding: 0;
+            color: rgba(255, 255, 255, 0.6);
+            font-family: satoshi;
+            font-size: 15px;
+            cursor: pointer;
+
+            &:hover {
+                color: #fff;
+            }
+        }
+    }
+
+    .filters {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 1em 2em;
+        margin-bottom: 1.5em;
+
+        .filter {
+            margin: 0;
+            padding: 0;
+            border: 0;
+            min-width: 0;
+        }
+
+        legend {
+            display: block;
+            font-size: 17px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 0.4em;
+            padding: 0;
+        }
+
+        select {
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(46, 207, 158, 0.3);
+            border-radius: 10px;
+            padding: 0.5em 0.75em;
+            color: #fff;
+            font-family: satoshi;
+            font-size: 16px;
+            color-scheme: dark;
+
+            &:focus {
+                border-color: $green;
+                outline: none;
+            }
+        }
+
+        .checkbox {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5em;
+            margin: 0 1em 0.4em 0;
+            font-size: 16px;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.85);
+            cursor: pointer;
+
+            input {
+                width: 18px;
+                height: 18px;
+                margin: 0;
+                accent-color: $green;
+            }
+        }
+
+        .hint {
+            @include type.fine-print;
+            margin: 0.2em 0 0;
+        }
+
+        .filter-actions {
+            display: flex;
+            flex-basis: 100%;
+            align-items: center;
+            gap: 1.5em;
+
+            .button {
+                margin: 0;
+            }
+        }
+
+        .download {
+            color: $green;
+            text-decoration: underline;
+            font-size: 16px;
+        }
+    }
+
+    .summary {
+        margin: 0 0 1em;
+        @include type.detail;
+    }
+
+    .notice {
+        border: 2px solid rgba(46, 207, 158, 0.6);
+        border-radius: 10px;
+        background: rgba(46, 207, 158, 0.1);
+        padding: 0.75em 1.25em;
+        margin: 0 0 1.5em;
+        font-size: 16px;
+        color: rgba(255, 255, 255, 0.85);
+    }
+
+    // A list of records: the table on wider screens
+    .records-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 16px;
+
+        th,
+        td {
+            padding: 0.6em 0.75em;
+            border-bottom: 1px solid $line;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        td {
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .numeric {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .link a {
+            color: $green;
+            text-decoration: underline;
+        }
+
+        tbody tr:hover td {
+            background: rgba(255, 255, 255, 0.04);
+        }
+    }
+
+    // ...and one line per record on phones, opening to show the rest
+    .records-list {
+        display: none;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+
+        li {
+            border-bottom: 1px solid $line;
+        }
+
+        summary {
+            padding: 0.8em 0.25em;
+            font-size: 16px;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        details[open] summary {
+            color: $green;
+        }
+
+        dl {
+            margin: 0 0 1em;
+        }
+
+        .button {
+            margin: 0 0 1em;
+        }
+    }
+
+    // One record in full, and the opened lines on phones
+    .record,
+    .records-list dl {
+        div {
+            display: grid;
+            grid-template-columns: 9em 1fr;
+            gap: 1em;
+            padding: 0.4em 0.25em;
+        }
+
+        dt {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 15px;
+        }
+
+        dd {
+            margin: 0;
+            color: #fff;
+            font-size: 16px;
+            overflow-wrap: anywhere;
+        }
+    }
+
+    .record {
+        margin: 0 0 2em;
+
+        div {
+            border-bottom: 1px solid $line;
+            padding: 0.6em 0.25em;
+        }
+    }
+
+    .back {
+        color: $green;
+        text-decoration: underline;
+        font-size: 16px;
+    }
+}
+
+@media screen and (max-width: 759px) {
+    .admin-page {
+        .records-table {
+            display: none;
+        }
+
+        .records-list {
+            display: block;
         }
     }
 }
