@@ -4,11 +4,10 @@ namespace App\Console\Commands;
 
 use App\Console\Traits\ListsRecords;
 use App\Console\Traits\WritesCsv;
-use App\Models\Checkout;
 use App\Models\FormSubmission;
-use App\Models\LeafApplication;
+use App\Reports\FormSubmissionReport;
+use App\Reports\Traits\DescribesFormSubmissions;
 use Illuminate\Console\Command;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 /**
@@ -21,7 +20,7 @@ use Illuminate\Support\Str;
  */
 class ListFormSubmissions extends Command
 {
-    use ListsRecords, WritesCsv;
+    use DescribesFormSubmissions, ListsRecords, WritesCsv;
 
     /**
      * @var string
@@ -37,18 +36,7 @@ class ListFormSubmissions extends Command
      */
     protected $description = 'List recent form submissions that did not succeed';
 
-    /**
-     * A submission still marked received this long after it arrived stopped
-     * without an outcome; newer ones may still be in progress.
-     */
-    private const IN_PROGRESS_MINUTES = 5;
-
-    /**
-     * Labels for the fields shown for each submission, in order.
-     */
-    private const LABELS = ['Form', 'What happened', 'Name', 'Email', 'Details', 'Errors shown', 'Browser'];
-
-    public function handle(): int
+    public function handle(FormSubmissionReport $report): int
     {
         $days = $this->daysOption();
         $form = $this->option('form');
@@ -63,22 +51,15 @@ class ListFormSubmissions extends Command
             return self::INVALID;
         }
 
-        $submissions = FormSubmission::query()
-            ->with('checkout')
-            ->where('created_at', '>=', now()->subDays($days))
-            ->when($form, fn ($query) => $query->where('form', $form))
-            ->orderBy('created_at')
-            ->get()
-            ->when(! $this->option('all'), fn (Collection $submissions) => $submissions->filter($this->needsAttention(...)))
-            ->values();
+        $submissions = $report->list($days, $form, (bool) $this->option('all'));
 
         if ($this->option('csv')) {
             $this->writeCsv(
-                ['Reference', 'Submitted', ...self::LABELS],
+                ['Reference', 'Submitted', ...self::FORM_SUBMISSION_LABELS],
                 $submissions->map(fn (FormSubmission $submission) => [
                     $submission->reference,
                     $this->localTime($submission->created_at),
-                    ...array_values($this->fields($submission)),
+                    ...array_values($this->formSubmissionFields($submission)),
                 ]),
             );
 
@@ -96,7 +77,7 @@ class ListFormSubmissions extends Command
         foreach ($submissions as $submission) {
             $this->writeRecord(
                 "<options=bold>{$submission->reference}</> " . $this->localTime($submission->created_at),
-                $this->fields($submission),
+                $this->formSubmissionFields($submission),
             );
         }
 
@@ -105,98 +86,5 @@ class ListFormSubmissions extends Command
         $this->components->info("{$count} " . Str::plural('submission', $count) . ($this->option('all') ? '' : ' that did not succeed') . " in the last {$days} days.");
 
         return self::SUCCESS;
-    }
-
-    /**
-     * Whether a submission didn't get the visitor what they came for.
-     */
-    private function needsAttention(FormSubmission $submission): bool
-    {
-        return $submission->failed()
-            || $this->abandonedPayment($submission)
-            || ($submission->outcome === FormSubmission::OUTCOME_RECEIVED
-                && $submission->created_at->lt(now()->subMinutes(self::IN_PROGRESS_MINUTES)));
-    }
-
-    /**
-     * Whether the donor went to pay but left without finishing, so their
-     * checkout expired.
-     */
-    private function abandonedPayment(FormSubmission $submission): bool
-    {
-        return $submission->outcome === FormSubmission::OUTCOME_SENT_TO_PAYMENT
-            && $submission->checkout?->status === Checkout::STATUS_EXPIRED;
-    }
-
-    /**
-     * A submission's fields, keyed by LABELS.
-     *
-     * @return array<string, string>
-     */
-    private function fields(FormSubmission $submission): array
-    {
-        return array_combine(self::LABELS, [
-            $submission->form === FormSubmission::FORM_DONATION ? 'Donation' : 'Leaf application',
-            $this->outcome($submission),
-            (string) $submission->name,
-            (string) $submission->email,
-            $this->details($submission),
-            collect($submission->errors ?? [])->flatten()->unique()->implode(' '),
-            (string) $submission->user_agent,
-        ]);
-    }
-
-    /**
-     * What happened to the submission, in plain words.
-     */
-    private function outcome(FormSubmission $submission): string
-    {
-        return match ($submission->outcome) {
-            FormSubmission::OUTCOME_RECEIVED => 'Stopped without an outcome (check the Laravel log)',
-            FormSubmission::OUTCOME_REJECTED => 'Rejected by the form',
-            FormSubmission::OUTCOME_EXPIRED => 'The page had expired',
-            FormSubmission::OUTCOME_RATE_LIMITED => 'Too many attempts in an hour',
-            FormSubmission::OUTCOME_UNAVAILABLE => 'Online donations were unavailable',
-            FormSubmission::OUTCOME_PAYMENT_ERROR => 'Could not reach the payment processor',
-            FormSubmission::OUTCOME_ERROR => 'Server error (check the Laravel log)',
-            FormSubmission::OUTCOME_SENT_TO_PAYMENT => match ($submission->checkout?->status) {
-                Checkout::STATUS_COMPLETED => 'Paid',
-                Checkout::STATUS_EXPIRED => 'Left the payment page without paying',
-                default => 'Sent to the payment page',
-            },
-            FormSubmission::OUTCOME_SAVED => 'Saved',
-            default => $submission->outcome,
-        };
-    }
-
-    /**
-     * The main details entered, depending on the form.
-     */
-    private function details(FormSubmission $submission): string
-    {
-        $data = $submission->data ?? [];
-
-        if ($submission->form === FormSubmission::FORM_DONATION) {
-            $frequency = $data['frequency'] ?? '';
-            $amount = $data['custom_amount'] ?? $data["amount_{$frequency}"] ?? '';
-
-            return trim(($amount === '' ? 'No amount' : '$' . ltrim($amount, '$')) . ', ' . match ($frequency) {
-                Checkout::FREQUENCY_ONE_TIME => 'one-time',
-                Checkout::FREQUENCY_MONTHLY => 'monthly',
-                Checkout::FREQUENCY_ANNUAL => 'annual',
-                default => 'no frequency',
-            });
-        }
-
-        return collect([
-            match ($data['type'] ?? null) {
-                LeafApplication::TYPE_PICKUP => 'Pickup',
-                LeafApplication::TYPE_DROP_OFF => 'Drop-off',
-                default => null,
-            },
-            isset($data['estimated_bag_count']) ? "{$data['estimated_bag_count']} bags" : null,
-            $data['phone'] ?? null,
-            $data['address'] ?? null,
-        ])->filter()->implode(', ');
     }
 }

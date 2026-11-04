@@ -5,10 +5,9 @@ namespace App\Console\Commands;
 use App\Console\Traits\ListsRecords;
 use App\Console\Traits\WritesCsv;
 use App\Models\Donation;
-use App\Models\Subscription;
+use App\Reports\DonationReport;
 use App\Reports\Traits\DescribesDonations;
 use Illuminate\Console\Command;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
@@ -40,38 +39,12 @@ class ListDonations extends Command
      */
     protected $description = 'List donations, one payment at a time';
 
-    public const TYPE_ONE_TIME = 'one-time';
-
-    public const TYPE_MONTHLY = 'monthly';
-
-    public const TYPE_ANNUAL = 'annual';
-
-    /**
-     * The donation types, each also the name of the option that selects it.
-     */
-    public const TYPES = [self::TYPE_ONE_TIME, self::TYPE_MONTHLY, self::TYPE_ANNUAL];
-
-    /**
-     * The subscription interval of each recurring type. One-time donations
-     * have no subscription.
-     */
-    private const INTERVALS = [
-        self::TYPE_MONTHLY => Subscription::INTERVAL_MONTH,
-        self::TYPE_ANNUAL => Subscription::INTERVAL_YEAR,
-    ];
-
     /**
      * The table's columns: the key details of each payment.
      */
     private const TABLE_HEADERS = ['ID', 'Date', 'Donor', 'Type', 'Amount', 'Status'];
 
-    /**
-     * When a payment was made, in SQL, matching donationMadeAt(). Times are
-     * stored in UTC, without a time zone.
-     */
-    private const MADE_AT_SQL = "COALESCE(paid_at, to_timestamp(CAST(gateway_data->>'created' AS bigint)) AT TIME ZONE 'UTC', created_at)";
-
-    public function handle(): int
+    public function handle(DonationReport $report): int
     {
         $days = $this->daysOption();
 
@@ -79,16 +52,10 @@ class ListDonations extends Command
             return self::INVALID;
         }
 
-        $types = array_values(array_filter(self::TYPES, fn (string $type) => $this->option($type)));
+        // Each type has an option of the same name
+        $types = array_values(array_filter(DonationReport::TYPES, fn (string $type) => $this->option($type)));
 
-        $donations = Donation::query()
-            ->with($this->donationRelations())
-            ->when(! $this->option('all'), fn (Builder $query) => $query->received())
-            ->when($types, fn (Builder $query) => $this->whereType($query, $types))
-            ->whereRaw(self::MADE_AT_SQL . ' >= ?', [now()->subDays($days)])
-            ->orderByRaw(self::MADE_AT_SQL)
-            ->orderBy('id')
-            ->get();
+        $donations = $report->list($days, $types, (bool) $this->option('all'));
 
         if ($this->option('csv')) {
             $this->writeCsv(
@@ -127,27 +94,6 @@ class ListDonations extends Command
     }
 
     /**
-     * Limit the query to payments of the given types.
-     *
-     * @param  Builder<Donation>  $query
-     * @param  array<int, string>  $types
-     */
-    private function whereType(Builder $query, array $types): void
-    {
-        $intervals = array_values(array_intersect_key(self::INTERVALS, array_flip($types)));
-
-        $query->where(function (Builder $query) use ($types, $intervals) {
-            if (in_array(self::TYPE_ONE_TIME, $types, true)) {
-                $query->orWhereNull('subscription_id');
-            }
-
-            if ($intervals !== []) {
-                $query->orWhereHas('subscription', fn (Builder $subscription) => $subscription->withTrashed()->whereIn('interval', $intervals));
-            }
-        });
-    }
-
-    /**
      * What is being listed, such as "monthly and annual donations received",
      * or "payments" with --all, which includes payments never received.
      *
@@ -155,7 +101,7 @@ class ListDonations extends Command
      */
     private function describe(array $types, int $count): string
     {
-        $which = count($types) === count(self::TYPES) ? '' : Arr::join($types, ', ', ' and ');
+        $which = count($types) === count(DonationReport::TYPES) ? '' : Arr::join($types, ', ', ' and ');
 
         return $this->option('all')
             ? trim("{$which} " . Str::plural('payment', $count))

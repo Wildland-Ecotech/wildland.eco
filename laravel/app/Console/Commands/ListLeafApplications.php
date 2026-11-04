@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Console\Traits\ListsRecords;
 use App\Console\Traits\WritesCsv;
 use App\Models\LeafApplication;
+use App\Reports\LeafApplicationReport;
 use App\Reports\Traits\DescribesLeafApplications;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
@@ -39,7 +40,7 @@ class ListLeafApplications extends Command
 
     public const NUMBER_COLUMNS = [4];
 
-    public function handle(): int
+    public function handle(LeafApplicationReport $report): int
     {
         $days = $this->daysOption();
 
@@ -47,11 +48,7 @@ class ListLeafApplications extends Command
             return self::INVALID;
         }
 
-        $applications = LeafApplication::query()
-            ->where('created_at', '>=', now()->subDays($days))
-            ->orderBy('created_at')
-            ->orderBy('id')
-            ->get();
+        $applications = $report->list($days);
 
         if ($this->option('csv')) {
             $this->writeCsv(
