@@ -193,7 +193,11 @@ Every submission of the donate and leaf application forms, recorded the moment i
 | checkout_id | Nullable foreign key; the checkout a donation started. Its status shows whether the donor finished paying |
 | leaf_application_id | Nullable foreign key; the application saved |
 | user_agent | Nullable, up to 500 characters; the visitor's browser and device |
+| marked_spam_at | Nullable timestamp, indexed; when an admin marked the submission as spam, such as a bot filling in a form, on the Error Logs pages. Spam is left out of Error Logs and the dashboard unless asked for |
+| marked_spam_by | Nullable foreign key to `users`; restricts deletes. The admin who marked it. Both spam columns are set only by `markAsSpam()` and cleared by `unmarkSpam()`, never from form input |
 | created_at, updated_at | `created_at` is indexed |
+
+**Follow-ups:** a submission that didn't go through is **resolved** when the same visitor later submitted the same form successfully: a `saved` leaf application, or a donation `sent_to_payment` whose checkout completed. The same visitor means the same email address, or for leaf applications the same phone number once its spelling is normalized (`phoneDigits()`: digits only, without a leading US country code). There is no time limit, so a visitor who came back days later counts, and Error Logs says how long after. One with no such submission is **unresolved**. `FormSubmissionReport` finds these (see [Report Classes](02-services-and-commands.md#report-classes-appreports)); nothing is stored. `$submission->donation` is the donation a submission's checkout paid for.
 
 ## Framework Tables
 

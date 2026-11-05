@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Http\Request;
 
 /**
@@ -16,6 +17,10 @@ use Illuminate\Http\Request;
  * Holds the visitor's name, email, and form details, even for submissions
  * that failed: never paste them into issues, chat, or the repository. Kept
  * permanently.
+ *
+ * Admins can mark a submission as spam, such as a bot filling in a form.
+ * Who marked it, and when, are set only through markAsSpam(), never from
+ * form input.
  */
 #[Fillable([
     'reference',
@@ -137,6 +142,13 @@ class FormSubmission extends Model
     private const REFERENCE_LENGTH = 6;
 
     /**
+     * The visitor's later submission of the same form that went through,
+     * for one that didn't. Set by App\Reports\FormSubmissionReport, which
+     * looks it up for the submissions it lists; null when there is none.
+     */
+    public ?FormSubmission $laterSubmission = null;
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -146,6 +158,7 @@ class FormSubmission extends Model
         return [
             'data' => 'array',
             'errors' => 'array',
+            'marked_spam_at' => 'datetime',
         ];
     }
 
@@ -192,6 +205,59 @@ class FormSubmission extends Model
         return in_array($this->outcome, self::FAILED_OUTCOMES, true);
     }
 
+    public function isSpam(): bool
+    {
+        return $this->marked_spam_at !== null;
+    }
+
+    /**
+     * Mark the submission as spam, recording which admin did and when. One
+     * already marked keeps its first mark.
+     */
+    public function markAsSpam(User $admin): void
+    {
+        if ($this->isSpam()) {
+            return;
+        }
+
+        $this->forceFill(['marked_spam_at' => now(), 'marked_spam_by' => $admin->id])->save();
+    }
+
+    /**
+     * Undo a mistaken spam mark.
+     */
+    public function unmarkSpam(): void
+    {
+        $this->forceFill(['marked_spam_at' => null, 'marked_spam_by' => null])->save();
+    }
+
+    /**
+     * The phone number entered on the leaf application form, as digits only
+     * without the US country code, so different spellings of the same number
+     * match: "(970) 555-0123" and "+1 970.555.0123" are both "9705550123".
+     * Null without one, or with fewer than 7 digits.
+     */
+    public function phoneDigits(): ?string
+    {
+        $digits = preg_replace('/\D/', '', (string) ($this->data['phone'] ?? ''));
+
+        if (strlen($digits) === 11 && str_starts_with($digits, '1')) {
+            $digits = substr($digits, 1);
+        }
+
+        return strlen($digits) >= 7 ? $digits : null;
+    }
+
+    /**
+     * The admin who marked the submission as spam.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function markedSpamBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'marked_spam_by')->withTrashed();
+    }
+
     /**
      * The checkout a donation submission started.
      *
@@ -210,6 +276,19 @@ class FormSubmission extends Model
     public function leafApplication(): BelongsTo
     {
         return $this->belongsTo(LeafApplication::class)->withTrashed();
+    }
+
+    /**
+     * The donation a donation submission's checkout paid for: its first
+     * payment, for a recurring donation.
+     *
+     * @return HasOneThrough<Donation, Checkout, $this>
+     */
+    public function donation(): HasOneThrough
+    {
+        return $this->hasOneThrough(Donation::class, Checkout::class, 'id', 'checkout_id', 'checkout_id', 'id')
+            ->withTrashed()
+            ->orderBy('donations.id');
     }
 
     /**

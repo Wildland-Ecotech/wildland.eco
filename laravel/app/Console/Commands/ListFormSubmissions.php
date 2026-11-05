@@ -14,8 +14,11 @@ use Illuminate\Console\Command;
  * didn't succeed, so we can reach out to the people who made them: rejected,
  * expired, rate-limited, and failed submissions, submissions that stopped
  * without an outcome, and donors who went to pay but left the payment page
- * without finishing. The output contains visitors' names, emails, and form
- * details: never paste it into issues, chat, or the repository.
+ * without finishing. Each says whether the visitor got through later, with
+ * the reference of the submission that did. Submissions marked as spam on
+ * the admin Error Logs pages are left out unless --spam includes them. The
+ * output contains visitors' names, emails, and form details: never paste it
+ * into issues, chat, or the repository.
  */
 class ListFormSubmissions extends Command
 {
@@ -28,6 +31,8 @@ class ListFormSubmissions extends Command
         {--days=7 : Show submissions from this many days back}
         {--form= : Only one form: donation or leaf_application}
         {--all : Include submissions that succeeded}
+        {--unresolved : Leave out submissions the visitor got through with later}
+        {--spam : Include submissions marked as spam}
         {--csv : Output CSV, for importing into a spreadsheet}';
 
     /**
@@ -51,7 +56,13 @@ class ListFormSubmissions extends Command
         }
 
         $all = (bool) $this->option('all');
-        $submissions = $report->list($days, $form === null ? [] : [$form], $all);
+        $submissions = $report->list(
+            $days,
+            $form === null ? [] : [$form],
+            $all,
+            resolved: ! $this->option('unresolved'),
+            spam: (bool) $this->option('spam'),
+        );
 
         if ($this->option('csv')) {
             $this->writeCsv($this->formSubmissionCsvHeader(), $submissions->map($this->formSubmissionCsvRow(...)));

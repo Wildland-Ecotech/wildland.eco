@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Checkout;
 use App\Models\FormSubmission;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
@@ -108,6 +109,45 @@ class ListFormSubmissionsTest extends TestCase
 
         $this->assertStringStartsWith('Reference,Submitted,Form,', $csv);
         $this->assertStringContainsString('"\'=HYPERLINK(""https://example.com"")"', $csv);
+    }
+
+    public function test_says_whether_the_visitor_got_through_later(): void
+    {
+        $this->submission('REJ222', FormSubmission::OUTCOME_REJECTED);
+        $this->submission('PAID33', FormSubmission::OUTCOME_SENT_TO_PAYMENT, [
+            'checkout_id' => Checkout::factory()->create(['status' => Checkout::STATUS_COMPLETED])->id,
+        ], minutesAgo: 56);
+        $this->submission('ERR444', FormSubmission::OUTCOME_ERROR, ['email' => 'alex@example.com']);
+
+        $this->artisan('submissions:list')
+            ->expectsOutputToContain('Submitted 4 minutes later as PAID33')
+            ->expectsOutputToContain('No record')
+            ->expectsOutputToContain('2 submissions that did not succeed')
+            ->assertSuccessful();
+
+        $this->artisan('submissions:list', ['--unresolved' => true])
+            ->doesntExpectOutputToContain('REJ222')
+            ->expectsOutputToContain('ERR444')
+            ->expectsOutputToContain('1 submission that did not succeed')
+            ->assertSuccessful();
+    }
+
+    public function test_spam_is_left_out_unless_asked_for(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->submission('BOT222', FormSubmission::OUTCOME_REJECTED)->markAsSpam($admin);
+        $this->submission('REJ333', FormSubmission::OUTCOME_REJECTED, ['email' => 'alex@example.com']);
+
+        $this->artisan('submissions:list')
+            ->doesntExpectOutputToContain('BOT222')
+            ->expectsOutputToContain('1 submission that did not succeed')
+            ->assertSuccessful();
+
+        $this->artisan('submissions:list', ['--spam' => true])
+            ->expectsOutputToContain('BOT222')
+            ->expectsOutputToContain('Marked as spam')
+            ->expectsOutputToContain('2 submissions that did not succeed')
+            ->assertSuccessful();
     }
 
     public function test_options_are_checked(): void

@@ -17,7 +17,7 @@
 | GET | `/login` | `login` | `LoginController@create` → `pages.login` | Sign-in form; see [Signing In](#signing-in). Someone already signed in goes to `/admin` |
 | POST | `/login` | `login.store` | `LoginController@store` | Signs in with an email address and password |
 | POST | `/logout` | `logout` | `LoginController@destroy` | Signs out and returns to `/login` |
-| GET | `/admin` | `admin` | `Admin\DashboardController` → `pages.admin.home` | Admin dashboard: who is signed in, and counts for the last 90 days. Admins only, like every `/admin` route (`auth`, `auth.session`, `AdminOnly`); see [Admin Pages](#admin-pages) |
+| GET | `/admin` | `admin` | `Admin\DashboardController` → `pages.admin.home` | Admin dashboard: who is signed in, and counts for the last 90 days, including unresolved errors. Admins only, like every `/admin` route (`auth`, `auth.session`, `AdminOnly`); see [Admin Pages](#admin-pages) |
 | GET | `/admin/donations` | `admin.donations` | `Admin\DonationController@index` → `pages.admin.donations.index` | Donations, one payment at a time, with filters in the query string |
 | GET | `/admin/donations/csv` | `admin.donations.csv` | `Admin\DonationController@download` | The same list as a CSV download, with every detail |
 | GET | `/admin/donations/totals` | `admin.donations.totals` | `Admin\DonationTotalsController@index` → `pages.admin.donations.totals` | Donation totals by month, quarter, year, and all time |
@@ -30,6 +30,8 @@
 | GET | `/admin/leaves/{application}` | `admin.leaves.show` | `Admin\LeafApplicationController@show` → `pages.admin.leaves.show` | One application in full, including a deleted one |
 | GET | `/admin/errors` | `admin.errors` | `Admin\ErrorLogController@index` → `pages.admin.errors.index` | Error Logs: form submissions that didn't go through, with filters in the query string |
 | GET | `/admin/errors/csv` | `admin.errors.csv` | `Admin\ErrorLogController@download` | The same list as a CSV download, with every detail |
+| POST | `/admin/errors/spam` | `admin.errors.spam` | `Admin\ErrorLogController@markSpam` | Marks the submissions in `references[]` as spam, recording which admin did, and goes back |
+| DELETE | `/admin/errors/spam` | `admin.errors.unmark-spam` | `Admin\ErrorLogController@unmarkSpam` | Undoes a spam mark, from a submission's page (a form with `@method('DELETE')`), and goes back |
 | GET | `/admin/errors/{reference}` | `admin.errors.show` | `Admin\ErrorLogController@show` → `pages.admin.errors.show` | One submission in full by its six-character reference, whatever its outcome; lowercase is found too |
 | GET | `/form-tokens` | `form-tokens` | `FormTokenController` | JSON with a fresh CSRF token (`csrf`) and proof-of-work challenge (`challenge`), for a form that has been open a while; see [Stale Forms](#stale-forms). Not cached; 30 requests per minute per visitor |
 | GET | `/dev/receipt-preview/{frequency?}` | | `DonationReceiptPreviewController` | Local development only (`APP_ENV=local`): the receipt email with sample details, for `one-time`, `monthly`, or `annual`. Nothing is saved or sent |
@@ -120,7 +122,7 @@ Sessions are stored in the `sessions` table (`SESSION_DRIVER=database`), and ser
 
 Admin pages show the same records and values as the report commands, from the report classes and describing traits in `app/Reports/` (see [Report Classes](02-services-and-commands.md#report-classes-appreports)), so a page and its command can't disagree. Controllers for admin pages live in `app/Http/Controllers/Admin/`, and every route is under `/admin` behind the middleware in [Signing In](#signing-in).
 
-**Dashboard (`/admin`)** shows who is signed in, then three counts for the last 90 days (`DashboardController::DAYS`): donations received, leaf applications, and errors. Each comes from the same report class as its list, so it matches that list with the Last 90 days period, and links to it.
+**Dashboard (`/admin`)** shows who is signed in, then three counts for the last 90 days (`DashboardController::DAYS`): donations received, leaf applications, and unresolved errors (leaving out errors the visitor got through later, and spam). Each comes from the same report class as its list, so it matches that list with the Last 90 days period, and links to it; unresolved errors link to Error Logs with `resolved=0`.
 
 **Donations (`/admin/donations`)** lists payments like `donations:list`. Its filters are a plain `GET` form, so a filtered list is a URL that can be bookmarked or shared with another admin:
 
@@ -138,6 +140,20 @@ Anything else, such as a hand-edited URL, falls back to the defaults, since the 
 
 **Leaf Applications (`/admin/leaves`)** lists applications like `leaves:applications`, with the same `period` filter and a `type[]` filter that the command doesn't have: `drop_off`, `pickup`, or both (none lists both). `/admin/leaves/csv` takes the same query and downloads `leaf-applications-<date>.csv` with the same columns as `leaves:applications --csv`. `/admin/leaves/{application}` shows what `leaves:view` shows, including when the terms were accepted, with a notice for a deleted application; an unknown ID is a 404.
 
-**Error Logs (`/admin/errors`)** lists submissions of the donate and leaf application forms that didn't go through, like `submissions:list`: the same `period` filter as the other lists (where the command's `--days` defaults to 7), `form[]` (`donation`, `leaf_application`, or both; none lists both, like `--form`), and `all=1` to include submissions that succeeded (`--all`). `/admin/errors/csv` takes the same query and downloads `error-logs-<date>.csv` with the same columns as `submissions:list --csv`. `/admin/errors/{reference}` shows one submission in full, such as one a visitor quotes in an email; an unknown reference is a 404. For now the log holds form submissions only; it may grow into general error reporting.
+**Error Logs (`/admin/errors`)** lists submissions of the donate and leaf application forms that didn't go through, like `submissions:list`, each with its follow-up: whether the visitor submitted the same form successfully later (resolved), linking to the leaf application or donation it made, or never did (unresolved; see [Follow-ups](01-database-schema.md#form_submissions)). Its filters:
+
+| Query | Values | Default | Like |
+|-------|--------|---------|------|
+| `period` | `30`, `90`, `365`, or `all`, like the other lists | `30` | `--days`, which defaults to 7 |
+| `form[]` | `donation`, `leaf_application`, or both; none lists both | none | `--form` |
+| `resolved` | `0` leaves out submissions the visitor got through with later | included | `--unresolved` |
+| `spam` | `1` includes submissions marked as spam | left out | `--spam` |
+| `all` | `1` includes submissions that succeeded | left out | `--all` |
+
+The Submitted later checkbox is checked unless turned off, so the form sends a hidden `resolved=0` before the checkbox's `resolved=1`; when both arrive, the last one wins, as PHP reads query strings. `/admin/errors/csv` takes the same query and downloads `error-logs-<date>.csv` with the same columns as `submissions:list --csv`. `/admin/errors/{reference}` shows one submission in full, such as one a visitor quotes in an email; an unknown reference is a 404.
+
+**Marking spam:** the list's checkboxes and Mark Selected as Spam, or Mark as Spam on a submission's page, post the chosen references (`references[]`) to `/admin/errors/spam`, which records which admin marked each one and when, then goes back to the page with a message such as "2 submissions marked as spam." Choosing none goes back with "Select at least one submission to mark as spam." Not Spam on a marked submission's page sends the same request with `DELETE`. Unknown references are skipped. Admin forms don't record their submissions in `form_submissions`, which is for following up with visitors.
+
+For now the log holds form submissions only; it may grow into general error reporting.
 
 The Period filter and its summary line, such as "No applications yet.", come from `App\Http\Controllers\Admin\Traits\FiltersByPeriod`, so every admin list offers the same periods.

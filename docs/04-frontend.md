@@ -118,7 +118,7 @@ A full-page menu for visitors without JavaScript, with the same links and social
 
 Built on the Admin Page component, with styles in `_admin.scss`. Every admin page works without JavaScript and on a phone.
 
-- **Dashboard** (`/admin`, `pages/admin/home.blade.php`): who is signed in, by name and email address, then "Last 90 Days" with three counts side by side: donations received, leaf applications, and errors. Each is an open number in large white type, with its label and a short gradient bar under it (the bar grows on hover), separated from the next by a thin line, with no box around it. Each links to its list for the last 90 days. On a phone they stay side by side, smaller.
+- **Dashboard** (`/admin`, `pages/admin/home.blade.php`): who is signed in, by name and email address, then "Last 90 Days" with three counts side by side: donations received, leaf applications, and unresolved errors. Each is an open number in large white type, with its label and a short gradient bar under it (the bar grows on hover), separated from the next by a thin line, with no box around it. Each links to its list for the last 90 days. On a phone they stay side by side, smaller.
 - **Donations** (`/admin/donations`, `pages/admin/donations/index.blade.php`):
     - A filter form above the list: a Period menu (Last 30 days, Last 90 days, Last 365 days, All time), One-time, Monthly, and Annual checkboxes (none checked shows every type), "Include pending and failed payments", a Show button, and a Download CSV link for the same filters. Download CSV links on every admin page are bold, green, and underlined (`.download`), next to the Show button or on their own row.
     - A line saying what is listed, such as "12 donations received in the last 30 days."
@@ -131,8 +131,14 @@ Built on the Admin Page component, with styles in `_admin.scss`. Every admin pag
     - A line saying what is listed, such as "3 pickup applications in the last 30 days."
     - The list: ID, when applied, name, type, bags, and when they're ready. On a phone, each application is one line of date, name, type, and bags, such as "Oct 18 · Jamie Rivera · Drop-off · 12 bags", which opens to show the ID, when the bags are ready, and a View Application button.
 - **Application** (`/admin/leaves/{id}`, `pages/admin/leaves/show.blade.php`): every detail `leaves:view` shows, keeping the line breaks in the donor's questions, with a notice when the application was deleted, and a link back to Leaf Applications.
-- **Error Logs** (`/admin/errors`, `pages/admin/errors/index.blade.php`): a line explaining what the log holds, a filter form with the Period menu, Donation and Leaf application checkboxes (neither checked shows both), "Include submissions that succeeded", a Show button, and Download CSV, a line such as "2 submissions that did not succeed in the last 30 days.", and the list: reference, when submitted, form, what happened, and name (or email address without one). On a phone, each submission is one line of date, name, and what happened, which opens to show the reference, the form, and a View Submission button.
-- **Submission** (`/admin/errors/{reference}`, `pages/admin/errors/show.blade.php`): every detail `submissions:list` shows for one submission, including the errors the visitor saw and their browser, and a link back to Error Logs.
+- **Error Logs** (`/admin/errors`, `pages/admin/errors/index.blade.php`):
+    - A line explaining what the log holds.
+    - A filter form: the Period menu, Donation and Leaf application checkboxes (neither checked shows both), an Include group of Submitted later (checked by default), Spam, and Submissions that succeeded, a Show button, and Download CSV.
+    - A line such as "2 submissions that did not succeed in the last 30 days.", after any message from marking spam.
+    - The list, with a checkbox on each row: reference, when submitted, form, what happened, name (or email address without one), and Follow-up. The follow-up is a green check with "Submitted 4 minutes later" linking to the application or donation made, a red cross with "No record" (including a donor who left the payment page and never paid), or a gray dash with "Marked as spam".
+    - On a phone, each submission is one line starting with the same icon, then date, name, and what happened, which opens to show the reference, the form, the follow-up, and a View Submission button. Its checkbox sits beside the line.
+    - Mark Selected as Spam under the list.
+- **Submission** (`/admin/errors/{reference}`, `pages/admin/errors/show.blade.php`): every detail `submissions:list` shows for one submission, including the follow-up with its icon and link, the errors the visitor saw, and their browser. Below them, either "Spam is hidden from Error Logs and isn't counted on the dashboard." with a Mark as Spam button, or "Marked as spam by (admin) on (time)." with a Not Spam button. Then a link back to Error Logs.
 
 ## Components
 
@@ -199,6 +205,8 @@ A list of records on an admin page, given headers and rows (`<x-admin-records :h
 - **Wider screens:** a table with a View link in each row; `numeric` columns line up on the right.
 - **Phones (under 760px):** one line per record, the row's `summary` words joined by " · ", inside a `<details>`. Opening it shows the other columns (those not in `summary-columns`) as label and value lines, and a button to the record.
 - **Records without a page of their own,** such as totals, leave out `url`: the list then has no View links or buttons.
+- **Status cells:** a cell can be `['text' => ..., 'status' => ..., 'url' => ...]` instead of a string: the words after an icon in a colored circle, linking to `url` when it isn't null. The statuses are `success` (a green check), `failure` (a red cross), and `muted` (a gray dash). An icon is always beside words, since color alone doesn't carry meaning. A row's `status` and `statusLabel` start its phone line with the same icon, with the label read out by screen readers in its place.
+- **Choosing records:** with `select-form` and `select-name` (such as `select-form="mark-spam" select-name="references[]"`), each row gets a checkbox holding its `value`, in the table and beside its phone line. The checkboxes belong to the form with that ID elsewhere on the page through their `form` attribute, so the list needn't sit inside it. A row's checkbox appears twice, so the form's handler ignores duplicates.
 
 Both are rendered, and CSS shows one, so the list works without JavaScript. Empty values show as a dash.
 

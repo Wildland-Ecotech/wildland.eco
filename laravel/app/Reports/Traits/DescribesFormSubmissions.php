@@ -5,26 +5,41 @@ namespace App\Reports\Traits;
 use App\Models\Checkout;
 use App\Models\FormSubmission;
 use App\Models\LeafApplication;
+use App\Reports\FormSubmissionReport;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Str;
 
 /**
  * How reports describe a form submission, so submissions:list, its CSV, and
- * the admin Error Logs pages show the same details. Query submissions with
- * their checkout loaded.
+ * the admin Error Logs pages show the same details. Query submissions
+ * through FormSubmissionReport, which loads their checkouts and later
+ * submissions.
  */
 trait DescribesFormSubmissions
 {
     use FormatsTimes;
 
     /**
+     * What became of a submission that didn't go through, from
+     * formSubmissionFollowUp(): the visitor submitted the same form
+     * successfully later (resolved), never did (unresolved), or an admin
+     * marked it as spam.
+     */
+    protected const FOLLOW_UP_RESOLVED = 'resolved';
+
+    protected const FOLLOW_UP_UNRESOLVED = 'unresolved';
+
+    protected const FOLLOW_UP_SPAM = 'spam';
+
+    /**
      * Labels for a submission's fields, in order.
      */
-    protected const FORM_SUBMISSION_LABELS = ['Form', 'What happened', 'Name', 'Email', 'Details', 'Errors shown', 'Browser'];
+    protected const FORM_SUBMISSION_LABELS = ['Form', 'What happened', 'Follow-up', 'Name', 'Email', 'Details', 'Errors shown', 'Browser'];
 
     /**
      * The columns of a list of submissions: the key details of each.
      */
-    protected const FORM_SUBMISSION_TABLE_HEADERS = ['Reference', 'Submitted', 'Form', 'What happened', 'Name'];
+    protected const FORM_SUBMISSION_TABLE_HEADERS = ['Reference', 'Submitted', 'Form', 'What happened', 'Name', 'Follow-up'];
 
     /**
      * A submission's row in a list, matching FORM_SUBMISSION_TABLE_HEADERS.
@@ -42,6 +57,7 @@ trait DescribesFormSubmissions
             $fields['Form'],
             $fields['What happened'],
             $fields['Name'] ?: $fields['Email'],
+            $this->formSubmissionFollowUpText($submission),
         ];
     }
 
@@ -80,7 +96,9 @@ trait DescribesFormSubmissions
     }
 
     /**
-     * A submission's fields, keyed by FORM_SUBMISSION_LABELS.
+     * A submission's fields, keyed by FORM_SUBMISSION_LABELS. The follow-up
+     * names the later submission's reference, since a CSV or the command
+     * can't link to it.
      *
      * @return array<string, string>
      */
@@ -89,12 +107,46 @@ trait DescribesFormSubmissions
         return array_combine(self::FORM_SUBMISSION_LABELS, [
             $submission->form === FormSubmission::FORM_DONATION ? 'Donation' : 'Leaf application',
             $this->formSubmissionOutcome($submission),
+            $this->formSubmissionFollowUpText($submission, withReference: true),
             (string) $submission->name,
             (string) $submission->email,
             $this->formSubmissionDetails($submission),
             collect($submission->errors ?? [])->flatten()->unique()->implode(' '),
             (string) $submission->user_agent,
         ]);
+    }
+
+    /**
+     * What became of the submission: one of the FOLLOW_UP_ values, or null
+     * for one that went through or is still in progress.
+     */
+    protected function formSubmissionFollowUp(FormSubmission $submission): ?string
+    {
+        return match (true) {
+            $submission->isSpam() => self::FOLLOW_UP_SPAM,
+            $submission->laterSubmission !== null => self::FOLLOW_UP_RESOLVED,
+            (new FormSubmissionReport)->needsAttention($submission) => self::FOLLOW_UP_UNRESOLVED,
+            default => null,
+        };
+    }
+
+    /**
+     * The follow-up in plain words, such as "Submitted 4 minutes later" or
+     * "No record", with the later submission's reference if $withReference.
+     * Empty for a submission that went through.
+     */
+    protected function formSubmissionFollowUpText(FormSubmission $submission, bool $withReference = false): string
+    {
+        $later = $submission->laterSubmission;
+
+        return match ($this->formSubmissionFollowUp($submission)) {
+            self::FOLLOW_UP_SPAM => 'Marked as spam',
+            self::FOLLOW_UP_RESOLVED => 'Submitted '
+                . $later->created_at->diffForHumans($submission->created_at, CarbonInterface::DIFF_ABSOLUTE)
+                . ' later' . ($withReference ? " as {$later->reference}" : ''),
+            self::FOLLOW_UP_UNRESOLVED => 'No record',
+            default => '',
+        };
     }
 
     /**

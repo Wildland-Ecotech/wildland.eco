@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Checkout;
 use App\Models\Donation;
 use App\Models\FormSubmission;
 use App\Models\LeafApplication;
@@ -55,13 +56,16 @@ class AdminDashboardTest extends TestCase
 
     /**
      * A donation form submission with this outcome, made $daysAgo days ago.
+     *
+     * @param  array<string, mixed>  $attributes
      */
-    private function submission(string $reference, string $outcome, int $daysAgo = 1): FormSubmission
+    private function submission(string $reference, string $outcome, int $daysAgo = 1, array $attributes = []): FormSubmission
     {
         $submission = FormSubmission::create([
             'reference' => $reference,
             'form' => FormSubmission::FORM_DONATION,
             'outcome' => $outcome,
+            ...$attributes,
         ]);
 
         $submission->forceFill(['created_at' => now()->subDays($daysAgo)])->save();
@@ -80,11 +84,18 @@ class AdminDashboardTest extends TestCase
         $this->application(10);
         $this->application(120);
 
-        // 3 errors; a submission that succeeded isn't one
+        // 3 unresolved errors; a submission that succeeded isn't one, nor
+        // is an error the visitor got through later, or spam
         $this->submission('REJ222', FormSubmission::OUTCOME_REJECTED);
         $this->submission('EXP333', FormSubmission::OUTCOME_EXPIRED);
         $this->submission('ERR444', FormSubmission::OUTCOME_ERROR, daysAgo: 80);
         $this->submission('SAV555', FormSubmission::OUTCOME_SAVED);
+        $this->submission('REJ666', FormSubmission::OUTCOME_REJECTED, daysAgo: 3, attributes: ['email' => 'jamie@example.com']);
+        $this->submission('PAID77', FormSubmission::OUTCOME_SENT_TO_PAYMENT, daysAgo: 2, attributes: [
+            'email' => 'jamie@example.com',
+            'checkout_id' => Checkout::factory()->completed()->create()->id,
+        ]);
+        $this->submission('BOT888', FormSubmission::OUTCOME_REJECTED)->markAsSpam($this->admin);
 
         $this->actingAs($this->admin)
             ->get('/admin')
@@ -94,7 +105,7 @@ class AdminDashboardTest extends TestCase
             ->assertSeeInOrder([
                 '<span class="count">2</span>', 'Donations received',
                 '<span class="count">1</span>', 'Leaf applications',
-                '<span class="count">3</span>', 'Errors',
+                '<span class="count">3</span>', 'Unresolved errors',
             ], false);
     }
 
@@ -102,9 +113,12 @@ class AdminDashboardTest extends TestCase
     {
         $response = $this->actingAs($this->admin)->get('/admin')->assertOk();
 
-        foreach (['admin.donations', 'admin.leaves', 'admin.errors'] as $route) {
-            $response->assertSee(route($route, ['period' => '90']));
+        foreach (['admin.donations', 'admin.leaves'] as $route) {
+            $response->assertSee('href="' . route($route, ['period' => '90']) . '"', false);
         }
+
+        // Unresolved errors link to the list without the ones resolved later
+        $response->assertSee('href="' . e(route('admin.errors', ['period' => '90', 'resolved' => '0'])) . '"', false);
 
         $response->assertSee('<span class="count">0</span>', false);
     }
