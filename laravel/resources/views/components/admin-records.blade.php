@@ -13,12 +13,17 @@
     />
 
     Each row is ['cells' => one value per header, 'summary' => the words of
-    the phone line, 'url' => the record's page]. `summary-columns` are the
-    columns the phone line already shows, which the opened line leaves out.
-    `numeric` columns line up on the right in the table. Empty values show
-    as a dash.
+    the phone line, 'url' => the record's page]. Leave out 'url' for records
+    without a page of their own, such as totals; the list then has no links.
+    `summary-columns` are the columns the phone line already shows, which the
+    opened line leaves out. `numeric` columns line up on the right in the
+    table. Empty values show as a dash.
 --}}
 @props(['headers', 'rows', 'summaryColumns' => [], 'numeric' => [], 'linkLabel' => 'View'])
+
+@php
+    $linked = collect($rows)->contains(fn (array $row) => isset($row['url']));
+@endphp
 
 <div class="admin-records">
     <table class="records-table">
@@ -27,7 +32,9 @@
                 @foreach ($headers as $index => $header)
                     <th scope="col" @class(['numeric' => in_array($index, $numeric, true)])>{{ $header }}</th>
                 @endforeach
-                <th scope="col"><span class="visually-hidden">Link</span></th>
+                @if ($linked)
+                    <th scope="col"><span class="visually-hidden">Link</span></th>
+                @endif
             </tr>
         </thead>
         <tbody>
@@ -36,7 +43,9 @@
                     @foreach ($row['cells'] as $index => $cell)
                         <td @class(['numeric' => in_array($index, $numeric, true)])>{{ $cell === '' ? '—' : $cell }}</td>
                     @endforeach
-                    <td class="link"><a href="{{ $row['url'] }}">View</a></td>
+                    @if ($linked)
+                        <td class="link"><a href="{{ $row['url'] }}">View</a></td>
+                    @endif
                 </tr>
             @endforeach
         </tbody>
@@ -58,7 +67,9 @@
                         @endforeach
                     </dl>
 
-                    <a class="button dark" href="{{ $row['url'] }}">{{ $linkLabel }}</a>
+                    @isset($row['url'])
+                        <a class="button dark" href="{{ $row['url'] }}">{{ $linkLabel }}</a>
+                    @endisset
                 </details>
             </li>
         @endforeach

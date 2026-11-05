@@ -6,7 +6,7 @@ use App\Console\Traits\ListsRecords;
 use App\Console\Traits\WritesCsv;
 use App\Models\Checkout;
 use App\Reports\AbandonedCheckoutReport;
-use App\Reports\Traits\DescribesDonations;
+use App\Reports\Traits\DescribesCheckouts;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
@@ -19,7 +19,7 @@ use Illuminate\Support\Str;
  */
 class ListAbandonedCheckouts extends Command
 {
-    use DescribesDonations, ListsRecords, WritesCsv;
+    use DescribesCheckouts, ListsRecords, WritesCsv;
 
     /**
      * @var string
@@ -36,7 +36,7 @@ class ListAbandonedCheckouts extends Command
     /**
      * The table's columns. The amount lines up on the right.
      */
-    public const HEADERS = ['Started', 'Donor', 'Type', 'Amount', 'Donated later'];
+    public const HEADERS = self::CHECKOUT_TABLE_HEADERS;
 
     public const AMOUNT_COLUMNS = [3];
 
@@ -51,19 +51,7 @@ class ListAbandonedCheckouts extends Command
         $checkouts = $report->list($days);
 
         if ($this->option('csv')) {
-            $this->writeCsv(
-                ['Reference', 'Started', 'Name', 'Email', 'Type', 'Amount', 'Currency', 'Donated later'],
-                $checkouts->map(fn (Checkout $checkout) => [
-                    $checkout->reference,
-                    $this->localTime($checkout->created_at),
-                    (string) $checkout->user?->name,
-                    (string) $checkout->user?->email,
-                    $this->checkoutType($checkout),
-                    $this->decimal($checkout->amount_cents),
-                    strtoupper($checkout->currency),
-                    $checkout->donated_later ? 'Yes' : 'No',
-                ]),
-            );
+            $this->writeCsv($this->checkoutCsvHeader(), $checkouts->map($this->checkoutCsvRow(...)));
 
             return self::SUCCESS;
         }
@@ -74,13 +62,7 @@ class ListAbandonedCheckouts extends Command
             return self::SUCCESS;
         }
 
-        $this->writeTable(self::HEADERS, $checkouts->map(fn (Checkout $checkout) => [
-            $this->tableTime($checkout->created_at),
-            $this->donor($checkout),
-            $this->checkoutType($checkout),
-            $this->money($checkout->amount_cents, $checkout->currency),
-            $checkout->donated_later ? 'Yes' : 'No',
-        ]), self::AMOUNT_COLUMNS);
+        $this->writeTable(self::HEADERS, $checkouts->map($this->checkoutTableRow(...)), self::AMOUNT_COLUMNS);
 
         $count = $checkouts->count();
         $donatedLater = $checkouts->filter(fn (Checkout $checkout) => $checkout->donated_later)->count();

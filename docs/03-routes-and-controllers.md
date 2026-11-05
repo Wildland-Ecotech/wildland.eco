@@ -20,6 +20,10 @@
 | GET | `/admin` | `admin` | `Route::view` → `pages.admin.home` | Admin dashboard: who is signed in. Admins only, like every `/admin` route (`auth`, `auth.session`, `AdminOnly`); see [Admin Pages](#admin-pages) |
 | GET | `/admin/donations` | `admin.donations` | `Admin\DonationController@index` → `pages.admin.donations.index` | Donations, one payment at a time, with filters in the query string |
 | GET | `/admin/donations/csv` | `admin.donations.csv` | `Admin\DonationController@download` | The same list as a CSV download, with every detail |
+| GET | `/admin/donations/totals` | `admin.donations.totals` | `Admin\DonationTotalsController@index` → `pages.admin.donations.totals` | Donation totals by month, quarter, year, and all time |
+| GET | `/admin/donations/totals/csv` | `admin.donations.totals.csv` | `Admin\DonationTotalsController@download` | The totals as a CSV download |
+| GET | `/admin/donations/abandoned` | `admin.donations.abandoned` | `Admin\AbandonedCheckoutController@index` → `pages.admin.donations.abandoned` | Checkouts donors left without paying, with a Period filter |
+| GET | `/admin/donations/abandoned/csv` | `admin.donations.abandoned.csv` | `Admin\AbandonedCheckoutController@download` | The same list as a CSV download, with the donors' names and email addresses |
 | GET | `/admin/donations/{donation}` | `admin.donations.show` | `Admin\DonationController@show` → `pages.admin.donations.show` | One donation in full, by its ID or Stripe payment ID (`pi_...`), including a deleted one |
 | GET | `/admin/leaves` | `admin.leaves` | `Admin\LeafApplicationController@index` → `pages.admin.leaves.index` | Leaf program applications, with filters in the query string |
 | GET | `/admin/leaves/csv` | `admin.leaves.csv` | `Admin\LeafApplicationController@download` | The same list as a CSV download, with every detail |
@@ -122,6 +126,10 @@ Admin pages show the same records and values as the report commands, from the re
 | `all` | `1` includes pending and failed payments | received only | `--all` |
 
 Anything else, such as a hand-edited URL, falls back to the defaults, since the form can only send these values. `/admin/donations/csv` takes the same query and downloads `donations-<date>.csv` with the same columns as `donations:list --csv`, including the protection against spreadsheet formulas. `/admin/donations/{donation}` shows what `donations:view` shows, with the same notices for a fee not recorded yet and a deleted donation; an unknown ID is a 404.
+
+**Totals (`/admin/donations/totals`)** shows what `donations:totals` shows: one list each for month over month, by quarter, by year, and all time, with the same notice when Stripe's fee isn't recorded yet for some donations. It has no filters. `/admin/donations/totals/csv` downloads `donation-totals-<date>.csv` with the same columns as `donations:totals --csv`.
+
+**Abandoned Checkouts (`/admin/donations/abandoned`)** lists checkouts like `donations:abandoned`, with the same `period` filter as the other lists, and says how many donors donated later. Checkouts have no page of their own, so the list has no links. `/admin/donations/abandoned/csv` takes the same query and downloads `abandoned-checkouts-<date>.csv` with the same columns as `donations:abandoned --csv`, including the donors' names and email addresses.
 
 **Leaf Applications (`/admin/leaves`)** lists applications like `leaves:applications`, with the same `period` filter and a `type[]` filter that the command doesn't have: `drop_off`, `pickup`, or both (none lists both). `/admin/leaves/csv` takes the same query and downloads `leaf-applications-<date>.csv` with the same columns as `leaves:applications --csv`. `/admin/leaves/{application}` shows what `leaves:view` shows, including when the terms were accepted, with a notice for a deleted application; an unknown ID is a 404.
 
