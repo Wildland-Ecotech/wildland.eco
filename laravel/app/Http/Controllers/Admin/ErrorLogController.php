@@ -72,7 +72,8 @@ class ErrorLogController extends Controller
             'summary' => $this->periodSummary($filters['period'], $count, $this->formSubmissionListName($filters['all'], $count)),
             'headers' => self::FORM_SUBMISSION_TABLE_HEADERS,
             'rows' => $submissions->map(function (FormSubmission $submission) {
-                $cells = $this->formSubmissionTableRow($submission);
+                // Like submissions:list's row, with a shorter time for the page
+                $cells = array_replace($this->formSubmissionTableRow($submission), [1 => $this->listTime($submission->created_at)]);
                 $icon = self::FOLLOW_UP_ICONS[$this->formSubmissionFollowUp($submission)] ?? null;
 
                 if ($icon !== null) {

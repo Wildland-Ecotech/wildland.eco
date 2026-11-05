@@ -54,7 +54,8 @@ class LeafApplicationController extends Controller
             'summary' => $this->periodSummary($filters['period'], $count, $this->leafApplicationListName($filters['types'], $count)),
             'headers' => self::LEAF_APPLICATION_TABLE_HEADERS,
             'rows' => $applications->map(fn (LeafApplication $application) => [
-                'cells' => $this->leafApplicationTableRow($application),
+                // Like leaves:applications's row, with a shorter time for the page
+                'cells' => array_replace($this->leafApplicationTableRow($application), [1 => $this->listTime($application->created_at)]),
                 'summary' => [
                     $this->shortDate($application->created_at),
                     $application->name,

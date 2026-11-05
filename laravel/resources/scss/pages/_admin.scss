@@ -131,6 +131,11 @@ $line: rgba(255, 255, 255, 0.15);
 
 // Admin pages: the wide card, navigation, filters, lists, and records
 .admin-page {
+    // Wider than other pages' content column, so lists have room
+    .page-content {
+        max-width: 1400px;
+    }
+
     .card.wide {
         max-width: none;
     }
@@ -404,8 +409,10 @@ $line: rgba(255, 255, 255, 0.15);
             font-variant-numeric: tabular-nums;
         }
 
-        .link a {
+        // Each row's first column links to the record
+        .record-link {
             color: $green;
+            font-weight: 700;
             text-decoration: underline;
         }
 

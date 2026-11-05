@@ -52,7 +52,8 @@ class DonationController extends Controller
             'summary' => $this->summary($filters, $donations->count()),
             'headers' => self::DONATION_TABLE_HEADERS,
             'rows' => $donations->map(fn (Donation $donation) => [
-                'cells' => $this->donationTableRow($donation),
+                // Like donations:list's row, with a shorter time for the page
+                'cells' => array_replace($this->donationTableRow($donation), [1 => $this->listTime($this->donationMadeAt($donation))]),
                 'summary' => [
                     $this->shortDate($this->donationMadeAt($donation)),
                     $this->donor($donation),

@@ -1,7 +1,8 @@
 {{--
-    A list of records on an admin page: a table on wider screens, with a View
-    link in each row, and on phones one line per record that opens to show
-    the other columns and a button to the record. Both are plain HTML, so
+    A list of records on an admin page: a table on wider screens, where each
+    row's first column (such as its ID) links to the record, and on phones
+    one line per record that opens to show the other columns and a button to
+    the record. Both are plain HTML, so
     they work without JavaScript (<details>). Usage:
 
     <x-admin-records
@@ -17,6 +18,7 @@
     Each row is ['cells' => one value per header, 'summary' => the words of
     the phone line, 'url' => the record's page]. Leave out 'url' for records
     without a page of their own, such as totals; the list then has no links.
+    The first column should identify the record, since it is the link.
     `summary-columns` are the columns the phone line already shows, which the
     opened line leaves out. `numeric` columns line up on the right in the
     table. Empty values show as a dash.
@@ -35,7 +37,6 @@
 @props(['headers', 'rows', 'summaryColumns' => [], 'numeric' => [], 'linkLabel' => 'View', 'selectForm' => null, 'selectName' => null])
 
 @php
-    $linked = collect($rows)->contains(fn (array $row) => isset($row['url']));
     $icons = ['success' => '✓', 'failure' => '✕', 'muted' => '–'];
 @endphp
 
@@ -49,9 +50,6 @@
                 @foreach ($headers as $index => $header)
                     <th scope="col" @class(['numeric' => in_array($index, $numeric, true)])>{{ $header }}</th>
                 @endforeach
-                @if ($linked)
-                    <th scope="col"><span class="visually-hidden">Link</span></th>
-                @endif
             </tr>
         </thead>
         <tbody>
@@ -61,11 +59,8 @@
                         <td class="select"><input type="checkbox" form="{{ $selectForm }}" name="{{ $selectName }}" value="{{ $row['value'] }}" aria-label="Select {{ $row['value'] }}"></td>
                     @endif
                     @foreach ($row['cells'] as $index => $cell)
-                        <td @class(['numeric' => in_array($index, $numeric, true)])>@if (is_array($cell))<span class="status-cell"><span class="status-icon {{ $cell['status'] }}" aria-hidden="true">{{ $icons[$cell['status']] }}</span>@if ($cell['url'] ?? null)<a href="{{ $cell['url'] }}">{{ $cell['text'] }}</a>@else{{ $cell['text'] }}@endif</span>@else{{ $cell === '' ? '—' : $cell }}@endif</td>
+                        <td @class(['numeric' => in_array($index, $numeric, true)])>@if ($index === 0 && isset($row['url']))<a class="record-link" href="{{ $row['url'] }}">{{ $cell }}</a>@elseif (is_array($cell))<span class="status-cell"><span class="status-icon {{ $cell['status'] }}" aria-hidden="true">{{ $icons[$cell['status']] }}</span>@if ($cell['url'] ?? null)<a href="{{ $cell['url'] }}">{{ $cell['text'] }}</a>@else{{ $cell['text'] }}@endif</span>@else{{ $cell === '' ? '—' : $cell }}@endif</td>
                     @endforeach
-                    @if ($linked)
-                        <td class="link"><a href="{{ $row['url'] }}">View</a></td>
-                    @endif
                 </tr>
             @endforeach
         </tbody>

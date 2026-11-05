@@ -175,7 +175,7 @@ class AdminDonationReportsTest extends TestCase
             ->get('/admin/donations/abandoned')
             ->assertOk()
             ->assertSee('1 abandoned checkout in the last 30 days; 1 donated later.')
-            ->assertSee('Oct 18, 2026 7:30 PM MDT')
+            ->assertSee('Oct 18, 7:30 PM')
             ->assertSee('Jamie Rivera')
             ->assertSee('Monthly')
             ->assertSee('<summary>Oct 18 · Jamie Rivera · $50.00</summary>', false)

@@ -52,7 +52,8 @@ class AbandonedCheckoutController extends Controller
             'summary' => $summary,
             'headers' => self::CHECKOUT_TABLE_HEADERS,
             'rows' => $checkouts->map(fn (Checkout $checkout) => [
-                'cells' => $this->checkoutTableRow($checkout),
+                // Like donations:abandoned's row, with a shorter time for the page
+                'cells' => array_replace($this->checkoutTableRow($checkout), [0 => $this->listTime($checkout->created_at)]),
                 'summary' => [
                     $this->shortDate($checkout->created_at),
                     $this->donor($checkout),

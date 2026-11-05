@@ -105,10 +105,12 @@ class AdminDonationsTest extends TestCase
             ->get('/admin/donations')
             ->assertOk()
             ->assertSee('1 donation received in the last 30 days.')
-            ->assertSee('Oct 18, 2026 7:30 PM MDT')
+            ->assertSee('Oct 18, 7:30 PM')
             ->assertSee('Jamie Lee')
             ->assertSee('$1,250.00')
-            ->assertSee('href="' . route('admin.donations.show', $donation->id) . '"', false)
+            // The ID is the link, rather than a separate View column
+            ->assertSee('<a class="record-link" href="' . route('admin.donations.show', $donation->id) . '">' . $donation->id . '</a>', false)
+            ->assertDontSee('>View</a>', false)
             ->assertDontSee('Failed Card')
             ->assertHeader('X-Robots-Tag', 'noindex, nofollow');
 
@@ -124,7 +126,9 @@ class AdminDonationsTest extends TestCase
         $this->actingAs($this->admin)
             ->get('/admin/donations?period=all')
             ->assertSee('<summary>Oct 18 · Jamie Lee · $50.00</summary>', false)
-            ->assertSee('<summary>Oct 21, 2025 · Alex Kim · $50.00</summary>', false);
+            ->assertSee('<summary>Oct 21, 2025 · Alex Kim · $50.00</summary>', false)
+            // The table's time also has the year only when it isn't this year
+            ->assertSee('Oct 21, 2025, 7:30 PM');
     }
 
     public function test_pending_and_failed_payments_are_included_on_request(): void

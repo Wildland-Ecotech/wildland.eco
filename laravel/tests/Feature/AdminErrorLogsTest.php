@@ -119,8 +119,10 @@ class AdminErrorLogsTest extends TestCase
             ->assertSee('1 submission that did not succeed in the last 30 days.')
             ->assertSee('REJ222')
             ->assertSee('Rejected by the form')
-            ->assertSee('Oct 21, 2026 6:30 PM MDT')
-            ->assertSee('href="' . route('admin.errors.show', 'REJ222') . '"', false)
+            ->assertSee('Oct 21, 6:30 PM')
+            // The reference is the link, rather than a separate View column
+            ->assertSee('<a class="record-link" href="' . route('admin.errors.show', 'REJ222') . '">REJ222</a>', false)
+            ->assertDontSee('>View</a>', false)
             ->assertSee('<summary><span class="status-icon failure" aria-hidden="true">✕</span><span class="visually-hidden">No record: </span>Oct 21 · Jamie Rivera · Rejected by the form</summary>', false)
             ->assertSee('<span class="status-icon failure" aria-hidden="true">✕</span>No record</span>', false)
             ->assertSee('aria-current="page">Error Logs</a>', false)

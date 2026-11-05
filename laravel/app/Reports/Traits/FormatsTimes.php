@@ -34,8 +34,28 @@ trait FormatsTimes
      */
     protected function shortDate(CarbonInterface $time): string
     {
+        return $this->thisYearOrNot($time, 'M j', 'M j, Y');
+    }
+
+    /**
+     * A time in Fort Collins time for an admin page's list, where every time
+     * is local, so without the time zone: such as "Oct 21, 7:30 PM", with
+     * the year only when it isn't this year, such as "Oct 21, 2025, 7:30 PM".
+     * Commands keep tableTime(), since a terminal has room for the zone.
+     */
+    protected function listTime(CarbonInterface $time): string
+    {
+        return $this->thisYearOrNot($time, 'M j, g:i A', 'M j, Y, g:i A');
+    }
+
+    /**
+     * A time in Fort Collins time in $thisYear's format if it's this year,
+     * or else $otherYear's.
+     */
+    private function thisYearOrNot(CarbonInterface $time, string $thisYear, string $otherYear): string
+    {
         $local = $time->copy()->setTimezone(config('organization.timezone'));
 
-        return $local->format($local->year === now(config('organization.timezone'))->year ? 'M j' : 'M j, Y');
+        return $local->format($local->year === now(config('organization.timezone'))->year ? $thisYear : $otherYear);
     }
 }

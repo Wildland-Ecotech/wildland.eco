@@ -104,11 +104,13 @@ class AdminLeafApplicationsTest extends TestCase
             ->get('/admin/leaves')
             ->assertOk()
             ->assertSee('1 application in the last 30 days.')
-            ->assertSee('Oct 18, 2026 7:30 PM MDT')
+            ->assertSee('Oct 18, 7:30 PM')
             ->assertSee('Jamie Rivera')
             ->assertSee('Pickup')
             ->assertSee('Sun, Nov 8, 2026')
-            ->assertSee('href="' . route('admin.leaves.show', $application->id) . '"', false)
+            // The ID is the link, rather than a separate View column
+            ->assertSee('<a class="record-link" href="' . route('admin.leaves.show', $application->id) . '">' . $application->id . '</a>', false)
+            ->assertDontSee('>View</a>', false)
             ->assertSee('aria-current="page">Leaf Applications</a>', false)
             ->assertHeader('X-Robots-Tag', 'noindex, nofollow');
     }
@@ -122,7 +124,9 @@ class AdminLeafApplicationsTest extends TestCase
         $this->actingAs($this->admin)
             ->get('/admin/leaves?period=all')
             ->assertSee('<summary>Oct 18 · Jamie Rivera · Drop-off · 12 bags</summary>', false)
-            ->assertSee('<summary>Oct 21, 2025 · Sam Lee · Pickup · 1 bag</summary>', false);
+            ->assertSee('<summary>Oct 21, 2025 · Sam Lee · Pickup · 1 bag</summary>', false)
+            // The table's time also has the year only when it isn't this year
+            ->assertSee('Oct 21, 2025, 7:30 PM');
     }
 
     public function test_types_and_periods_narrow_the_list(): void

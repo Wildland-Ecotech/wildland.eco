@@ -52,7 +52,7 @@ Headings, section labels, buttons, form fields, badges, and stats have their own
 
 ## Layout
 
-- **Content pages** use `<x-content-page>`: the mountain and firefly backgrounds, a 960px content column, and the footer.
+- **Content pages** use `<x-content-page>`: the mountain and firefly backgrounds, a 960px content column (1400px on admin pages, so lists have room), and the footer.
 - **Opening card:** each content page starts with a dark card (`rgba(0, 0, 0, 0.5)`, 16px corners) holding the section label, the heading, and the page's Lead text.
 - **Sections:** the label and heading are centered; text is left-aligned in a 680px column (`.prose`). Separate sections with `.section-divider`.
 - **Cards:** supporting content sits in dark cards (`rgba(0, 0, 0, 0.3)`) with a 3px green top border, such as the Drop-Off and Pickup cards.
