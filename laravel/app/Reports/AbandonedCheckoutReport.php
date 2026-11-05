@@ -16,10 +16,11 @@ use Illuminate\Database\Eloquent\Collection;
 class AbandonedCheckoutReport
 {
     /**
-     * Checkouts abandoned in the last $days days, by when they were started,
-     * oldest first, with their donor (including a soft-deleted one) and a
-     * `donated_later` attribute: 1 when the donor has a donation we received,
-     * paid after the checkout was started, else null.
+     * Checkouts abandoned in the last $days days, or ever with null, by when
+     * they were started, oldest first, with their donor (including a
+     * soft-deleted one) and a `donated_later` attribute: 1 when the donor has
+     * a donation we received, paid after the checkout was started, else
+     * null.
      *
      * Abandoned means expired, or still started with Stripe's expiry time
      * passed. Checkouts that never reached Stripe, are still open, were paid,
@@ -27,7 +28,7 @@ class AbandonedCheckoutReport
      *
      * @return Collection<int, Checkout>
      */
-    public function list(int $days): Collection
+    public function list(?int $days): Collection
     {
         return Checkout::query()
             ->select('checkouts.*')
@@ -41,7 +42,7 @@ class AbandonedCheckoutReport
                     ->where('status', Checkout::STATUS_STARTED)
                     ->whereNotNull('gateway_session_id')
                     ->where('expires_at', '<', now())))
-            ->where('created_at', '>=', now()->subDays($days))
+            ->when($days !== null, fn (Builder $query) => $query->where('created_at', '>=', now()->subDays($days)))
             ->orderBy('created_at')
             ->orderBy('id')
             ->get();

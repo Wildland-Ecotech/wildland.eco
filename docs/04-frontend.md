@@ -124,6 +124,8 @@ Built on the Admin Page component, with styles in `_admin.scss`. Every admin pag
     - A line saying what is listed, such as "12 donations received in the last 30 days."
     - The list itself (Admin Records): ID, date, donor, type, amount, and status. On a phone, each payment is one line of date, donor, and amount, such as "Oct 18 · Jamie Rivera · $50.00", which opens to show the rest and a View Donation button.
 - **Donation** (`/admin/donations/{id}`, `pages/admin/donations/show.blade.php`): every detail `donations:view` shows, as label and value lines, with a notice when Stripe's fee isn't recorded yet or the donation was deleted, and a link back to Donations.
+- **Totals** (`/admin/donations/totals`, `pages/admin/donations/totals.blade.php`): a line saying what is counted, with a Download CSV link, a notice when Stripe's fee isn't recorded yet for some donations, then a list for each grouping under its own heading (Month over month, By quarter, By year, All time): period, donations, amount, refunded, Stripe fees, and net. On a phone, each total is one line of period, donations, and amount, such as "Jan 2026 · 12 donations · $1,250.00", which opens to show the rest.
+- **Abandoned Checkouts** (`/admin/donations/abandoned`, `pages/admin/donations/abandoned.blade.php`): a line explaining what an abandoned checkout is, the Period menu with Show and Download CSV, a line such as "3 abandoned checkouts in the last 30 days; 1 donated later.", and the list: when started, donor, type, amount, and whether they donated later. On a phone, each checkout is one line of date, donor, and amount, which opens to show the rest. Checkouts have no page of their own, so the list has no links.
 - **Leaf Applications** (`/admin/leaves`, `pages/admin/leaves/index.blade.php`):
     - A filter form like Donations': the Period menu, Drop-off and Pickup checkboxes (neither checked shows both), a Show button, and a Download CSV link.
     - A line saying what is listed, such as "3 pickup applications in the last 30 days."
@@ -194,6 +196,7 @@ A list of records on an admin page, given headers and rows (`<x-admin-records :h
 
 - **Wider screens:** a table with a View link in each row; `numeric` columns line up on the right.
 - **Phones (under 760px):** one line per record, the row's `summary` words joined by " · ", inside a `<details>`. Opening it shows the other columns (those not in `summary-columns`) as label and value lines, and a button to the record.
+- **Records without a page of their own,** such as totals, leave out `url`: the list then has no View links or buttons.
 
 Both are rendered, and CSS shows one, so the list works without JavaScript. Empty values show as a dash.
 

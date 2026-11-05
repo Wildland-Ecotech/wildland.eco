@@ -15,6 +15,8 @@
     $links = [
         'admin' => 'Dashboard',
         'admin.donations' => 'Donations',
+        'admin.donations.totals' => 'Totals',
+        'admin.donations.abandoned' => 'Abandoned Checkouts',
         'admin.leaves' => 'Leaf Applications',
     ];
 @endphp

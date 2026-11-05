@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Admin\AbandonedCheckoutController as AdminAbandonedCheckoutController;
 use App\Http\Controllers\Admin\DonationController as AdminDonationController;
+use App\Http\Controllers\Admin\DonationTotalsController as AdminDonationTotalsController;
 use App\Http\Controllers\Admin\LeafApplicationController as AdminLeafApplicationController;
 use App\Http\Controllers\DonationController;
 use App\Http\Controllers\DonationReceiptPreviewController;
@@ -46,6 +48,10 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
 
     Route::get('/donations', [AdminDonationController::class, 'index'])->name('admin.donations');
     Route::get('/donations/csv', [AdminDonationController::class, 'download'])->name('admin.donations.csv');
+    Route::get('/donations/totals', [AdminDonationTotalsController::class, 'index'])->name('admin.donations.totals');
+    Route::get('/donations/totals/csv', [AdminDonationTotalsController::class, 'download'])->name('admin.donations.totals.csv');
+    Route::get('/donations/abandoned', [AdminAbandonedCheckoutController::class, 'index'])->name('admin.donations.abandoned');
+    Route::get('/donations/abandoned/csv', [AdminAbandonedCheckoutController::class, 'download'])->name('admin.donations.abandoned.csv');
     Route::get('/donations/{donation}', [AdminDonationController::class, 'show'])
         ->where('donation', '[0-9]+|pi_[A-Za-z0-9]+')
         ->name('admin.donations.show');

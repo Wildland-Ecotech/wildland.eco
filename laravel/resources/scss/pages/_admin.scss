@@ -279,9 +279,16 @@ $error: #FF8A80;
         }
     }
 
-    .summary {
+    .summary,
+    .intro {
         margin: 0 0 1em;
         @include type.detail;
+    }
+
+    // A section of a page, such as each grouping of totals
+    .admin-content h2 {
+        margin: 1.5em 0 0.5em;
+        font-size: 26px;
     }
 
     .notice {

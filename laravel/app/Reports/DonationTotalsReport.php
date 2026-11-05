@@ -26,9 +26,12 @@ class DonationTotalsReport
     /**
      * The totals for each grouping, keyed by GROUPINGS, oldest period first,
      * with only the periods that had donations. Each total has a label, the
-     * currency, the number of donations, the amount, refunded, and fee
+     * currency, the number of donations, the amount, refunded, fee, and net
      * totals in cents, and how many donations have no fee recorded yet.
      * Currencies are totaled separately.
+     *
+     * The net is what we kept: the amount less refunds and Stripe's fees.
+     * Stripe keeps its fee when a payment is refunded.
      *
      * The database adds up each month in Fort Collins time; quarters, years,
      * and all time are added up from the months.
@@ -90,18 +93,10 @@ class DonationTotalsReport
             }
         }
 
-        return array_map(array_values(...), $totals);
-    }
-
-    /**
-     * What we kept: the amount less refunds and Stripe's fees. Stripe keeps
-     * its fee when a payment is refunded.
-     *
-     * @param  array<string, mixed>  $total
-     */
-    public function net(array $total): int
-    {
-        return $total['amount'] - $total['refunded'] - $total['fees'];
+        return array_map(fn (array $periods) => array_values(array_map(
+            fn (array $total) => [...$total, 'net' => $total['amount'] - $total['refunded'] - $total['fees']],
+            $periods,
+        )), $totals);
     }
 
     /**
