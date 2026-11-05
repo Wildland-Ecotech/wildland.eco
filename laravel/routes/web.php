@@ -66,8 +66,8 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
 
     Route::get('/errors', [AdminErrorLogController::class, 'index'])->name('admin.errors');
     Route::get('/errors/csv', [AdminErrorLogController::class, 'download'])->name('admin.errors.csv');
-    Route::post('/errors/spam', [AdminErrorLogController::class, 'markSpam'])->name('admin.errors.spam');
-    Route::delete('/errors/spam', [AdminErrorLogController::class, 'unmarkSpam'])->name('admin.errors.unmark-spam');
+    Route::post('/errors/close', [AdminErrorLogController::class, 'close'])->name('admin.errors.close');
+    Route::post('/errors/reopen', [AdminErrorLogController::class, 'reopen'])->name('admin.errors.reopen');
     // Submission references are six capital letters and digits; lowercase is found too
     Route::get('/errors/{reference}', [AdminErrorLogController::class, 'show'])
         ->where('reference', '[A-Za-z0-9]{6}')

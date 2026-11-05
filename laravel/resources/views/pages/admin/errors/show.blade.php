@@ -1,3 +1,6 @@
+@use('App\Http\Controllers\Admin\ErrorLogController')
+@use('App\Models\FormSubmission')
+
 <x-admin-page :title="'Submission ' . $submission->reference" current="admin.errors">
     @if (session('status'))
         <p class="status" role="status">{{ session('status') }}</p>
@@ -13,24 +16,47 @@
         @endforeach
     </dl>
 
-    @if ($spamNote)
-        <form class="spam-form" method="POST" action="{{ route('admin.errors.unmark-spam') }}">
+    @if ($closedNote)
+        <form class="close-form" method="POST" action="{{ route('admin.errors.reopen') }}">
             @csrf
-            @method('DELETE')
             <input type="hidden" name="references[]" value="{{ $submission->reference }}">
 
-            <p>{{ $spamNote }}</p>
+            <p>{{ $closedNote }}</p>
 
-            <button type="submit" class="button dark">Not Spam</button>
+            <button type="submit" class="button dark">Reopen</button>
         </form>
     @else
-        <form class="spam-form" method="POST" action="{{ route('admin.errors.spam') }}">
+        <form class="close-form" method="POST" action="{{ route('admin.errors.close') }}">
             @csrf
             <input type="hidden" name="references[]" value="{{ $submission->reference }}">
 
-            <p>Spam is hidden from Error Logs and isn't counted on the dashboard.</p>
+            <fieldset>
+                <legend>Close this error</legend>
 
-            <button type="submit" class="button dark">Mark as Spam</button>
+                @foreach (ErrorLogController::RESOLUTION_CHOICES as $value => $label)
+                    <label class="checkbox">
+                        <input type="radio" name="resolution" value="{{ $value }}" @checked(old('resolution', FormSubmission::RESOLUTION_RESOLVED) === $value)>
+                        <span>{{ $label }}</span>
+                    </label>
+                @endforeach
+
+                @error('resolution')
+                    <p class="field-error">{{ $message }}</p>
+                @enderror
+            </fieldset>
+
+            <div class="field">
+                <label for="note">Note (optional)</label>
+                <textarea id="note" name="note" rows="3" maxlength="{{ ErrorLogController::NOTE_MAX_LENGTH }}" @error('note') aria-invalid="true" aria-describedby="note-error" @enderror>{{ old('note') }}</textarea>
+
+                @error('note')
+                    <p class="field-error" id="note-error">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <p>Closed errors aren't counted on the dashboard.</p>
+
+            <button type="submit" class="button dark">Close Error</button>
         </form>
     @endif
 

@@ -68,8 +68,54 @@ $line: rgba(255, 255, 255, 0.15);
         margin-bottom: 0.4em;
     }
 
+    // Menus, checkboxes and radio buttons, and their group's label, in
+    // filters and the forms that act on records
+    legend {
+        display: block;
+        font-size: 17px;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 0.4em;
+        padding: 0;
+    }
+
+    select {
+        background: rgba(0, 0, 0, 0.4);
+        border: 2px solid rgba(46, 207, 158, 0.3);
+        border-radius: 10px;
+        padding: 0.5em 0.75em;
+        color: #fff;
+        font-family: satoshi;
+        font-size: 16px;
+        color-scheme: dark;
+
+        &:focus {
+            border-color: $green;
+            outline: none;
+        }
+    }
+
+    .checkbox {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5em;
+        margin: 0 1em 0.4em 0;
+        font-size: 16px;
+        font-weight: 400;
+        color: rgba(255, 255, 255, 0.85);
+        cursor: pointer;
+
+        input {
+            width: 18px;
+            height: 18px;
+            margin: 0;
+            accent-color: $green;
+        }
+    }
+
     input[type="email"],
-    input[type="password"] {
+    input[type="password"],
+    textarea {
         display: block;
         width: 100%;
         box-sizing: border-box;
@@ -90,6 +136,12 @@ $line: rgba(255, 255, 255, 0.15);
         &[aria-invalid="true"] {
             border-color: $error;
         }
+    }
+
+    textarea {
+        max-width: 640px;
+        min-height: 5em;
+        resize: vertical;
     }
 
     .field-error {
@@ -216,49 +268,6 @@ $line: rgba(255, 255, 255, 0.15);
             padding: 0;
             border: 0;
             min-width: 0;
-        }
-
-        legend {
-            display: block;
-            font-size: 17px;
-            font-weight: 700;
-            color: #fff;
-            margin-bottom: 0.4em;
-            padding: 0;
-        }
-
-        select {
-            background: rgba(0, 0, 0, 0.4);
-            border: 2px solid rgba(46, 207, 158, 0.3);
-            border-radius: 10px;
-            padding: 0.5em 0.75em;
-            color: #fff;
-            font-family: satoshi;
-            font-size: 16px;
-            color-scheme: dark;
-
-            &:focus {
-                border-color: $green;
-                outline: none;
-            }
-        }
-
-        .checkbox {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5em;
-            margin: 0 1em 0.4em 0;
-            font-size: 16px;
-            font-weight: 400;
-            color: rgba(255, 255, 255, 0.85);
-            cursor: pointer;
-
-            input {
-                width: 18px;
-                height: 18px;
-                margin: 0;
-                accent-color: $green;
-            }
         }
 
         .hint {
@@ -584,16 +593,29 @@ $line: rgba(255, 255, 255, 0.15);
             margin: 0;
         }
 
+        label {
+            margin: 0;
+            font-size: 16px;
+        }
+
         .button {
             margin: 0;
         }
     }
 
-    // Marking one submission as spam, or undoing it
-    .spam-form {
+    // Closing one submission as resolved, a test, or spam, or reopening it
+    .close-form {
         margin: 0 0 2em;
 
-        p {
+        fieldset {
+            margin: 0 0 1.25em;
+            padding: 0;
+            border: 0;
+            min-width: 0;
+        }
+
+        // Its own lines, not field errors
+        > p {
             margin: 0 0 0.75em;
             font-size: 16px;
             color: rgba(255, 255, 255, 0.75);

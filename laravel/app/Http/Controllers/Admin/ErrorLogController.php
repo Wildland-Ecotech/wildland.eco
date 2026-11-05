@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -21,9 +22,9 @@ use Illuminate\View\View;
  * got through later, filters, and a CSV download, and one submission in full
  * by its reference. They show the same submissions and details as
  * submissions:list, from FormSubmissionReport and DescribesFormSubmissions.
- * Admins mark spam, such as bots filling in forms, from the list or a
- * submission's page. For now the log holds form submissions; it may grow
- * into general error reporting.
+ * Admins close submissions that need no more follow-up as resolved, a test,
+ * or spam, from the list or a submission's page, and reopen them. For now
+ * the log holds form submissions; it may grow into general error reporting.
  */
 class ErrorLogController extends Controller
 {
@@ -53,10 +54,34 @@ class ErrorLogController extends Controller
      * and the words read out with it on a phone's line.
      */
     private const FOLLOW_UP_ICONS = [
-        self::FOLLOW_UP_RESOLVED => ['status' => 'success', 'label' => 'Submitted later'],
-        self::FOLLOW_UP_UNRESOLVED => ['status' => 'failure', 'label' => 'No record'],
-        self::FOLLOW_UP_SPAM => ['status' => 'muted', 'label' => 'Spam'],
+        FormSubmissionReport::FOLLOW_UP_SUBMITTED_LATER => ['status' => 'success', 'label' => 'Submitted later'],
+        FormSubmissionReport::FOLLOW_UP_RESOLVED => ['status' => 'success', 'label' => 'Resolved'],
+        FormSubmissionReport::FOLLOW_UP_TEST => ['status' => 'muted', 'label' => 'Test'],
+        FormSubmissionReport::FOLLOW_UP_SPAM => ['status' => 'muted', 'label' => 'Spam'],
+        FormSubmissionReport::FOLLOW_UP_UNRESOLVED => ['status' => 'failure', 'label' => 'No record'],
     ];
+
+    /**
+     * The ways to close a submission, keyed by FormSubmission::RESOLUTIONS:
+     * the choices on a submission's page, the list's menu, and the message
+     * after closing one or more ("marked as …").
+     */
+    public const RESOLUTION_CHOICES = [
+        FormSubmission::RESOLUTION_RESOLVED => 'Resolved: we followed up',
+        FormSubmission::RESOLUTION_TEST => 'Test',
+        FormSubmission::RESOLUTION_SPAM => 'Spam',
+    ];
+
+    public const RESOLUTION_MENU = [
+        FormSubmission::RESOLUTION_SPAM => 'Spam',
+        FormSubmission::RESOLUTION_TEST => 'Test',
+        FormSubmission::RESOLUTION_RESOLVED => 'Resolved',
+    ];
+
+    /**
+     * The longest note an admin can leave when closing a submission.
+     */
+    public const NOTE_MAX_LENGTH = 1000;
 
     /**
      * The list of submissions, filtered by the query string.
@@ -136,59 +161,106 @@ class ErrorLogController extends Controller
             ];
         }
 
-        $markedBy = $submission->markedSpamBy;
-
         return view('pages.admin.errors.show', [
             'submission' => $submission,
             'fields' => $fields,
-            'spamNote' => $submission->isSpam()
-                ? 'Marked as spam by ' . ($markedBy?->name ?: $markedBy?->email ?: 'an admin') . ' on ' . $this->tableTime($submission->marked_spam_at) . '.'
-                : null,
+            'closedNote' => $this->closedNote($submission),
         ]);
     }
 
     /**
-     * Mark the chosen submissions as spam, from the list's checkboxes or a
-     * submission's page, recording which admin did. Spam is left out of the
-     * list and the dashboard's count.
+     * Close the chosen submissions as resolved, a test, or spam, from the
+     * list's checkboxes and menu or a submission's page (with an optional
+     * note), recording which admin did. Closed submissions aren't counted
+     * on the dashboard.
      */
-    public function markSpam(Request $request): RedirectResponse
+    public function close(Request $request): RedirectResponse
     {
-        $submissions = $this->chosenSubmissions($request, 'Select at least one submission to mark as spam.');
+        $validated = $this->validateChoice($request, 'Select at least one submission to mark.', [
+            'resolution' => ['required', Rule::in(FormSubmission::RESOLUTIONS)],
+            'note' => ['nullable', 'string', 'max:' . self::NOTE_MAX_LENGTH],
+        ], [
+            'resolution' => 'Choose resolved, test, or spam.',
+            'note' => 'Keep the note to ' . number_format(self::NOTE_MAX_LENGTH) . ' characters or fewer.',
+        ]);
+        $submissions = $this->chosenSubmissions($validated);
+        $resolution = $validated['resolution'];
 
-        $submissions->each(fn (FormSubmission $submission) => $submission->markAsSpam($request->user()));
+        $submissions->each(fn (FormSubmission $submission) => $submission->close($request->user(), $resolution, $validated['note'] ?? null));
 
-        return back()->with('status', $this->countOf($submissions->count()) . ' marked as spam.');
+        $count = $submissions->count();
+        $closedAs = match ($resolution) {
+            FormSubmission::RESOLUTION_TEST => $count === 1 ? 'a test' : 'tests',
+            default => $resolution,
+        };
+
+        return back()->with('status', $this->countOf($count) . " marked as {$closedAs}.");
     }
 
     /**
-     * Undo a mistaken spam mark, from a submission's page.
+     * Reopen a submission closed by mistake, from its page, so it needs a
+     * follow-up again.
      */
-    public function unmarkSpam(Request $request): RedirectResponse
+    public function reopen(Request $request): RedirectResponse
     {
-        $submissions = $this->chosenSubmissions($request, 'Choose a submission to unmark as spam.');
+        $submissions = $this->chosenSubmissions($this->validateChoice($request, 'Choose a submission to reopen.'));
 
-        $submissions->each(fn (FormSubmission $submission) => $submission->unmarkSpam());
+        $submissions->each(fn (FormSubmission $submission) => $submission->reopen());
 
-        return back()->with('status', $this->countOf($submissions->count()) . ' no longer marked as spam.');
+        return back()->with('status', $this->countOf($submissions->count()) . ' reopened.');
     }
 
     /**
-     * The submissions chosen by reference in `references[]`. Unknown
-     * references are skipped; choosing none goes back with $message.
+     * How a closed submission was closed, by whom, and when, with the note:
+     * "Marked as a test by Rachel Shelton on Nov 5, 2026 12:30 PM MST: “My
+     * own test donation.”". Null for one that isn't closed.
+     */
+    private function closedNote(FormSubmission $submission): ?string
+    {
+        if (! $submission->isClosed()) {
+            return null;
+        }
+
+        $closed = match ($submission->resolution) {
+            FormSubmission::RESOLUTION_RESOLVED => 'Resolved',
+            FormSubmission::RESOLUTION_TEST => 'Marked as a test',
+            default => 'Marked as spam',
+        } . ' by ' . $this->formSubmissionClosedBy($submission) . ' on ' . $this->tableTime($submission->resolved_at);
+
+        return $submission->resolution_note ? "{$closed}: “{$submission->resolution_note}”" : "{$closed}.";
+    }
+
+    /**
+     * Validate the submissions chosen by reference in `references[]`, with
+     * any other $rules and their $messages, in one pass so every error shows
+     * at once. Choosing none goes back with $message.
      *
-     * @return Collection<int, FormSubmission>
+     * @param  array<string, mixed>  $rules
+     * @param  array<string, string>  $messages
+     * @return array<string, mixed>
      */
-    private function chosenSubmissions(Request $request, string $message): Collection
+    private function validateChoice(Request $request, string $message, array $rules = [], array $messages = []): array
     {
-        $validated = $request->validate([
+        return $request->validate([
             'references' => ['required', 'array'],
             'references.*' => ['string', 'size:6'],
+            ...$rules,
         ], [
             'references' => $message,
             'references.*' => $message,
+            ...$messages,
         ]);
+    }
 
+    /**
+     * The submissions chosen in validated `references[]`. Unknown
+     * references are skipped.
+     *
+     * @param  array<string, mixed>  $validated
+     * @return Collection<int, FormSubmission>
+     */
+    private function chosenSubmissions(array $validated): Collection
+    {
         // A row's checkbox appears twice, in the table and the phone list
         $references = array_values(array_unique(array_map(strtoupper(...), $validated['references'])));
 
@@ -210,6 +282,11 @@ class ErrorLogController extends Controller
      */
     private function laterRecordUrl(FormSubmission $submission): ?string
     {
+        // An admin's closing replaces the link, as it does the words
+        if ($submission->isClosed()) {
+            return null;
+        }
+
         $later = $submission->laterSubmission;
 
         return match (true) {
@@ -222,20 +299,29 @@ class ErrorLogController extends Controller
     /**
      * The submissions the filters choose, from the report.
      *
-     * @param  array{period: string, forms: array<int, string>, all: bool, resolved: bool, spam: bool}  $filters
+     * @param  array{period: string, forms: array<int, string>, all: bool, later: bool, resolved: bool, spam: bool}  $filters
      * @return Collection<int, FormSubmission>
      */
     private function submissions(FormSubmissionReport $report, array $filters): Collection
     {
-        return $report->list(self::PERIODS[$filters['period']], $filters['forms'], $filters['all'], $filters['resolved'], $filters['spam']);
+        return $report->list(
+            self::PERIODS[$filters['period']],
+            $filters['forms'],
+            $filters['all'],
+            submittedLater: $filters['later'],
+            resolvedByAdmin: $filters['resolved'],
+            spamAndTests: $filters['spam'],
+        );
     }
 
     /**
      * The list's filters from the query string. Anything unexpected falls
      * back to the defaults, since the form itself can only send valid values.
-     * Submissions the visitor resolved are shown unless `resolved=0`.
+     * Submissions the visitor got through with later are shown unless
+     * `later=0`, and those an admin resolved unless `resolved=0`; spam and
+     * tests only with `spam=1`.
      *
-     * @return array{period: string, forms: array<int, string>, all: bool, resolved: bool, spam: bool}
+     * @return array{period: string, forms: array<int, string>, all: bool, later: bool, resolved: bool, spam: bool}
      */
     private function filters(Request $request): array
     {
@@ -245,6 +331,7 @@ class ErrorLogController extends Controller
             'period' => $this->periodFilter($request),
             'forms' => is_array($forms) ? array_values(array_intersect(FormSubmission::FORMS, $forms)) : [],
             'all' => $request->query('all') === '1',
+            'later' => $request->query('later') !== '0',
             'resolved' => $request->query('resolved') !== '0',
             'spam' => $request->query('spam') === '1',
         ];
@@ -253,7 +340,7 @@ class ErrorLogController extends Controller
     /**
      * The query string for the filters, for the CSV download link.
      *
-     * @param  array{period: string, forms: array<int, string>, all: bool, resolved: bool, spam: bool}  $filters
+     * @param  array{period: string, forms: array<int, string>, all: bool, later: bool, resolved: bool, spam: bool}  $filters
      * @return array<string, mixed>
      */
     private function query(array $filters): array
@@ -262,6 +349,7 @@ class ErrorLogController extends Controller
             'period' => $filters['period'],
             'form' => $filters['forms'],
             'all' => $filters['all'] ? '1' : null,
+            'later' => $filters['later'] ? null : '0',
             'resolved' => $filters['resolved'] ? null : '0',
             'spam' => $filters['spam'] ? '1' : null,
         ]);

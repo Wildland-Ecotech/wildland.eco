@@ -42,10 +42,11 @@ class DashboardController extends Controller
                     'url' => route('admin.leaves', ['period' => (string) self::DAYS]),
                 ],
                 [
-                    // Leaving out errors the visitor got through later, and spam
-                    'count' => $submissions->list(self::DAYS, resolved: false)->count(),
+                    // Leaving out errors the visitor got through later, and
+                    // those an admin closed as resolved, a test, or spam
+                    'count' => $submissions->list(self::DAYS, submittedLater: false, resolvedByAdmin: false)->count(),
                     'label' => 'Unresolved errors',
-                    'url' => route('admin.errors', ['period' => (string) self::DAYS, 'resolved' => '0']),
+                    'url' => route('admin.errors', ['period' => (string) self::DAYS, 'later' => '0', 'resolved' => '0']),
                 ],
             ],
         ]);

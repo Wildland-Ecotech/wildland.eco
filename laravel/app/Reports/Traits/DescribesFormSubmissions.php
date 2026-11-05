@@ -20,18 +20,6 @@ trait DescribesFormSubmissions
     use FormatsTimes;
 
     /**
-     * What became of a submission that didn't go through, from
-     * formSubmissionFollowUp(): the visitor submitted the same form
-     * successfully later (resolved), never did (unresolved), or an admin
-     * marked it as spam.
-     */
-    protected const FOLLOW_UP_RESOLVED = 'resolved';
-
-    protected const FOLLOW_UP_UNRESOLVED = 'unresolved';
-
-    protected const FOLLOW_UP_SPAM = 'spam';
-
-    /**
      * Labels for a submission's fields, in order.
      */
     protected const FORM_SUBMISSION_LABELS = ['Form', 'What happened', 'Follow-up', 'Name', 'Email', 'Details', 'Errors shown', 'Browser'];
@@ -98,7 +86,7 @@ trait DescribesFormSubmissions
     /**
      * A submission's fields, keyed by FORM_SUBMISSION_LABELS. The follow-up
      * names the later submission's reference, since a CSV or the command
-     * can't link to it.
+     * can't link to it, and the admin's note.
      *
      * @return array<string, string>
      */
@@ -107,7 +95,7 @@ trait DescribesFormSubmissions
         return array_combine(self::FORM_SUBMISSION_LABELS, [
             $submission->form === FormSubmission::FORM_DONATION ? 'Donation' : 'Leaf application',
             $this->formSubmissionOutcome($submission),
-            $this->formSubmissionFollowUpText($submission, withReference: true),
+            $this->formSubmissionFollowUpText($submission, detailed: true),
             (string) $submission->name,
             (string) $submission->email,
             $this->formSubmissionDetails($submission),
@@ -117,36 +105,45 @@ trait DescribesFormSubmissions
     }
 
     /**
-     * What became of the submission: one of the FOLLOW_UP_ values, or null
-     * for one that went through or is still in progress.
+     * Where the submission stands: one of FormSubmissionReport's FOLLOW_UP_
+     * values, or null for one that went through or is still in progress.
      */
     protected function formSubmissionFollowUp(FormSubmission $submission): ?string
     {
-        return match (true) {
-            $submission->isSpam() => self::FOLLOW_UP_SPAM,
-            $submission->laterSubmission !== null => self::FOLLOW_UP_RESOLVED,
-            (new FormSubmissionReport)->needsAttention($submission) => self::FOLLOW_UP_UNRESOLVED,
-            default => null,
+        return (new FormSubmissionReport)->followUp($submission);
+    }
+
+    /**
+     * The follow-up in plain words, such as "Submitted 4 minutes later",
+     * "Resolved by Rachel Shelton", or "No record". $detailed adds the later
+     * submission's reference, or the note an admin left when closing it.
+     * Empty for a submission that went through.
+     */
+    protected function formSubmissionFollowUpText(FormSubmission $submission, bool $detailed = false): string
+    {
+        $later = $submission->laterSubmission;
+        $note = $detailed && $submission->resolution_note ? ": {$submission->resolution_note}" : '';
+
+        return match ($this->formSubmissionFollowUp($submission)) {
+            FormSubmissionReport::FOLLOW_UP_RESOLVED => 'Resolved by ' . $this->formSubmissionClosedBy($submission) . $note,
+            FormSubmissionReport::FOLLOW_UP_TEST => 'Marked as a test' . $note,
+            FormSubmissionReport::FOLLOW_UP_SPAM => 'Marked as spam' . $note,
+            FormSubmissionReport::FOLLOW_UP_SUBMITTED_LATER => 'Submitted '
+                . $later->created_at->diffForHumans($submission->created_at, CarbonInterface::DIFF_ABSOLUTE)
+                . ' later' . ($detailed ? " as {$later->reference}" : ''),
+            FormSubmissionReport::FOLLOW_UP_UNRESOLVED => 'No record',
+            default => '',
         };
     }
 
     /**
-     * The follow-up in plain words, such as "Submitted 4 minutes later" or
-     * "No record", with the later submission's reference if $withReference.
-     * Empty for a submission that went through.
+     * The admin who closed the submission, by name or else email address.
      */
-    protected function formSubmissionFollowUpText(FormSubmission $submission, bool $withReference = false): string
+    protected function formSubmissionClosedBy(FormSubmission $submission): string
     {
-        $later = $submission->laterSubmission;
+        $admin = $submission->resolvedBy;
 
-        return match ($this->formSubmissionFollowUp($submission)) {
-            self::FOLLOW_UP_SPAM => 'Marked as spam',
-            self::FOLLOW_UP_RESOLVED => 'Submitted '
-                . $later->created_at->diffForHumans($submission->created_at, CarbonInterface::DIFF_ABSOLUTE)
-                . ' later' . ($withReference ? " as {$later->reference}" : ''),
-            self::FOLLOW_UP_UNRESOLVED => 'No record',
-            default => '',
-        };
+        return $admin?->name ?: $admin?->email ?: 'an admin';
     }
 
     /**

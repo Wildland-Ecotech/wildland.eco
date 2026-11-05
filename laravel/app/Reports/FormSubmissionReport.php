@@ -16,8 +16,9 @@ use Illuminate\Support\Collection;
  * Each one comes with the visitor's later submission of the same form that
  * went through, if any ($submission->laterSubmission): one with the same
  * email address, or for leaf applications the same phone number, at any
- * time after. A submission with one is resolved; without, unresolved.
- * Submissions an admin marked as spam are left out unless asked for.
+ * time after. followUp() says where each stands: submitted later, closed by
+ * an admin as resolved, a test, or spam, or else unresolved. Spam and tests
+ * are left out unless asked for.
  */
 class FormSubmissionReport
 {
@@ -28,23 +29,45 @@ class FormSubmissionReport
     public const IN_PROGRESS_MINUTES = 5;
 
     /**
+     * Where a submission stands, from followUp(). An admin's closing comes
+     * first, so its values match FormSubmission::RESOLUTIONS.
+     */
+    public const FOLLOW_UP_RESOLVED = FormSubmission::RESOLUTION_RESOLVED;
+
+    public const FOLLOW_UP_TEST = FormSubmission::RESOLUTION_TEST;
+
+    public const FOLLOW_UP_SPAM = FormSubmission::RESOLUTION_SPAM;
+
+    public const FOLLOW_UP_SUBMITTED_LATER = 'submitted_later';
+
+    public const FOLLOW_UP_UNRESOLVED = 'unresolved';
+
+    /**
      * Submissions from the last $days days, or ever with null, oldest first,
      * with their checkouts and later submissions. Only those that need a
      * follow-up are listed, unless $all includes the ones that succeeded.
      * $forms limits the list to some of FormSubmission::FORMS; with none,
-     * both forms are listed. Without $resolved, only unresolved submissions
-     * are listed; $spam includes those marked as spam.
+     * both forms are listed. Unresolved submissions are always listed;
+     * $submittedLater and $resolvedByAdmin include those the visitor got
+     * through with later and those an admin closed as resolved, and
+     * $spamAndTests those closed as spam or a test. Without the first two,
+     * the list holds only unresolved submissions, as the dashboard counts.
      *
      * @param  array<int, string>  $forms
      * @return Collection<int, FormSubmission>
      */
-    public function list(?int $days, array $forms = [], bool $all = false, bool $resolved = true, bool $spam = false): Collection
-    {
+    public function list(
+        ?int $days,
+        array $forms = [],
+        bool $all = false,
+        bool $submittedLater = true,
+        bool $resolvedByAdmin = true,
+        bool $spamAndTests = false,
+    ): Collection {
         $submissions = FormSubmission::query()
-            ->with(['checkout', 'markedSpamBy'])
+            ->with(['checkout', 'resolvedBy'])
             ->when($days !== null, fn ($query) => $query->where('created_at', '>=', now()->subDays($days)))
             ->when($forms, fn ($query) => $query->whereIn('form', $forms))
-            ->when(! $spam, fn ($query) => $query->whereNull('marked_spam_at'))
             ->orderBy('created_at')
             ->get();
 
@@ -52,7 +75,13 @@ class FormSubmissionReport
 
         return $submissions
             ->filter(fn (FormSubmission $submission) => $all || $this->needsAttention($submission))
-            ->filter(fn (FormSubmission $submission) => $resolved || $submission->laterSubmission === null)
+            ->filter(fn (FormSubmission $submission) => match ($this->followUp($submission)) {
+                self::FOLLOW_UP_SUBMITTED_LATER => $submittedLater,
+                self::FOLLOW_UP_RESOLVED => $resolvedByAdmin,
+                self::FOLLOW_UP_TEST, self::FOLLOW_UP_SPAM => $spamAndTests,
+                // Unresolved, or with $all one that succeeded
+                default => true,
+            })
             ->values();
     }
 
@@ -64,7 +93,7 @@ class FormSubmissionReport
     public function find(string $reference): ?FormSubmission
     {
         $submission = FormSubmission::query()
-            ->with(['checkout', 'markedSpamBy'])
+            ->with(['checkout', 'resolvedBy'])
             ->where('reference', strtoupper($reference))
             ->first();
 
@@ -73,6 +102,22 @@ class FormSubmissionReport
         }
 
         return $submission;
+    }
+
+    /**
+     * Where a submission stands: one of the FOLLOW_UP_ values, or null for
+     * one that went through or is still in progress. An admin's closing
+     * comes first, then whether the visitor submitted the form later. Get
+     * the submission from list() or find(), which look up later submissions.
+     */
+    public function followUp(FormSubmission $submission): ?string
+    {
+        return match (true) {
+            $submission->isClosed() => $submission->resolution,
+            $submission->laterSubmission !== null => self::FOLLOW_UP_SUBMITTED_LATER,
+            $this->needsAttention($submission) => self::FOLLOW_UP_UNRESOLVED,
+            default => null,
+        };
     }
 
     /**

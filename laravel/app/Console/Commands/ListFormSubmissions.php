@@ -15,10 +15,11 @@ use Illuminate\Console\Command;
  * expired, rate-limited, and failed submissions, submissions that stopped
  * without an outcome, and donors who went to pay but left the payment page
  * without finishing. Each says whether the visitor got through later, with
- * the reference of the submission that did. Submissions marked as spam on
- * the admin Error Logs pages are left out unless --spam includes them. The
- * output contains visitors' names, emails, and form details: never paste it
- * into issues, chat, or the repository.
+ * the reference of the submission that did, or how an admin closed it on
+ * the Error Logs pages. Those closed as spam or a test are left out unless
+ * --spam-and-tests includes them. The output contains visitors' names,
+ * emails, and form details: never paste it into issues, chat, or the
+ * repository.
  */
 class ListFormSubmissions extends Command
 {
@@ -31,8 +32,8 @@ class ListFormSubmissions extends Command
         {--days=7 : Show submissions from this many days back}
         {--form= : Only one form: donation or leaf_application}
         {--all : Include submissions that succeeded}
-        {--unresolved : Leave out submissions the visitor got through with later}
-        {--spam : Include submissions marked as spam}
+        {--unresolved : Only submissions still unresolved: not submitted later or closed by an admin}
+        {--spam-and-tests : Include submissions closed as spam or a test}
         {--csv : Output CSV, for importing into a spreadsheet}';
 
     /**
@@ -60,8 +61,9 @@ class ListFormSubmissions extends Command
             $days,
             $form === null ? [] : [$form],
             $all,
-            resolved: ! $this->option('unresolved'),
-            spam: (bool) $this->option('spam'),
+            submittedLater: ! $this->option('unresolved'),
+            resolvedByAdmin: ! $this->option('unresolved'),
+            spamAndTests: (bool) $this->option('spam-and-tests'),
         );
 
         if ($this->option('csv')) {

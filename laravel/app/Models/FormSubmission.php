@@ -18,9 +18,9 @@ use Illuminate\Http\Request;
  * that failed: never paste them into issues, chat, or the repository. Kept
  * permanently.
  *
- * Admins can mark a submission as spam, such as a bot filling in a form.
- * Who marked it, and when, are set only through markAsSpam(), never from
- * form input.
+ * Admins close a submission that needs no more follow-up as resolved, a
+ * test, or spam, with an optional note. How, by whom, and when are set only
+ * through close(), never from form input.
  */
 #[Fillable([
     'reference',
@@ -120,6 +120,19 @@ class FormSubmission extends Model
     public const REQUEST_ATTRIBUTE = 'form_submission';
 
     /**
+     * How an admin closed a submission that needs no more follow-up: we
+     * followed up with the visitor, it was someone testing the form, or it
+     * was spam, such as a bot filling in the form.
+     */
+    public const RESOLUTION_RESOLVED = 'resolved';
+
+    public const RESOLUTION_TEST = 'test';
+
+    public const RESOLUTION_SPAM = 'spam';
+
+    public const RESOLUTIONS = [self::RESOLUTION_RESOLVED, self::RESOLUTION_TEST, self::RESOLUTION_SPAM];
+
+    /**
      * Form fields never stored: security tokens, and the name and email,
      * which have their own columns.
      */
@@ -158,7 +171,7 @@ class FormSubmission extends Model
         return [
             'data' => 'array',
             'errors' => 'array',
-            'marked_spam_at' => 'datetime',
+            'resolved_at' => 'datetime',
         ];
     }
 
@@ -205,30 +218,40 @@ class FormSubmission extends Model
         return in_array($this->outcome, self::FAILED_OUTCOMES, true);
     }
 
-    public function isSpam(): bool
+    /**
+     * Whether an admin closed the submission (see RESOLUTIONS).
+     */
+    public function isClosed(): bool
     {
-        return $this->marked_spam_at !== null;
+        return $this->resolution !== null;
     }
 
     /**
-     * Mark the submission as spam, recording which admin did and when. One
-     * already marked keeps its first mark.
+     * Close the submission as one of RESOLUTIONS, with an optional note,
+     * recording which admin did and when. Closing one already closed
+     * replaces how it was closed.
      */
-    public function markAsSpam(User $admin): void
+    public function close(User $admin, string $resolution, ?string $note = null): void
     {
-        if ($this->isSpam()) {
-            return;
-        }
-
-        $this->forceFill(['marked_spam_at' => now(), 'marked_spam_by' => $admin->id])->save();
+        $this->forceFill([
+            'resolution' => $resolution,
+            'resolved_at' => now(),
+            'resolved_by' => $admin->id,
+            'resolution_note' => $note,
+        ])->save();
     }
 
     /**
-     * Undo a mistaken spam mark.
+     * Reopen a submission closed by mistake, so it needs a follow-up again.
      */
-    public function unmarkSpam(): void
+    public function reopen(): void
     {
-        $this->forceFill(['marked_spam_at' => null, 'marked_spam_by' => null])->save();
+        $this->forceFill([
+            'resolution' => null,
+            'resolved_at' => null,
+            'resolved_by' => null,
+            'resolution_note' => null,
+        ])->save();
     }
 
     /**
@@ -249,13 +272,13 @@ class FormSubmission extends Model
     }
 
     /**
-     * The admin who marked the submission as spam.
+     * The admin who closed the submission.
      *
      * @return BelongsTo<User, $this>
      */
-    public function markedSpamBy(): BelongsTo
+    public function resolvedBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'marked_spam_by')->withTrashed();
+        return $this->belongsTo(User::class, 'resolved_by')->withTrashed();
     }
 
     /**

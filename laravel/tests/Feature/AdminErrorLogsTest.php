@@ -14,7 +14,7 @@ use Tests\TestCase;
 /**
  * The admin Error Logs pages: /admin/errors, its CSV download, one
  * submission in full by its reference, whether each visitor got through
- * later, and marking spam.
+ * later, and closing and reopening errors.
  */
 class AdminErrorLogsTest extends TestCase
 {
@@ -94,8 +94,9 @@ class AdminErrorLogsTest extends TestCase
             $this->get($page)->assertRedirect(route('login'));
         }
 
-        $this->post('/admin/errors/spam', ['references' => ['REJ222']])->assertRedirect(route('login'));
-        $this->delete('/admin/errors/spam', ['references' => ['REJ222']])->assertRedirect(route('login'));
+        $close = ['references' => ['REJ222'], 'resolution' => FormSubmission::RESOLUTION_SPAM];
+        $this->post('/admin/errors/close', $close)->assertRedirect(route('login'));
+        $this->post('/admin/errors/reopen', $close)->assertRedirect(route('login'));
 
         $donor = User::factory()->withPassword()->create();
 
@@ -103,9 +104,9 @@ class AdminErrorLogsTest extends TestCase
             $this->actingAs($donor)->get($page)->assertForbidden();
         }
 
-        $this->actingAs($donor)->post('/admin/errors/spam', ['references' => ['REJ222']])->assertForbidden();
-        $this->actingAs($donor)->delete('/admin/errors/spam', ['references' => ['REJ222']])->assertForbidden();
-        $this->assertFalse($this->submissionNamed('REJ222')->isSpam());
+        $this->actingAs($donor)->post('/admin/errors/close', $close)->assertForbidden();
+        $this->actingAs($donor)->post('/admin/errors/reopen', $close)->assertForbidden();
+        $this->assertFalse($this->submissionNamed('REJ222')->isClosed());
     }
 
     public function test_lists_submissions_that_did_not_succeed_with_a_link_to_each(): void
@@ -187,14 +188,14 @@ class AdminErrorLogsTest extends TestCase
 
         // Left out of the list of unresolved errors, as the dashboard links to it
         $this->actingAs($this->admin)
-            ->get('/admin/errors?resolved=0')
+            ->get('/admin/errors?later=0')
             ->assertDontSee('REJ222')
             ->assertSee('No submissions that did not succeed in the last 30 days.')
-            ->assertSee('<input type="checkbox" name="resolved" value="1" >', false);
+            ->assertSee('<input type="checkbox" name="later" value="1" >', false);
 
         // Checking Submitted later sends both values, and the checkbox's comes last
         $this->actingAs($this->admin)
-            ->get('/admin/errors?resolved=0&resolved=1')
+            ->get('/admin/errors?later=0&later=1')
             ->assertSee('REJ222');
 
         $this->actingAs($this->admin)
@@ -289,8 +290,8 @@ class AdminErrorLogsTest extends TestCase
         $this->assertSame('\'=HYPERLINK("https://example.com")', $row[5]);
         $this->assertSame('$20, monthly', $row[7]);
 
-        // Without resolved submissions, only the later error is left
-        $csv = $this->actingAs($this->admin)->get(route('admin.errors.csv', ['resolved' => '0']))->getContent();
+        // Without submissions the visitor got through with later, only the later error is left
+        $csv = $this->actingAs($this->admin)->get(route('admin.errors.csv', ['later' => '0']))->getContent();
 
         $this->assertStringNotContainsString('REJ222', $csv);
         $this->assertStringContainsString('REJ333', $csv);
@@ -315,7 +316,8 @@ class AdminErrorLogsTest extends TestCase
                 ->assertSee('$20, monthly')
                 ->assertSee('Enter a valid email address, such as name@example.com.')
                 ->assertSee('Mozilla/5.0 (Example)')
-                ->assertSee('Mark as Spam');
+                ->assertSee('Close this error')
+                ->assertSee('<input type="radio" name="resolution" value="resolved" checked>', false);
         }
     }
 
@@ -325,88 +327,140 @@ class AdminErrorLogsTest extends TestCase
         $this->actingAs($this->admin)->get('/admin/errors/ABC')->assertNotFound();
     }
 
-    public function test_admins_mark_spam_from_the_list(): void
+    public function test_admins_close_errors_from_the_list(): void
     {
         $this->submission('REJ222', FormSubmission::OUTCOME_REJECTED);
         $this->submission('ERR333', FormSubmission::OUTCOME_ERROR);
         $this->submission('REJ444', FormSubmission::OUTCOME_REJECTED);
+        $this->submission('EXP555', FormSubmission::OUTCOME_EXPIRED);
 
         $this->actingAs($this->admin)
             ->get('/admin/errors')
-            ->assertSee('<input type="checkbox" form="mark-spam" name="references[]" value="REJ222" aria-label="Select REJ222">', false)
-            ->assertSee('<form id="mark-spam" class="bulk-actions" method="POST" action="' . route('admin.errors.spam') . '">', false);
+            ->assertSee('<input type="checkbox" form="close-errors" name="references[]" value="REJ222" aria-label="Select REJ222">', false)
+            ->assertSee('<form id="close-errors" class="bulk-actions" method="POST" action="' . route('admin.errors.close') . '">', false)
+            ->assertSee('<option value="spam" >Spam</option>', false);
 
         // Each row's checkbox is in both the table and the phone list; lowercase is found too
         $this->actingAs($this->admin)
             ->from('/admin/errors?period=90')
-            ->post('/admin/errors/spam', ['references' => ['REJ222', 'rej222', 'ERR333', 'ZZZ999']])
+            ->post('/admin/errors/close', ['references' => ['REJ222', 'rej222', 'ERR333', 'ZZZ999'], 'resolution' => FormSubmission::RESOLUTION_SPAM])
             ->assertRedirect('/admin/errors?period=90')
             ->assertSessionHas('status', '2 submissions marked as spam.');
 
-        $spam = $this->submissionNamed('REJ222');
-        $this->assertTrue($spam->isSpam());
-        $this->assertSame($this->admin->id, $spam->marked_spam_by);
-        $this->assertFalse($this->submissionNamed('REJ444')->isSpam());
+        $this->actingAs($this->admin)
+            ->post('/admin/errors/close', ['references' => ['REJ444'], 'resolution' => FormSubmission::RESOLUTION_TEST])
+            ->assertSessionHas('status', '1 submission marked as a test.');
 
+        $this->actingAs($this->admin)
+            ->post('/admin/errors/close', ['references' => ['EXP555'], 'resolution' => FormSubmission::RESOLUTION_RESOLVED])
+            ->assertSessionHas('status', '1 submission marked as resolved.');
+
+        $spam = $this->submissionNamed('REJ222');
+        $this->assertSame(FormSubmission::RESOLUTION_SPAM, $spam->resolution);
+        $this->assertSame($this->admin->id, $spam->resolved_by);
+        $this->assertNull($spam->resolution_note);
+
+        // Resolved stays listed with a check; spam and tests are left out
         $this->actingAs($this->admin)
             ->get('/admin/errors')
             ->assertSee('1 submission that did not succeed in the last 30 days.')
+            ->assertSee('<span class="status-icon success" aria-hidden="true">✓</span>Resolved by Sam Rivera</span>', false)
             ->assertDontSee('REJ222')
-            ->assertSee('REJ444');
+            ->assertDontSee('REJ444');
+
+        // Only unresolved errors, as the dashboard counts them
+        $this->actingAs($this->admin)
+            ->get('/admin/errors?later=0&resolved=0')
+            ->assertSee('No submissions that did not succeed in the last 30 days.');
 
         $this->actingAs($this->admin)
             ->get('/admin/errors?spam=1')
-            ->assertSee('3 submissions that did not succeed in the last 30 days.')
-            ->assertSee('<span class="status-icon muted" aria-hidden="true">–</span>Marked as spam</span>', false);
+            ->assertSee('4 submissions that did not succeed in the last 30 days.')
+            ->assertSee('<span class="status-icon muted" aria-hidden="true">–</span>Marked as spam</span>', false)
+            ->assertSee('<span class="status-icon muted" aria-hidden="true">–</span>Marked as a test</span>', false);
     }
 
-    public function test_marking_spam_needs_a_submission_chosen(): void
+    public function test_closing_errors_needs_a_submission_and_a_resolution(): void
     {
         $this->submission('REJ222', FormSubmission::OUTCOME_REJECTED);
 
         $this->actingAs($this->admin)
             ->from('/admin/errors')
-            ->post('/admin/errors/spam')
+            ->post('/admin/errors/close', ['resolution' => 'ignored', 'note' => str_repeat('a', 1001)])
             ->assertRedirect('/admin/errors')
-            ->assertSessionHasErrors(['references' => 'Select at least one submission to mark as spam.']);
+            ->assertSessionHasErrors([
+                'references' => 'Select at least one submission to mark.',
+                'resolution' => 'Choose resolved, test, or spam.',
+                'note' => 'Keep the note to 1,000 characters or fewer.',
+            ]);
+
+        $this->assertFalse($this->submissionNamed('REJ222')->isClosed());
 
         // Shown on the list it went back to. Checked by following the redirect,
         // since reading the session above leaves the next request without errors
         $this->actingAs($this->admin)
             ->followingRedirects()
             ->from('/admin/errors')
-            ->post('/admin/errors/spam')
+            ->post('/admin/errors/close', ['resolution' => FormSubmission::RESOLUTION_SPAM])
             ->assertOk()
             ->assertSee('REJ222')
-            ->assertSee('Select at least one submission to mark as spam.');
+            ->assertSee('Select at least one submission to mark.');
     }
 
-    public function test_spam_is_marked_and_undone_on_a_submission_page(): void
+    public function test_an_error_is_closed_with_a_note_and_reopened_on_its_page(): void
     {
-        $this->submission('REJ222', FormSubmission::OUTCOME_REJECTED);
+        $this->submission('REJ222', FormSubmission::OUTCOME_REJECTED, ['name' => null]);
 
         $this->actingAs($this->admin)
             ->from('/admin/errors/REJ222')
-            ->post('/admin/errors/spam', ['references' => ['REJ222']])
+            ->post('/admin/errors/close', [
+                'references' => ['REJ222'],
+                'resolution' => FormSubmission::RESOLUTION_TEST,
+                'note' => 'My own test donation.',
+            ])
             ->assertRedirect('/admin/errors/REJ222');
 
         $this->actingAs($this->admin)
             ->get('/admin/errors/REJ222')
-            ->assertSee('1 submission marked as spam.')
-            ->assertSee('Marked as spam by Sam Rivera on Oct 21, 2026 7:30 PM MDT.')
-            ->assertSee('<span class="status-icon muted" aria-hidden="true">–</span>Marked as spam</span>', false)
-            ->assertSee('Not Spam')
-            ->assertDontSee('Mark as Spam');
+            ->assertSee('1 submission marked as a test.')
+            ->assertSee('Marked as a test by Sam Rivera on Oct 21, 2026 7:30 PM MDT: “My own test donation.”')
+            ->assertSee('<span class="status-icon muted" aria-hidden="true">–</span>Marked as a test</span>', false)
+            ->assertSee('Reopen')
+            ->assertDontSee('Close this error');
+
+        // The CSV has the note
+        $csv = $this->actingAs($this->admin)->get(route('admin.errors.csv', ['spam' => '1']))->getContent();
+        $this->assertStringContainsString('Marked as a test: My own test donation.', $csv);
 
         $this->actingAs($this->admin)
             ->from('/admin/errors/REJ222')
-            ->delete('/admin/errors/spam', ['references' => ['REJ222']])
+            ->post('/admin/errors/reopen', ['references' => ['REJ222']])
             ->assertRedirect('/admin/errors/REJ222')
-            ->assertSessionHas('status', '1 submission no longer marked as spam.');
+            ->assertSessionHas('status', '1 submission reopened.');
 
         $submission = $this->submissionNamed('REJ222');
-        $this->assertFalse($submission->isSpam());
-        $this->assertNull($submission->marked_spam_by);
+        $this->assertFalse($submission->isClosed());
+        $this->assertNull($submission->resolved_by);
+        $this->assertNull($submission->resolution_note);
+    }
+
+    public function test_an_admins_closing_replaces_submitted_later(): void
+    {
+        $this->submission('REJ222', FormSubmission::OUTCOME_REJECTED, minutesAgo: 120);
+        $this->submission('PAID33', FormSubmission::OUTCOME_SENT_TO_PAYMENT, [
+            'checkout_id' => Checkout::factory()->completed()->create()->id,
+        ], minutesAgo: 60);
+        $this->submissionNamed('REJ222')->close($this->admin, FormSubmission::RESOLUTION_RESOLVED);
+
+        $this->actingAs($this->admin)
+            ->get('/admin/errors')
+            ->assertSee('<span class="status-icon success" aria-hidden="true">✓</span>Resolved by Sam Rivera</span>', false)
+            ->assertDontSee('Submitted 1 hour later');
+
+        // Left out of the unresolved list either way
+        $this->actingAs($this->admin)
+            ->get('/admin/errors?later=0&resolved=0')
+            ->assertDontSee('REJ222');
     }
 
     private function submissionNamed(string $reference): FormSubmission

@@ -84,8 +84,8 @@ class AdminDashboardTest extends TestCase
         $this->application(10);
         $this->application(120);
 
-        // 3 unresolved errors; a submission that succeeded isn't one, nor
-        // is an error the visitor got through later, or spam
+        // 3 unresolved errors; a submission that succeeded isn't one, nor is
+        // an error the visitor got through later, or one an admin closed
         $this->submission('REJ222', FormSubmission::OUTCOME_REJECTED);
         $this->submission('EXP333', FormSubmission::OUTCOME_EXPIRED);
         $this->submission('ERR444', FormSubmission::OUTCOME_ERROR, daysAgo: 80);
@@ -95,7 +95,9 @@ class AdminDashboardTest extends TestCase
             'email' => 'jamie@example.com',
             'checkout_id' => Checkout::factory()->completed()->create()->id,
         ]);
-        $this->submission('BOT888', FormSubmission::OUTCOME_REJECTED)->markAsSpam($this->admin);
+        $this->submission('BOT888', FormSubmission::OUTCOME_REJECTED)->close($this->admin, FormSubmission::RESOLUTION_SPAM);
+        $this->submission('TST999', FormSubmission::OUTCOME_REJECTED)->close($this->admin, FormSubmission::RESOLUTION_TEST);
+        $this->submission('FIX000', FormSubmission::OUTCOME_REJECTED)->close($this->admin, FormSubmission::RESOLUTION_RESOLVED);
 
         $this->actingAs($this->admin)
             ->get('/admin')
@@ -117,8 +119,8 @@ class AdminDashboardTest extends TestCase
             $response->assertSee('href="' . route($route, ['period' => '90']) . '"', false);
         }
 
-        // Unresolved errors link to the list without the ones resolved later
-        $response->assertSee('href="' . e(route('admin.errors', ['period' => '90', 'resolved' => '0'])) . '"', false);
+        // Unresolved errors link to the list without the ones resolved
+        $response->assertSee('href="' . e(route('admin.errors', ['period' => '90', 'later' => '0', 'resolved' => '0'])) . '"', false);
 
         $response->assertSee('<span class="count">0</span>', false);
     }

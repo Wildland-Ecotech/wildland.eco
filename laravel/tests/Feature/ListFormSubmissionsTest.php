@@ -118,35 +118,44 @@ class ListFormSubmissionsTest extends TestCase
             'checkout_id' => Checkout::factory()->create(['status' => Checkout::STATUS_COMPLETED])->id,
         ], minutesAgo: 56);
         $this->submission('ERR444', FormSubmission::OUTCOME_ERROR, ['email' => 'alex@example.com']);
+        $this->submission('EXP555', FormSubmission::OUTCOME_EXPIRED, ['email' => 'sam@example.com'])
+            ->close(User::factory()->admin()->create(['name' => 'Sam Rivera']), FormSubmission::RESOLUTION_RESOLVED, 'Called them back.');
 
         $this->artisan('submissions:list')
             ->expectsOutputToContain('Submitted 4 minutes later as PAID33')
             ->expectsOutputToContain('No record')
-            ->expectsOutputToContain('2 submissions that did not succeed')
+            ->expectsOutputToContain('Resolved by Sam Rivera: Called them back.')
+            ->expectsOutputToContain('3 submissions that did not succeed')
             ->assertSuccessful();
 
+        // Neither submitted later nor resolved by an admin
         $this->artisan('submissions:list', ['--unresolved' => true])
             ->doesntExpectOutputToContain('REJ222')
+            ->doesntExpectOutputToContain('EXP555')
             ->expectsOutputToContain('ERR444')
             ->expectsOutputToContain('1 submission that did not succeed')
             ->assertSuccessful();
     }
 
-    public function test_spam_is_left_out_unless_asked_for(): void
+    public function test_spam_and_tests_are_left_out_unless_asked_for(): void
     {
         $admin = User::factory()->admin()->create();
-        $this->submission('BOT222', FormSubmission::OUTCOME_REJECTED)->markAsSpam($admin);
-        $this->submission('REJ333', FormSubmission::OUTCOME_REJECTED, ['email' => 'alex@example.com']);
+        $this->submission('BOT222', FormSubmission::OUTCOME_REJECTED)->close($admin, FormSubmission::RESOLUTION_SPAM);
+        $this->submission('TST333', FormSubmission::OUTCOME_REJECTED, ['email' => 'sam@example.com'])
+            ->close($admin, FormSubmission::RESOLUTION_TEST, 'Trying the form.');
+        $this->submission('REJ444', FormSubmission::OUTCOME_REJECTED, ['email' => 'alex@example.com']);
 
         $this->artisan('submissions:list')
             ->doesntExpectOutputToContain('BOT222')
+            ->doesntExpectOutputToContain('TST333')
             ->expectsOutputToContain('1 submission that did not succeed')
             ->assertSuccessful();
 
-        $this->artisan('submissions:list', ['--spam' => true])
+        $this->artisan('submissions:list', ['--spam-and-tests' => true])
             ->expectsOutputToContain('BOT222')
             ->expectsOutputToContain('Marked as spam')
-            ->expectsOutputToContain('2 submissions that did not succeed')
+            ->expectsOutputToContain('Marked as a test: Trying the form.')
+            ->expectsOutputToContain('3 submissions that did not succeed')
             ->assertSuccessful();
     }
 

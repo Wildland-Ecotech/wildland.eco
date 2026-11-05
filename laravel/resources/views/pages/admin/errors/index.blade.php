@@ -33,16 +33,22 @@
         <fieldset class="filter">
             <legend>Include</legend>
 
-            {{-- Checked unless turned off: an unchecked box sends this 0, and a checked one's 1 replaces it --}}
+            {{-- Checked unless turned off: an unchecked box sends its hidden 0, and a checked one's 1 replaces it --}}
+            <input type="hidden" name="later" value="0">
+            <label class="checkbox">
+                <input type="checkbox" name="later" value="1" @checked($filters['later'])>
+                <span>Submitted later</span>
+            </label>
+
             <input type="hidden" name="resolved" value="0">
             <label class="checkbox">
                 <input type="checkbox" name="resolved" value="1" @checked($filters['resolved'])>
-                <span>Submitted later</span>
+                <span>Resolved by an admin</span>
             </label>
 
             <label class="checkbox">
                 <input type="checkbox" name="spam" value="1" @checked($filters['spam'])>
-                <span>Spam</span>
+                <span>Spam and tests</span>
             </label>
 
             <label class="checkbox">
@@ -69,22 +75,28 @@
             :rows="$rows"
             :summary-columns="ErrorLogController::SUMMARY_COLUMNS"
             link-label="View Submission"
-            select-form="mark-spam"
+            select-form="close-errors"
             select-name="references[]"
         />
 
         {{-- The list's checkboxes belong to this form through their form attribute --}}
-        <form id="mark-spam" class="bulk-actions" method="POST" action="{{ route('admin.errors.spam') }}">
+        <form id="close-errors" class="bulk-actions" method="POST" action="{{ route('admin.errors.close') }}">
             @csrf
 
-            @error('references')
-                <p class="field-error">{{ $message }}</p>
-            @enderror
-            @error('references.*')
-                <p class="field-error">{{ $message }}</p>
-            @enderror
+            @foreach (['references', 'references.*', 'resolution'] as $field)
+                @error($field)
+                    <p class="field-error">{{ $message }}</p>
+                @enderror
+            @endforeach
 
-            <button type="submit" class="button dark">Mark Selected as Spam</button>
+            <label for="resolution">Mark selected as</label>
+            <select id="resolution" name="resolution">
+                @foreach (ErrorLogController::RESOLUTION_MENU as $value => $label)
+                    <option value="{{ $value }}" @selected(old('resolution') === $value)>{{ $label }}</option>
+                @endforeach
+            </select>
+
+            <button type="submit" class="button dark">Mark</button>
         </form>
     @endif
 </x-admin-page>
