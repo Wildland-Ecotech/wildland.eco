@@ -5,18 +5,79 @@ namespace App\Reports\Traits;
 use App\Models\Checkout;
 use App\Models\FormSubmission;
 use App\Models\LeafApplication;
+use Illuminate\Support\Str;
 
 /**
  * How reports describe a form submission, so submissions:list, its CSV, and
- * the admin pages show the same details. Query submissions with their
- * checkout loaded.
+ * the admin Error Logs pages show the same details. Query submissions with
+ * their checkout loaded.
  */
 trait DescribesFormSubmissions
 {
+    use FormatsTimes;
+
     /**
      * Labels for a submission's fields, in order.
      */
     protected const FORM_SUBMISSION_LABELS = ['Form', 'What happened', 'Name', 'Email', 'Details', 'Errors shown', 'Browser'];
+
+    /**
+     * The columns of a list of submissions: the key details of each.
+     */
+    protected const FORM_SUBMISSION_TABLE_HEADERS = ['Reference', 'Submitted', 'Form', 'What happened', 'Name'];
+
+    /**
+     * A submission's row in a list, matching FORM_SUBMISSION_TABLE_HEADERS.
+     * Without a name, the email address stands in for it.
+     *
+     * @return array<int, string>
+     */
+    protected function formSubmissionTableRow(FormSubmission $submission): array
+    {
+        $fields = $this->formSubmissionFields($submission);
+
+        return [
+            $submission->reference,
+            $this->tableTime($submission->created_at),
+            $fields['Form'],
+            $fields['What happened'],
+            $fields['Name'] ?: $fields['Email'],
+        ];
+    }
+
+    /**
+     * The header row of a CSV of submissions: the reference, when it was
+     * submitted, and every detail.
+     *
+     * @return array<int, string>
+     */
+    protected function formSubmissionCsvHeader(): array
+    {
+        return ['Reference', 'Submitted', ...self::FORM_SUBMISSION_LABELS];
+    }
+
+    /**
+     * A submission's row in a CSV, matching formSubmissionCsvHeader().
+     *
+     * @return array<int, string>
+     */
+    protected function formSubmissionCsvRow(FormSubmission $submission): array
+    {
+        return [
+            $submission->reference,
+            $this->localTime($submission->created_at),
+            ...array_values($this->formSubmissionFields($submission)),
+        ];
+    }
+
+    /**
+     * What a list of submissions holds: "submissions that did not succeed",
+     * or every submission with $all.
+     */
+    protected function formSubmissionListName(bool $all, int $count): string
+    {
+        return Str::plural('submission', $count) . ($all ? '' : ' that did not succeed');
+    }
 
     /**
      * A submission's fields, keyed by FORM_SUBMISSION_LABELS.

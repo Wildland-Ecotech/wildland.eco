@@ -30,7 +30,7 @@ The development plan for the wildland.eco Laravel platform: accepting donations,
 | 7 | Donation receipts and transactional email | Done |
 | 8 | Reporting commands, end-to-end testing in Stripe test mode, then go live | In progress: reporting commands done |
 | 9 | Donor accounts and member dashboard | After launch |
-| 10 | Administrator pages and reporting | In progress: admin accounts, sign-in, and the donation, totals, abandoned checkout, and leaf application pages done |
+| 10 | Administrator pages and reporting | In progress: admin accounts, sign-in, a dashboard, and pages for every report command done |
 | 11 | On-site donation flow and recurring donation management, replacing the Stripe-hosted pages | After launch |
 
 Milestones 5 through 8 are the minimum for accepting donations. Content pages can be built any time after milestone 4. Stripe test mode is used from milestone 6 onward, not only in milestone 8.
@@ -118,7 +118,7 @@ After launch. See [Accounts](#accounts). The dashboard shows donation history, a
 
 ### 10. Administrator Pages
 
-In progress. Admins are created with `users:admin` and sign in at `/login` with an email address and password (see [Signing In](03-routes-and-controllers.md#signing-in)). Done: the donation and leaf application lists with filters and CSV downloads, and a donation or application in full (see [Admin Pages](03-routes-and-controllers.md#admin-pages)). Also done: the totals and abandoned checkout pages. Next: Error Logs, form submissions that didn't go through, which will grow into general error reporting. Planned: pages for users with the `admin` role, which board members are given too: donor search, donation and subscription lists with filters, a donor detail page with full history, CSV export, and the reports below. Refunds are issued from the Stripe dashboard and synced back automatically. Administrators can soft-delete spam accounts that have no transaction history (see [Deletion](#deletion)).
+In progress. Admins are created with `users:admin` and sign in at `/login` with an email address and password (see [Signing In](03-routes-and-controllers.md#signing-in)). Done: the donation and leaf application lists with filters and CSV downloads, and a donation or application in full (see [Admin Pages](03-routes-and-controllers.md#admin-pages)). Also done: a dashboard with counts for the last 90 days, the totals and abandoned checkout pages, and Error Logs, form submissions that didn't go through, which may grow into general error reporting. Next: the CRM, planned in its own session. Planned: pages for users with the `admin` role, which board members are given too: donor search, donation and subscription lists with filters, a donor detail page with full history, CSV export, and the reports below. Refunds are issued from the Stripe dashboard and synced back automatically. Administrators can soft-delete spam accounts that have no transaction history (see [Deletion](#deletion)).
 
 **Reports:**
 

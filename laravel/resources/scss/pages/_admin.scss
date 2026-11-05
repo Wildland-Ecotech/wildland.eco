@@ -8,6 +8,8 @@
 
 $green: #2ECF9E;
 $error: #FF8A80;
+// Dividers between rows, sections, and the dashboard's numbers
+$line: rgba(255, 255, 255, 0.15);
 
 .admin-page {
     .card {
@@ -129,8 +131,6 @@ $error: #FF8A80;
 
 // Admin pages: the wide card, navigation, filters, lists, and records
 .admin-page {
-    $line: rgba(255, 255, 255, 0.15);
-
     .card.wide {
         max-width: none;
     }
@@ -262,20 +262,36 @@ $error: #FF8A80;
         }
 
         .filter-actions {
-            display: flex;
             flex-basis: 100%;
-            align-items: center;
-            gap: 1.5em;
-
-            .button {
-                margin: 0;
-            }
         }
+    }
 
-        .download {
-            color: $green;
-            text-decoration: underline;
-            font-size: 16px;
+    // A Show button and the Download CSV link: at the end of a filter form,
+    // or on their own for a page without filters, such as Totals
+    .filter-actions {
+        display: flex;
+        align-items: center;
+        gap: 1.5em;
+        margin: 0 0 1.5em;
+
+        .button {
+            margin: 0;
+        }
+    }
+
+    .filters .filter-actions {
+        margin: 0;
+    }
+
+    .download {
+        color: $green;
+        font-size: 16px;
+        font-weight: 700;
+        text-decoration: underline;
+        text-underline-offset: 4px;
+
+        &:hover {
+            color: #fff;
         }
     }
 
@@ -299,6 +315,62 @@ $error: #FF8A80;
         margin: 0 0 1.5em;
         font-size: 16px;
         color: rgba(255, 255, 255, 0.85);
+    }
+
+    // The dashboard's overview: open numbers side by side, separated by thin
+    // lines, each with a short gradient bar under its label, and linking to
+    // its list. The bar grows on hover.
+    .overview {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        margin: 0 0 1.5em;
+        padding: 0;
+        list-style: none;
+
+        li {
+            padding: 0.25em 1.5em;
+            border-left: 1px solid $line;
+
+            &:first-child {
+                padding-left: 0;
+                border-left: 0;
+            }
+        }
+
+        a {
+            display: block;
+            color: #fff;
+
+            &:hover .label::after {
+                width: 96px;
+            }
+        }
+
+        .count {
+            display: block;
+            font-family: redhat;
+            font-size: 56px;
+            font-weight: 700;
+            line-height: 1.1;
+        }
+
+        .label {
+            display: block;
+            margin-top: 0.25em;
+            color: rgba(255, 255, 255, 0.75);
+            font-size: 16px;
+
+            &::after {
+                content: '';
+                display: block;
+                width: 48px;
+                height: 4px;
+                margin-top: 0.75em;
+                border-radius: 2px;
+                background: linear-gradient(95.37deg, #7AA8F3 -4%, #88FF82 111%);
+                transition: width 0.2s;
+            }
+        }
     }
 
     // A list of records: the table on wider screens
@@ -418,6 +490,21 @@ $error: #FF8A80;
     .admin-page {
         .records-table {
             display: none;
+        }
+
+        // The overview's numbers stay side by side, smaller
+        .overview {
+            li {
+                padding: 0.25em 0.75em;
+            }
+
+            .count {
+                font-size: 40px;
+            }
+
+            .label {
+                font-size: 14px;
+            }
         }
 
         .records-list {
