@@ -34,7 +34,7 @@
                     @enderror
                 </div>
 
-                <button type="submit" class="submit-button">Sign In</button>
+                <button type="submit" class="button full small">Sign In</button>
 
                 <p class="help">
                     Forgot your password? Email us at <a href="mailto:contact@wildland.eco">contact@wildland.eco</a>.

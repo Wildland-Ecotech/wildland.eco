@@ -150,23 +150,11 @@ $line: rgba(255, 255, 255, 0.15);
         margin: 0.4em 0 0;
     }
 
-    .submit-button {
+    // Sign In spans the form
+    .sign-in-form .button {
         display: block;
         width: 100%;
-        background: rgba(46, 207, 158, 0.25);
-        border: 3px solid $green;
-        border-radius: 10px;
-        color: #fff;
-        font-family: satoshi;
-        font-size: 21px;
-        font-weight: 1000;
-        padding: 0.7em 2em;
-        cursor: pointer;
-        transition: background 0.2s;
-
-        &:hover {
-            background: transparent;
-        }
+        margin: 0;
     }
 
     .help {

@@ -61,6 +61,7 @@ Headings, section labels, buttons, form fields, badges, and stats have their own
 ## Buttons and Links
 
 - **Buttons** are for actions (apply, send, donate) and for opening sections (accordion and FAQ questions). Use `.button.full` for the main action and `.button.dark` for secondary ones.
+- **Button sizes:** public pages use the standard size. Admin pages use `.button.small` for every button (Show, Mark, Close Error, the phone list's View buttons, and Sign In), so buttons match the 16px menus and fields beside them rather than standing out. Never put buttons of different sizes side by side.
 - **Text links** are for navigation within content: green and underlined, such as "Learn more about leaf collection →". Don't use a button inside a section of buttons that open sections, where it would look like one of them.
 - **Menu labels** say what visitors are looking for, such as "Leaf Collection", rather than internal program names.
 

@@ -23,7 +23,7 @@
 
             <p>{{ $closedNote }}</p>
 
-            <button type="submit" class="button dark">Reopen</button>
+            <button type="submit" class="button dark small">Reopen</button>
         </form>
     @else
         <form class="close-form" method="POST" action="{{ route('admin.errors.close') }}">
@@ -56,7 +56,7 @@
 
             <p>Closed errors aren't counted on the dashboard.</p>
 
-            <button type="submit" class="button dark">Close Error</button>
+            <button type="submit" class="button dark small">Close Error</button>
         </form>
     @endif
 

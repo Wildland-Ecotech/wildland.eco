@@ -87,7 +87,7 @@
                     </dl>
 
                     @isset($row['url'])
-                        <a class="button dark" href="{{ $row['url'] }}">{{ $linkLabel }}</a>
+                        <a class="button dark small" href="{{ $row['url'] }}">{{ $linkLabel }}</a>
                     @endisset
                 </details>
             </li>

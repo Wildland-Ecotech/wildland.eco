@@ -15,7 +15,7 @@
         </div>
 
         <div class="filter-actions">
-            <button type="submit" class="button dark">Show</button>
+            <button type="submit" class="button dark small">Show</button>
             <a class="download" href="{{ $csvUrl }}">Download CSV</a>
         </div>
     </form>
