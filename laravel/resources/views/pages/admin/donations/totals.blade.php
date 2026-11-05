@@ -4,10 +4,11 @@
     @if (! $hasTotals)
         <p class="summary" role="status">No donations received yet.</p>
     @else
-        <p class="summary">
-            Received donations, including ones refunded later, by the date paid in Fort Collins time.
+        <p class="summary">Received donations, including ones refunded later, by the date paid in Fort Collins time.</p>
+
+        <div class="filter-actions">
             <a class="download" href="{{ route('admin.donations.totals.csv') }}">Download CSV</a>
-        </p>
+        </div>
 
         @if ($missingFeesNotice)
             <p class="notice">{{ $missingFeesNotice }}</p>

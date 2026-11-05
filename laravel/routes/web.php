@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\Admin\AbandonedCheckoutController as AdminAbandonedCheckoutController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\DonationController as AdminDonationController;
 use App\Http\Controllers\Admin\DonationTotalsController as AdminDonationTotalsController;
+use App\Http\Controllers\Admin\ErrorLogController as AdminErrorLogController;
 use App\Http\Controllers\Admin\LeafApplicationController as AdminLeafApplicationController;
 use App\Http\Controllers\DonationController;
 use App\Http\Controllers\DonationReceiptPreviewController;
@@ -44,7 +46,7 @@ Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 // Admin pages. `auth.session` signs out other sessions when an admin's
 // password changes.
 Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->group(function () {
-    Route::view('/', 'pages.admin.home')->name('admin');
+    Route::get('/', AdminDashboardController::class)->name('admin');
 
     Route::get('/donations', [AdminDonationController::class, 'index'])->name('admin.donations');
     Route::get('/donations/csv', [AdminDonationController::class, 'download'])->name('admin.donations.csv');
@@ -61,6 +63,13 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
     Route::get('/leaves/{application}', [AdminLeafApplicationController::class, 'show'])
         ->whereNumber('application')
         ->name('admin.leaves.show');
+
+    Route::get('/errors', [AdminErrorLogController::class, 'index'])->name('admin.errors');
+    Route::get('/errors/csv', [AdminErrorLogController::class, 'download'])->name('admin.errors.csv');
+    // Submission references are six capital letters and digits; lowercase is found too
+    Route::get('/errors/{reference}', [AdminErrorLogController::class, 'show'])
+        ->where('reference', '[A-Za-z0-9]{6}')
+        ->name('admin.errors.show');
 });
 
 // Fresh CSRF token and proof-of-work challenge for a form that has been open

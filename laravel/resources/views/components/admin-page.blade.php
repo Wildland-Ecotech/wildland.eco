@@ -18,6 +18,7 @@
         'admin.donations.totals' => 'Totals',
         'admin.donations.abandoned' => 'Abandoned Checkouts',
         'admin.leaves' => 'Leaf Applications',
+        'admin.errors' => 'Error Logs',
     ];
 @endphp
 

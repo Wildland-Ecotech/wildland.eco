@@ -8,7 +8,6 @@ use App\Models\FormSubmission;
 use App\Reports\FormSubmissionReport;
 use App\Reports\Traits\DescribesFormSubmissions;
 use Illuminate\Console\Command;
-use Illuminate\Support\Str;
 
 /**
  * Lists recent submissions of the donate and leaf application forms that
@@ -51,25 +50,17 @@ class ListFormSubmissions extends Command
             return self::INVALID;
         }
 
-        $submissions = $report->list($days, $form, (bool) $this->option('all'));
+        $all = (bool) $this->option('all');
+        $submissions = $report->list($days, $form === null ? [] : [$form], $all);
 
         if ($this->option('csv')) {
-            $this->writeCsv(
-                ['Reference', 'Submitted', ...self::FORM_SUBMISSION_LABELS],
-                $submissions->map(fn (FormSubmission $submission) => [
-                    $submission->reference,
-                    $this->localTime($submission->created_at),
-                    ...array_values($this->formSubmissionFields($submission)),
-                ]),
-            );
+            $this->writeCsv($this->formSubmissionCsvHeader(), $submissions->map($this->formSubmissionCsvRow(...)));
 
             return self::SUCCESS;
         }
 
-        $which = $this->option('all') ? 'submissions' : 'submissions that did not succeed';
-
         if ($submissions->isEmpty()) {
-            $this->components->info("No {$which} in the last {$days} days.");
+            $this->components->info("No {$this->formSubmissionListName($all, 0)} in the last {$days} days.");
 
             return self::SUCCESS;
         }
@@ -83,7 +74,7 @@ class ListFormSubmissions extends Command
 
         $this->newLine();
         $count = $submissions->count();
-        $this->components->info("{$count} " . Str::plural('submission', $count) . ($this->option('all') ? '' : ' that did not succeed') . " in the last {$days} days.");
+        $this->components->info("{$count} {$this->formSubmissionListName($all, $count)} in the last {$days} days.");
 
         return self::SUCCESS;
     }

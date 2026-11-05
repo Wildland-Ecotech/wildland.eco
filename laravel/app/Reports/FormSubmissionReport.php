@@ -8,10 +8,10 @@ use Illuminate\Support\Collection;
 
 /**
  * Submissions of the donate and leaf application forms that need a
- * follow-up, for submissions:list and the admin pages: rejected, expired,
- * rate-limited, and failed submissions, submissions that stopped without an
- * outcome, and donors who went to pay but left the payment page without
- * finishing.
+ * follow-up, for submissions:list and the admin Error Logs page: rejected,
+ * expired, rate-limited, and failed submissions, submissions that stopped
+ * without an outcome, and donors who went to pay but left the payment page
+ * without finishing.
  */
 class FormSubmissionReport
 {
@@ -22,23 +22,34 @@ class FormSubmissionReport
     public const IN_PROGRESS_MINUTES = 5;
 
     /**
-     * Submissions from the last $days days, oldest first, with their
-     * checkouts. Only those that need a follow-up are listed, unless $all
-     * includes the ones that succeeded. $form limits the list to one of
-     * FormSubmission::FORMS.
+     * Submissions from the last $days days, or ever with null, oldest first,
+     * with their checkouts. Only those that need a follow-up are listed,
+     * unless $all includes the ones that succeeded. $forms limits the list to
+     * some of FormSubmission::FORMS; with none, both forms are listed.
      *
+     * @param  array<int, string>  $forms
      * @return Collection<int, FormSubmission>
      */
-    public function list(int $days, ?string $form = null, bool $all = false): Collection
+    public function list(?int $days, array $forms = [], bool $all = false): Collection
     {
         return FormSubmission::query()
             ->with('checkout')
-            ->where('created_at', '>=', now()->subDays($days))
-            ->when($form, fn ($query) => $query->where('form', $form))
+            ->when($days !== null, fn ($query) => $query->where('created_at', '>=', now()->subDays($days)))
+            ->when($forms, fn ($query) => $query->whereIn('form', $forms))
             ->orderBy('created_at')
             ->get()
             ->when(! $all, fn (Collection $submissions) => $submissions->filter($this->needsAttention(...)))
             ->values();
+    }
+
+    /**
+     * One submission by its reference, such as a visitor quotes, whatever
+     * its outcome, with its checkout, or null. Case doesn't matter, since
+     * references are capital letters and digits.
+     */
+    public function find(string $reference): ?FormSubmission
+    {
+        return FormSubmission::query()->with('checkout')->where('reference', strtoupper($reference))->first();
     }
 
     /**
