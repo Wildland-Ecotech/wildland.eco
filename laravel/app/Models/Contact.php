@@ -14,6 +14,9 @@ use Illuminate\Support\Facades\DB;
  * donate leaves. Only a name is required. Their emails, phone numbers, and
  * address are ContactDetails, several per contact, kept after they change.
  *
+ * A drop-off site is a contact too, with `is_drop_off_site` set, so its
+ * name, address, and phone number are kept the same way.
+ *
  * Holds personal details: never paste them into issues, chat, or the
  * repository. Deleting a contact soft-deletes it. A contact merged into
  * another (App\Services\ContactMerger) is deleted, with `merged_into_id`
@@ -22,10 +25,23 @@ use Illuminate\Support\Facades\DB;
 #[Fillable([
     'name',
     'notes',
+    'is_drop_off_site',
 ])]
 class Contact extends Model
 {
     use SoftDeletes;
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'is_drop_off_site' => 'boolean',
+        ];
+    }
 
     /**
      * Every email, phone number, and address, including removed ones.
@@ -56,6 +72,17 @@ class Contact extends Model
     public function applications(): HasMany
     {
         return $this->hasMany(LeafApplication::class);
+    }
+
+    /**
+     * The contact's timeline entries, such as texts and pickups, not
+     * deleted.
+     *
+     * @return HasMany<ContactActivity, $this>
+     */
+    public function activities(): HasMany
+    {
+        return $this->hasMany(ContactActivity::class);
     }
 
     /**

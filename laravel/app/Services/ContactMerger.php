@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Contact;
+use App\Models\ContactActivity;
 use App\Models\ContactDetail;
 use App\Models\LeafApplication;
 use App\Models\User;
@@ -19,7 +20,8 @@ class ContactMerger
     /**
      * Merge $from into $into:
      *
-     * - Every application of $from, deleted ones too, moves to $into.
+     * - Every application of $from, deleted ones too, moves to $into, and
+     *   so does every timeline entry.
      * - Each detail of $from moves to $into, unless $into has it already,
      *   in which case $into's is kept, and put back in use if only $from's
      *   was current. A moved address or primary detail stays current or
@@ -37,6 +39,7 @@ class ContactMerger
     {
         return DB::transaction(function () use ($from, $into, $admin) {
             $moved = LeafApplication::withTrashed()->where('contact_id', $from->id)->update(['contact_id' => $into->id]);
+            ContactActivity::withTrashed()->where('contact_id', $from->id)->update(['contact_id' => $into->id]);
 
             foreach ($from->details()->orderByRaw('removed_at IS NOT NULL')->orderByDesc('is_primary')->orderBy('id')->get() as $detail) {
                 $this->moveDetail($detail, $into);

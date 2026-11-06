@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Contact;
+use App\Models\ContactActivity;
 use App\Models\ContactDetail;
 use App\Models\LeafApplication;
 use App\Models\User;
@@ -133,6 +134,22 @@ class ContactMergeTest extends TestCase
         // Sharing the number was the only reason to look, and nobody else has it now
         $this->assertFalse($flagged->needsContactReview());
         $this->assertSame($this->admin->id, $flagged->contact_reviewed_by);
+    }
+
+    public function test_merging_moves_the_timeline(): void
+    {
+        $jamie = Contact::create(['name' => 'Jamie Rivera']);
+        $other = Contact::create(['name' => 'Jamie R.']);
+        $text = $other->activities()->create(['type' => ContactActivity::TYPE_TEXT, 'direction' => ContactActivity::DIRECTION_INCOMING, 'happened_at' => now(), 'body' => 'The bags are by the garage']);
+        $deleted = $other->activities()->create(['type' => ContactActivity::TYPE_NOTE, 'happened_at' => now(), 'body' => 'Logged by mistake']);
+        $deleted->delete();
+
+        $this->actingAs($this->admin)
+            ->post("/admin/contacts/{$jamie->id}/merge/{$other->id}")
+            ->assertRedirect(route('admin.contacts.show', $jamie->id));
+
+        $this->assertSame([$text->id], $jamie->activities()->pluck('id')->all());
+        $this->assertSame($jamie->id, ContactActivity::withTrashed()->find($deleted->id)->contact_id);
     }
 
     public function test_reviews_for_other_reasons_stay_open(): void

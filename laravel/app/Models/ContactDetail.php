@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\GeographyPoint;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,6 +18,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * A contact has at most one current address and at most one primary detail
  * of each type, which the database enforces. Change them through Contact's
  * methods, which keep to both.
+ *
+ * An address can have a map location, set with locate() once it's
+ * geocoded. A changed address is a new detail without one, so a detail's
+ * location always belongs to its own address.
  */
 #[Fillable([
     'type',
@@ -43,6 +48,8 @@ class ContactDetail extends Model
         return [
             'is_primary' => 'boolean',
             'removed_at' => 'datetime',
+            'location' => GeographyPoint::class,
+            'located_at' => 'datetime',
         ];
     }
 
@@ -101,6 +108,19 @@ class ContactDetail extends Model
     protected function current(Builder $query): void
     {
         $query->whereNull('removed_at');
+    }
+
+    /**
+     * Set an address's map location, recording which admin set it and
+     * when. The database refuses a location on an email or phone number.
+     */
+    public function locate(float $latitude, float $longitude, User $admin): void
+    {
+        $this->forceFill([
+            'location' => ['latitude' => $latitude, 'longitude' => $longitude],
+            'located_at' => now(),
+            'located_by' => $admin->id,
+        ])->save();
     }
 
     public function isRemoved(): bool
