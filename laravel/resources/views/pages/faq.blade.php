@@ -159,6 +159,17 @@
                 </div>
             </details>
 
+            <details class="faq-item" id="refunds">
+                <summary>Can I get a refund?</summary>
+
+                <div class="prose">
+                    <p>
+                        Yes, within 30 days of any donation. Our <a href="{{ route('refunds') }}">refund policy</a>
+                        explains how to ask.
+                    </p>
+                </div>
+            </details>
+
             <details class="faq-item" id="partners">
                 <summary>Who are our partners and collaborators?</summary>
 

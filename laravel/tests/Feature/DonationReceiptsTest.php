@@ -232,6 +232,20 @@ class DonationReceiptsTest extends TestCase
         $mail->assertDontSeeInHtml('Manage Your Recurring Donation');
     }
 
+    public function test_the_receipt_links_to_the_refund_and_privacy_policies(): void
+    {
+        $mail = new DonationReceiptMail($this->receipts()->issue($this->donation()));
+
+        $mail->assertSeeInOrderInHtml(['Questions about your donation?', 'refund policy', 'privacy policy'], false);
+        $mail->assertSeeInHtml('href="' . route('refunds') . '"', false);
+        $mail->assertSeeInHtml('href="' . route('privacy') . '"', false);
+        // The plain-text version keeps the links as Markdown. Its host comes
+        // from APP_URL, which can differ from the test's URL, so check paths.
+        $mail->assertSeeInText('Our [refund policy](');
+        $mail->assertSeeInText('/refunds) and [privacy policy](');
+        $mail->assertSeeInText('/privacy) are on our website.');
+    }
+
     public function test_recurring_receipts_link_to_the_customer_portal(): void
     {
         config(['services.stripe.portal_login_url' => 'https://billing.stripe.com/p/login/test_example']);

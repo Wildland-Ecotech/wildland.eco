@@ -182,10 +182,12 @@
                         <p>By applying, you agree that:</p>
 
                         <ul>
+                            <li>You're 18 or older.</li>
+
                             <li>
                                 We may share the general area your leaves came from, when we received them,
                                 how many bags you gave us, and photos of the bags, as described in our
-                                <a href="{{ route('leaves') }}#privacy">privacy section</a>.
+                                <a href="{{ route('privacy') }}#what-we-share">privacy policy</a>.
                             </li>
 
                             <li>

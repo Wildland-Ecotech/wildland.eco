@@ -109,7 +109,7 @@ Done, except year-end summaries.
 - Done: reporting artisan commands, each with `--csv` (see [Services & Commands](02-services-and-commands.md#artisan-commands)): `donations:list`, a table of payments with type filters; `donations:view`, one donation in full; `donations:totals`, by month, calendar quarter, year, and all time, with refunds and Stripe's fees; and `donations:abandoned`, checkouts left without paying.
 - Active recurring donations, with their status, move to a future `subscriptions:list` command; `donations:list` lists their payments.
 - End-to-end runs in Stripe test mode covering one-time and recurring donations, failed payments, refunds, cancellation through the Customer Portal, abandoned checkouts, re-imports, and webhook retries.
-- Privacy policy (including email collection) and refund policy pages.
+- Done: privacy and refund policy pages (`/privacy`, `/refunds`; see [Frontend](04-frontend.md#privacy-policy-privacy-and-refund-policy-refunds--pagesprivacybladephp-pagesrefundsbladephp)), linked from every footer, the donate and thank-you pages, the leaf pages, receipts, and the FAQ.
 - Switch production to live keys, register the live webhook endpoint, and import live account history, including existing Payment Link donations.
 
 ### 9. Accounts and Member Dashboard

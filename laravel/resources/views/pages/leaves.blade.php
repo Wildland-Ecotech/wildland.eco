@@ -117,7 +117,8 @@
             <div class="prose">
                 <p>
                     Your name, address, phone number, and email stay private. We use them to coordinate your
-                    drop-off or pickup, and we never share them.
+                    drop-off or pickup. We never sell them, and we share them only with the services that run
+                    our website and email.
                 </p>
 
                 <p>
@@ -134,9 +135,11 @@
                 </ul>
 
                 <p>
-                    You might see these details in our grant applications and reports, on our website and
-                    social media, or in our flyers, zines, and brochures.
+                    You might see these details in our grant applications and reports, in our research, on our
+                    website and social media, or in our flyers, zines, and brochures.
                 </p>
+
+                <p>Our <a href="{{ route('privacy') }}">privacy policy</a> has the details.</p>
             </div>
         </section>
 
