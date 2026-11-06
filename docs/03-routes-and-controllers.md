@@ -12,7 +12,7 @@
 | POST | `/webhooks/stripe` | `webhooks.stripe` | `StripeWebhookController` | Receives Stripe's webhooks; see [Stripe Webhooks](#stripe-webhooks). Skips CSRF protection, sessions, and cookies |
 | GET | `/leaves` | `leaves` | `Route::view` → `pages.leaves` | Leaf program: leave the leaves, or donate them by drop-off or pickup |
 | GET | `/leaves/apply` | `leaves.apply` | `LeafApplicationController@create` → `pages.leaves-apply` | Application form, or the thank-you message after applying |
-| POST | `/leaves/apply` | `leaves.apply.store` | `LeafApplicationController@store` | Saves an application to `leaf_applications` |
+| POST | `/leaves/apply` | `leaves.apply.store` | `LeafApplicationController@store` | Saves an application to `leaf_applications` and links it to a contact |
 | GET | `/faq` | `faq` | `Route::view` → `pages.faq` | Frequently asked questions |
 | GET | `/privacy` | `privacy` | `Route::view` → `pages.privacy` | Privacy policy |
 | GET | `/refunds` | `refunds` | `Route::view` → `pages.refunds` | Donation refund policy |
@@ -100,7 +100,7 @@ Stripe sends events to `POST /webhooks/stripe`: from each server's registered we
    - `pow_challenge` and `pow_nonce` must be a solved, unexpired, unused proof of work, checked in the request's `after()` hook. A checked challenge is used up even when other fields fail, and the redisplayed form issues a new one.
    - Failures redirect back with errors and the visitor's input.
 3. The controller allows `LeafApplicationController::MAX_PER_HOUR` (5) saved applications per IP address per hour. Only saved applications count, so validation errors never lock anyone out.
-4. The application is saved, with `ready_date` cleared when the bags are ready now and `terms_accepted_at` set to the current time, and the visitor is redirected to `GET /leaves/apply` with `applied` (the application type) flashed to the session, which shows the thank-you message.
+4. The application is saved, with `ready_date` cleared when the bags are ready now and `terms_accepted_at` set to the current time, then linked to its contact by [ContactLinker](02-services-and-commands.md#contactlinker-appservicescontactlinkerphp); a failure linking is reported and never shown to the visitor. The visitor is redirected to `GET /leaves/apply` with `applied` (the application type) flashed to the session, which shows the thank-you message.
 
 ## Signing In
 

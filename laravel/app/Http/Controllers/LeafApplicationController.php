@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreLeafApplicationRequest;
 use App\Models\FormSubmission;
 use App\Models\LeafApplication;
+use App\Services\ContactLinker;
 use App\Services\ProofOfWork;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\View\View;
+use Throwable;
 
 /**
  * Applications to donate leaves to the leaf program (/leaves/apply).
@@ -34,9 +36,10 @@ class LeafApplicationController extends Controller
     }
 
     /**
-     * Save an application and show the thank-you message.
+     * Save an application, link it to its contact, and show the thank-you
+     * message.
      */
-    public function store(StoreLeafApplicationRequest $request): RedirectResponse
+    public function store(StoreLeafApplicationRequest $request, ContactLinker $contacts): RedirectResponse
     {
         // Recorded by RecordFormSubmission as the form arrived
         $submission = FormSubmission::forRequest($request);
@@ -71,6 +74,15 @@ class LeafApplicationController extends Controller
 
         RateLimiter::hit($limiterKey, 3600);
         $submission?->markAs(FormSubmission::OUTCOME_SAVED, ['leaf_application_id' => $application->id]);
+
+        // Link the application to the person who made it. The application is
+        // already saved, so a failure here is reported and the application
+        // is left unlinked, never lost or turned away.
+        try {
+            $contacts->link($application);
+        } catch (Throwable $exception) {
+            report($exception);
+        }
 
         return redirect()
             ->route('leaves.apply')

@@ -146,10 +146,12 @@ Keeping track of the people who apply to give leaves and our conversations with 
 **Decisions:**
 
 - **Contacts are people.** One application belongs to one contact. Leaf applications come first; donors (`users`) become contacts too, linked by a `contact_id`.
-- **Contact details:** only a name is required. Emails, phone numbers (US, stored normalized), and addresses are their own records, several per contact, kept after they change, so matching still finds a previous number or address. A contact's address holds its map location.
-- **Linking:** new applications link to a contact by exact email or phone number, or create one. Conflicting matches go to a review list rather than being merged.
+- **Contact details:** only a name is required. Emails, phone numbers (US, stored normalized), and addresses are their own records, several per contact, kept after they change, so matching still finds a previous number or address. A contact has one current address, which holds their map location; a previous address is kept for matching.
+- **Linking:** new applications link to a contact by exact email or phone number, or create one, and the newest application's email and phone number become the contact's primary ones. A different name or current address links the application but flags it for review without changing the contact; an email and phone number belonging to different contacts link to neither and go to review. Nothing is merged automatically, and nothing ever stops an application from being saved.
+- **Contacts by hand:** admins add contacts for people reached before they applied, such as by text, and combine them with applications submitted since.
+- **Links everywhere:** every application and Error Logs entry links to its contact on every admin page, and a contact's page shows their applications and form errors, so admins move through the records without going back and forth.
 - **Timeline:** one history per contact, newest first. Added automatically: applications, form errors (with how Error Logs closed them), emails sent, drop-offs, and pickups. Logged by hand: texts, calls, visits, and notes, with the date, sent or received, the text, and which admin, with "Save and add another" for a back-and-forth. Texts are logged by hand until automatic SMS, with room for a provider, message ID, and delivery status.
-- **Edits:** everything can be edited, and every edit records which admin changed what and when.
+- **Edits:** everything can be edited, and every edit records which admin changed what and when. The record of edits comes with the timeline (step 5).
 - **Tags:** applications and contacts get tags, several at a time, in groups; a group can allow only one tag at a time, such as a stage. The specific tags are decided from a list of examples later.
 - **Bans:** a banned contact has a reason. Any contact or application whose phone, email, address, or name matches a banned contact's, current or past, shows a red flag naming the match, and lists can filter by it; nothing is blocked automatically. If a banned person asks for their data to be removed, only hashes of their details are kept for matching, and purged after a few years (built when first needed).
 - **Pickups:** a list of people waiting for a pickup, from which an admin chooses a cluster that fills a trailer load (about 70 to 80 bags), with a printable map of their locations. Admins plan the route themselves.
@@ -167,7 +169,7 @@ Keeping track of the people who apply to give leaves and our conversations with 
 **Order:**
 
 1. The local geocoder.
-2. Contacts: contacts, their details, linking applications (including past ones), and contact pages.
+2. Contacts: contacts, their details, linking applications (including past ones), and contact pages. Done: the tables and linking new applications.
 3. Copying addresses and pasting coordinates, starting with the drop-off sites.
 4. The map of pickup locations, printable.
 5. The timeline: texts, calls, and notes.
