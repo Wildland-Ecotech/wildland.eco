@@ -6,12 +6,12 @@
         <p class="status" role="status">{{ session('status') }}</p>
     @endif
 
-    {{-- The follow-up is an icon and words, linking to what the visitor's later submission made; see the admin-records component --}}
+    {{-- The follow-up is an icon and words, linking to what the visitor's later submission made (see the admin-records component), and the contact links to the person's page --}}
     <dl class="record">
         @foreach ($fields as $label => $value)
             <div>
                 <dt>{{ $label }}</dt>
-                <dd>@if (is_array($value))<span class="status-cell"><span class="status-icon {{ $value['status'] }}" aria-hidden="true">{{ ['success' => '✓', 'failure' => '✕', 'muted' => '–'][$value['status']] }}</span>@if ($value['url'] ?? null)<a href="{{ $value['url'] }}">{{ $value['text'] }}</a>@else{{ $value['text'] }}@endif</span>@else{{ $value === '' ? '—' : $value }}@endif</dd>
+                <dd>@if (is_array($value) && ! isset($value['status']))<a href="{{ $value['url'] }}">{{ $value['text'] }}</a>@elseif (is_array($value))<span class="status-cell"><span class="status-icon {{ $value['status'] }}" aria-hidden="true">{{ ['success' => '✓', 'failure' => '✕', 'muted' => '–'][$value['status']] }}</span>@if ($value['url'] ?? null)<a href="{{ $value['url'] }}">{{ $value['text'] }}</a>@else{{ $value['text'] }}@endif</span>@else{{ $value === '' ? '—' : $value }}@endif</dd>
             </div>
         @endforeach
     </dl>

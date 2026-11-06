@@ -768,9 +768,17 @@ $control-height: 16px * $control-line-height + 16px + 4px;
     // contact an application belongs to
     .summary a,
     .record dd a,
-    .records-table td a {
+    .records-table td a,
+    .detail-list a {
         color: $green;
         text-decoration: underline;
+    }
+
+    // What a list's buttons do, under the list, such as merging contacts
+    .detail-hint {
+        @include type.fine-print;
+        max-width: 640px;
+        margin: -0.25em 0 2em;
     }
 
     // The ways to settle an application's contact, one under another
