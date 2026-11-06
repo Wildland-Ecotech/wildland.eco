@@ -141,7 +141,7 @@ After launch. Stripe Checkout and the no-code Customer Portal are a quick MVP so
 
 ## Leaf Application CRM
 
-Keeping track of the people who apply to give leaves and our conversations with them, so nobody slips through the cracks. **Following up with people who applied through the site comes first**; importing past records and other conveniences come after.
+Keeping track of the people who apply to give leaves and our conversations with them, so nobody slips through the cracks. **Following up with people who applied through the site comes first**; importing past records and other conveniences come after. The CRM is merged and deployed once contacts, the timeline, the follow-up list, and the map with geocoding are all done, since following up and planning the first pickup route need all of them.
 
 **Decisions:**
 
@@ -150,18 +150,21 @@ Keeping track of the people who apply to give leaves and our conversations with 
 - **Linking:** new applications link to the contact with the same name and the same email or phone number, and the newest application's email and phone number become the contact's primary ones. A different name makes a new contact, since it may be someone else at the same number, and an email or phone number on more than one contact is flagged for review, so an admin can merge them or leave them apart. A different current address is flagged too, and an application matching more than one contact with the same name links to neither. Nothing is merged automatically, and nothing ever stops an application from being saved.
 - **Contacts by hand:** admins add contacts for people reached before they applied, such as by text, and combine them with applications submitted since.
 - **Links everywhere:** every application and Error Logs entry links to its contact on every admin page, and a contact's page shows their applications and form errors, so admins move through the records without going back and forth.
-- **Timeline:** one history per contact, newest first. Added automatically: applications, form errors (with how Error Logs closed them), emails sent, drop-offs, and pickups. Logged by hand: texts, calls, visits, and notes, with the date, sent or received, the text, and which admin, with "Save and add another" for a back-and-forth. Texts are logged by hand until automatic SMS, with room for a provider, message ID, and delivery status.
-- **Edits:** everything can be edited, and every edit records which admin changed what and when. The record of edits comes with the timeline (step 5).
+- **Timeline:** one history per contact, newest first, on the contact's page. Added automatically: applications and form errors (with how Error Logs closed them), and later emails sent. Logged by hand on a Log Activity page, from a button under the timeline: texts and calls (with who reached out), visits, notes, pickups, and drop-offs (with bags), with the date and time, what was said, the application it was about, and which admin, with "Save and Add Another" for a back-and-forth. Texts are logged by hand until automatic SMS, which adds a provider, message ID, and delivery status.
+- **Application status:** an application is pending until a pickup or drop-off is logged for it, which marks it complete and takes it off the map and the follow-up list, like crossing someone off the pending list after their pickup.
+- **Follow-up:** pending applications are ranked so whoever needs to hear from us first is at the top (`FollowUpReport`), in four groups, oldest first in each. **Waiting on us:** their last text or call came from them, a follow-up date has come, or nobody has reached them a week after they applied. **Ready:** bags ready now or within a week, and we haven't reached out yet. **Contacted:** we've reached them, and the pickup or drop-off is still to come. **Later:** bags not ready for more than a week, or a follow-up date still to come. Reaching someone is a text or call from us, or a visit. A follow-up date, set when logging, such as when the donor asks us to check back next week, moves them to Later until then. Contacts opens on a Needs follow-up view in this order, each labeled with its group and why, and the dashboard shows a warning when people are waiting or ready. The groups work like automatic tags, and become them when tags are built.
+- **Edits:** everything can be edited, and every edit records which admin changed what and when. The record of edits comes after launch.
 - **Tags:** applications and contacts get tags, several at a time, in groups; a group can allow only one tag at a time, such as a stage. The specific tags are decided from a list of examples later.
 - **Bans:** a banned contact has a reason. Any contact or application whose phone, email, address, or name matches a banned contact's, current or past, shows a red flag naming the match, and lists can filter by it; nothing is blocked automatically. If a banned person asks for their data to be removed, only hashes of their details are kept for matching, and purged after a few years (built when first needed).
 - **Pickups:** a list of people waiting for a pickup, from which an admin chooses a cluster that fills a trailer load (about 70 to 80 bags), with a printable map of their locations. Admins plan the route themselves.
-- **Drop-off sites:** two, whose addresses stay private until an application is approved. The first places geocoded.
+- **Drop-off sites:** two, whose addresses stay private until an application is approved. They're contacts with "Drop-off site" checked, so their name, address, and phone number are kept like anyone's, and they're marked on Contacts. The first places geocoded.
 - **Email and SMS templates:** scaffolding with placeholder fields, refined once in use. Emails are sent one at a time through AhaSend, never in bulk.
 - **Access:** every admin, currently board members, sees and edits everything. Permissions come later.
 
 **Geocoding and the map:**
 
-- **Geocoding stays on an admin's computer:** the local [Geocoder](07-deployment.md#geocoder), never an outside service or the servers. An admin page lists addresses without a location to copy; the admin geocodes them locally and pastes the coordinates back.
+- **Geocoding stays on an admin's computer:** the local [Geocoder](07-deployment.md#geocoder), never an outside service or the servers. The Map page lists addresses without a location to copy; the admin geocodes them locally and pastes the coordinates back on the same page.
+- **One Map page** for everything to do with locations: the pending applications and the drop-off sites on the map, for planning routes, and copying addresses and pasting coordinates.
 - **Locations** are PostGIS points (the extension is created in a migration, as [AI Development Notes](05-ai-development-notes.md) describes), so the database finds the nearest drop-off site and nearby pickups.
 - **The map** uses Leaflet, bundled with npm, and OpenStreetMap's tile server, with its attribution, loading only the tiles in view. Tile requests show OpenStreetMap the area viewed, never addresses or names. It prints for planning a route. The map needs JavaScript, an exception for admin pages; every list works without it.
 - **Later:** self-hosted routing, such as OSRM, if planning routes by hand stops being enough.
@@ -170,9 +173,9 @@ Keeping track of the people who apply to give leaves and our conversations with 
 
 1. The local geocoder.
 2. Contacts: contacts, their details, linking applications (including past ones), and contact pages. Done: the tables, linking new applications, `contacts:link` for past ones, the contact list and contact pages, adding and editing contacts by hand, the Needs Review list, settling an application's contact from its page, merging contacts, and links to contacts from applications, Error Logs, and their form errors.
-3. Copying addresses and pasting coordinates, starting with the drop-off sites.
-4. The map of pickup locations, printable.
-5. The timeline: texts, calls, and notes.
+3. Locations, the timeline, and follow-up. Done: locations on addresses (PostGIS), drop-off sites as contacts, timeline entries and application status, the follow-up order, the timeline on contact pages, and logging activity.
+4. The follow-up list on Contacts and the dashboard's warning.
+5. The Map page: pending applications and drop-off sites on a printable map, copying addresses, and pasting coordinates.
 6. Tags, then automatic tags.
 7. The pickup list and loads.
 8. Email and SMS templates.

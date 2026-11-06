@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\Traits\ShowsFollowUps;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SaveContactRequest;
 use App\Models\Contact;
+use App\Models\ContactActivity;
 use App\Models\ContactDetail;
 use App\Models\FormSubmission;
 use App\Models\LeafApplication;
@@ -16,6 +17,7 @@ use App\Reports\Traits\DescribesLeafApplications;
 use App\Services\ContactMerger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -24,12 +26,14 @@ use Illuminate\View\View;
 /**
  * The admin contact pages (/admin/contacts): the list of contacts, with the
  * person who applied most recently first and a search by name, phone number,
- * or email; one contact with their details, applications, and form errors;
- * adding a contact by hand, such as someone reached by text before they
- * applied; editing a contact's name and notes; merging another contact into
- * one; and the applications whose contact needs an admin to look (Needs
- * Review). Their phone numbers, emails, and address are edited through
- * ContactDetailController.
+ * or email; one contact with their details, timeline, applications, and form
+ * errors; adding a contact by hand, such as someone reached by text before
+ * they applied, or a drop-off site; editing a contact's name, notes, and
+ * whether they're a drop-off site; merging another contact into one; and the
+ * applications whose contact needs an admin to look (Needs Review). Their
+ * phone numbers, emails, and address are edited through
+ * ContactDetailController, and timeline entries logged through
+ * ContactActivityController.
  */
 class ContactController extends Controller
 {
@@ -51,7 +55,7 @@ class ContactController extends Controller
      * application's line on a phone (applied, type, and bags), and the
      * columns lined up on the right (ID and bags).
      */
-    public const APPLICATION_HEADERS = ['ID', 'Applied', 'Type', 'Bags', 'Ready'];
+    public const APPLICATION_HEADERS = ['ID', 'Applied', 'Type', 'Bags', 'Ready', 'Status'];
 
     public const APPLICATION_SUMMARY_COLUMNS = [1, 2, 3];
 
@@ -121,8 +125,8 @@ class ContactController extends Controller
 
     /**
      * One contact with their details, the other contacts sharing a phone
-     * number or email, and their applications. A contact merged into
-     * another goes to that one.
+     * number or email, their timeline, their applications, and their form
+     * errors. A contact merged into another goes to that one.
      */
     public function show(string $contact, ContactReport $report, FormSubmissionReport $submissions): View|RedirectResponse
     {
@@ -137,10 +141,14 @@ class ContactController extends Controller
             return redirect()->route('admin.contacts.show', $into->id)->with('status', 'That contact was merged into ' . $into->name . '.');
         }
 
+        $record->load(['activities' => fn ($query) => $query->with('loggedBy')->orderByDesc('happened_at')->orderByDesc('id')]);
+        $formErrors = $submissions->forContact($record);
+
         return view('pages.admin.contacts.show', [
             'contact' => $record,
             'fields' => $this->fields($record),
             'sharing' => $report->sharing($record),
+            'timeline' => $this->timeline($record, $formErrors),
             'applicationHeaders' => self::APPLICATION_HEADERS,
             'applicationRows' => $record->applications->map(fn (LeafApplication $application) => [
                 'cells' => [
@@ -149,6 +157,7 @@ class ContactController extends Controller
                     $this->leafApplicationType($application),
                     $application->estimated_bag_count,
                     $this->bagsReady($application),
+                    Str::ucfirst($application->status),
                 ],
                 'summary' => [
                     $this->shortDate($application->created_at),
@@ -158,7 +167,7 @@ class ContactController extends Controller
                 'url' => route('admin.leaves.show', $application->id),
             ])->all(),
             'formErrorHeaders' => self::FORM_ERROR_HEADERS,
-            'formErrorRows' => $submissions->forContact($record)->map(function (FormSubmission $submission) {
+            'formErrorRows' => $formErrors->map(function (FormSubmission $submission) {
                 $fields = $this->formSubmissionFields($submission);
 
                 return [
@@ -235,8 +244,12 @@ class ContactController extends Controller
             return back()->withInput()->with('duplicates', $duplicates);
         }
 
-        $contact = DB::transaction(function () use ($validated) {
-            $contact = Contact::create(['name' => $validated['name'], 'notes' => $validated['notes'] ?? null]);
+        $contact = DB::transaction(function () use ($request, $validated) {
+            $contact = Contact::create([
+                'name' => $validated['name'],
+                'notes' => $validated['notes'] ?? null,
+                'is_drop_off_site' => $request->boolean('is_drop_off_site'),
+            ]);
 
             foreach ([ContactDetail::TYPE_PHONE, ContactDetail::TYPE_EMAIL] as $type) {
                 if (($validated[$type] ?? null) !== null) {
@@ -271,13 +284,14 @@ class ContactController extends Controller
     }
 
     /**
-     * Save a contact's name and notes.
+     * Save a contact's name, notes, and whether they're a drop-off site.
      */
     public function update(SaveContactRequest $request, Contact $contact): RedirectResponse
     {
         $contact->update([
             'name' => $request->validated('name'),
             'notes' => $request->validated('notes'),
+            'is_drop_off_site' => $request->boolean('is_drop_off_site'),
         ]);
 
         return redirect()->route('admin.contacts.edit', $contact->id)->with('status', 'Saved the name and notes.');
@@ -358,7 +372,8 @@ class ContactController extends Controller
     /**
      * A contact's details for their page: phone numbers and emails, one per
      * line with the main one first, the current address, any previous
-     * phone numbers, emails, and addresses, notes, and when they were added.
+     * phone numbers, emails, and addresses, whether they're a drop-off site,
+     * notes, and when they were added.
      *
      * @return array<string, string>
      */
@@ -381,11 +396,91 @@ class ContactController extends Controller
             }
         }
 
+        if ($contact->is_drop_off_site) {
+            $fields['Drop-off site'] = 'Yes';
+        }
+
         return [
             ...$fields,
             'Notes' => (string) $contact->notes,
             'Added' => $this->localTime($contact->created_at),
         ];
+    }
+
+    /**
+     * The contact's timeline, newest first: their logged entries, then, added
+     * automatically, their applications and form errors. Each has when it
+     * happened, whether it came from them, whether it was added
+     * automatically, what happened, what was said, and a link to the record
+     * it's about with any words after the link. Activities must be loaded.
+     *
+     * @param  Collection<int, FormSubmission>  $formErrors
+     * @return list<array{when: string, incoming: bool, automatic: bool, what: string, body: ?string, link: ?array{text: string, url: string}, after: string}>
+     */
+    private function timeline(Contact $contact, Collection $formErrors): array
+    {
+        $applicationLink = fn (int $id) => ['text' => "Application {$id}", 'url' => route('admin.leaves.show', $id)];
+
+        $activities = $contact->activities->map(fn (ContactActivity $activity) => [
+            'time' => $activity->happened_at,
+            'incoming' => $activity->direction === ContactActivity::DIRECTION_INCOMING,
+            'automatic' => false,
+            'what' => $this->activityTitle($contact, $activity),
+            'body' => $activity->body,
+            'link' => $activity->leaf_application_id !== null ? $applicationLink($activity->leaf_application_id) : null,
+            'after' => '',
+        ]);
+
+        $applications = $contact->applications->map(fn (LeafApplication $application) => [
+            'time' => $application->created_at,
+            'incoming' => false,
+            'automatic' => true,
+            'what' => ($application->type === LeafApplication::TYPE_PICKUP ? 'Applied for a pickup: ' : 'Applied to drop off: ')
+                . $application->estimated_bag_count . ' ' . Str::plural('bag', $application->estimated_bag_count) . ', '
+                . ($application->ready_now ? 'ready now' : 'ready ' . $application->ready_date->format('M j')),
+            'body' => null,
+            'link' => $applicationLink($application->id),
+            'after' => '',
+        ]);
+
+        $errors = $formErrors->map(function (FormSubmission $submission) {
+            $fields = $this->formSubmissionFields($submission);
+
+            return [
+                'time' => $submission->created_at,
+                'incoming' => false,
+                'automatic' => true,
+                'what' => 'Form error: ' . Str::lower($fields['Form']) . ', ' . Str::lcfirst($fields['What happened']),
+                'body' => null,
+                'link' => ['text' => $submission->reference, 'url' => route('admin.errors.show', $submission->reference)],
+                'after' => ' · ' . Str::lcfirst($this->formSubmissionFollowUpText($submission)),
+            ];
+        });
+
+        // A stable sort, so entries at the same minute stay in this order
+        return $activities->concat($applications)->concat($errors)
+            ->sortByDesc(fn (array $entry) => $entry['time']->getTimestamp())
+            ->map(fn (array $entry) => ['when' => $this->listTime($entry['time']), ...Arr::except($entry, 'time')])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * What a logged entry was, such as "Text from us · Rachel", "Call from
+     * Jamie Rivera", or "Pickup: 28 bags · Rachel", with the admin who
+     * logged it when they were the one in touch.
+     */
+    private function activityTitle(Contact $contact, ContactActivity $activity): string
+    {
+        $label = ContactActivityController::TYPE_LABELS[$activity->type] ?? $activity->type;
+        $by = $activity->loggedBy ? ' · ' . ($activity->loggedBy->name ?: $activity->loggedBy->email) : '';
+
+        return match (true) {
+            $activity->direction === ContactActivity::DIRECTION_INCOMING => "{$label} from {$contact->name}",
+            $activity->direction === ContactActivity::DIRECTION_OUTGOING => "{$label} from us{$by}",
+            $activity->bag_count !== null => "{$label}: {$activity->bag_count} " . Str::plural('bag', $activity->bag_count) . $by,
+            default => $label . $by,
+        };
     }
 
     /**

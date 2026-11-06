@@ -11,8 +11,8 @@ use Tests\TestCase;
 
 /**
  * Adding contacts by hand (/admin/contacts/new) and editing them
- * (/admin/contacts/{id}/edit): name and notes, and adding, making main, and
- * removing phone numbers, emails, and the address.
+ * (/admin/contacts/{id}/edit): name, notes, and drop-off sites, and adding,
+ * making main, and removing phone numbers, emails, and the address.
  */
 class AdminContactFormsTest extends TestCase
 {
@@ -244,6 +244,39 @@ class AdminContactFormsTest extends TestCase
         $contact->refresh();
         $this->assertSame('Jamie R. Rivera', $contact->name);
         $this->assertSame('Prefers texts after 5pm', $contact->notes);
+    }
+
+    public function test_a_drop_off_site_is_marked_when_added_and_edited(): void
+    {
+        $this->actingAs($this->admin)
+            ->get('/admin/contacts/new')
+            // Unchecked sends 0
+            ->assertSee('<input type="hidden" name="is_drop_off_site" value="0">', false)
+            ->assertSee('name="is_drop_off_site" value="1" aria-describedby="is_drop_off_site-hint" >', false);
+
+        $this->actingAs($this->admin)
+            ->post('/admin/contacts', ['name' => 'North Drop-off Site', 'phone' => '(970) 555-0100', 'is_drop_off_site' => '1'])
+            ->assertSessionHasNoErrors();
+
+        $site = Contact::sole();
+        $this->assertTrue($site->is_drop_off_site);
+
+        $this->actingAs($this->admin)
+            ->get("/admin/contacts/{$site->id}")
+            ->assertSeeInOrder(['<dt>Drop-off site</dt>', '<dd>Yes</dd>'], false);
+
+        $this->actingAs($this->admin)
+            ->get("/admin/contacts/{$site->id}/edit")
+            ->assertSee('name="is_drop_off_site" value="1" aria-describedby="is_drop_off_site-hint" checked>', false);
+
+        $this->actingAs($this->admin)
+            ->post("/admin/contacts/{$site->id}", ['name' => 'North Drop-off Site', 'notes' => '', 'is_drop_off_site' => '0'])
+            ->assertRedirect(route('admin.contacts.edit', $site->id));
+
+        $this->assertFalse($site->fresh()->is_drop_off_site);
+        $this->actingAs($this->admin)
+            ->get("/admin/contacts/{$site->id}")
+            ->assertDontSee('<dt>Drop-off site</dt>', false);
     }
 
     public function test_adds_a_phone_number_without_changing_the_main_one(): void
