@@ -4,14 +4,17 @@ namespace Tests\Feature;
 
 use App\Models\Contact;
 use App\Models\ContactDetail;
+use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use Tests\TestCase;
 
 /**
  * Contacts' emails, phone numbers, and addresses: how they're normalized for
- * matching, and the rules the database keeps (one current address, one
- * primary detail of each type).
+ * matching, the rules the database keeps (one current address, one primary
+ * detail of each type), and addresses' map locations.
  */
 class ContactDetailTest extends TestCase
 {
@@ -94,5 +97,50 @@ class ContactDetailTest extends TestCase
         $contact->details()->make(['type' => ContactDetail::TYPE_EMAIL, 'value' => 'other@example.com'])
             ->forceFill(['is_primary' => true])
             ->save();
+    }
+
+    public function test_locating_an_address_stores_its_coordinates(): void
+    {
+        $this->freezeSecond();
+        $admin = User::factory()->admin()->create();
+        $contact = Contact::create(['name' => 'Jamie Rivera']);
+        $address = $contact->moveTo('123 Example St, Fort Collins, CO 80521');
+        $this->assertNull($address->location);
+
+        $address->locate(40.5898512, -105.0819134, $admin);
+
+        // The same before and after reading it back from the database
+        foreach ([$address, $address->fresh()] as $detail) {
+            $this->assertEqualsWithDelta(40.5898512, $detail->location['latitude'], 1e-9);
+            $this->assertEqualsWithDelta(-105.0819134, $detail->location['longitude'], 1e-9);
+        }
+
+        $address->refresh();
+        $this->assertSame($admin->id, $address->located_by);
+        $this->assertTrue(now()->eq($address->located_at));
+        // PostGIS holds a point, longitude first
+        $this->assertSame('POINT(-105.0819134 40.5898512)', DB::scalar('SELECT ST_AsText(location) FROM contact_details WHERE id = ?', [$address->id]));
+
+        // A new address has no location until it's located
+        $this->assertNull($contact->moveTo('456 Sample Ave, Fort Collins, CO 80524')->fresh()->location);
+    }
+
+    public function test_only_addresses_have_a_location(): void
+    {
+        $contact = Contact::create(['name' => 'Jamie Rivera']);
+        $phone = $contact->usePrimary(ContactDetail::TYPE_PHONE, '(970) 555-0123');
+
+        $this->expectException(QueryException::class);
+
+        $phone->locate(40.5898512, -105.0819134, User::factory()->create());
+    }
+
+    public function test_a_location_must_be_on_the_globe(): void
+    {
+        $address = Contact::create(['name' => 'Jamie Rivera'])->moveTo('123 Example St, Fort Collins, CO 80521');
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $address->locate(105.08191, 40.58985, User::factory()->create());
     }
 }

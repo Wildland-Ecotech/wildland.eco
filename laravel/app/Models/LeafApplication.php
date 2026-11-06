@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -20,6 +21,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * linking needs an admin to look, `contact_review` lists why; the contact
  * columns are set only by ContactLinker and admin pages, never from form
  * input.
+ *
+ * An application is pending until a pickup or drop-off is logged for it on
+ * the contact's timeline (ContactActivity), which marks it complete. Its
+ * `status` and `follow_up_on` are set only that way and by admin pages.
  */
 #[Fillable([
     'type',
@@ -43,6 +48,15 @@ class LeafApplication extends Model
     public const TYPE_PICKUP = 'pickup';
 
     public const TYPES = [self::TYPE_DROP_OFF, self::TYPE_PICKUP];
+
+    /**
+     * Waiting for its pickup or drop-off, or done.
+     */
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_COMPLETE = 'complete';
+
+    public const STATUSES = [self::STATUS_PENDING, self::STATUS_COMPLETE];
 
     /**
      * Why an application's contact needs an admin to look: the contact it
@@ -73,6 +87,15 @@ class LeafApplication extends Model
     ];
 
     /**
+     * The model's default values, matching the database's.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'status' => self::STATUS_PENDING,
+    ];
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -86,6 +109,7 @@ class LeafApplication extends Model
             'terms_accepted_at' => 'datetime',
             'contact_review' => 'array',
             'contact_reviewed_at' => 'datetime',
+            'follow_up_on' => 'date',
         ];
     }
 
@@ -109,6 +133,16 @@ class LeafApplication extends Model
     public function contact(): BelongsTo
     {
         return $this->belongsTo(Contact::class)->withTrashed();
+    }
+
+    /**
+     * The timeline entries logged for this application, such as its pickup.
+     *
+     * @return HasMany<ContactActivity, $this>
+     */
+    public function activities(): HasMany
+    {
+        return $this->hasMany(ContactActivity::class);
     }
 
     /**
@@ -139,5 +173,16 @@ class LeafApplication extends Model
     protected function needingContactReview(Builder $query): void
     {
         $query->whereNotNull('contact_review')->whereNull('contact_reviewed_at');
+    }
+
+    /**
+     * Applications still waiting for their pickup or drop-off.
+     *
+     * @param  Builder<LeafApplication>  $query
+     */
+    #[Scope]
+    protected function pending(Builder $query): void
+    {
+        $query->where('status', self::STATUS_PENDING);
     }
 }
