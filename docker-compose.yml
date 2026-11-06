@@ -134,7 +134,8 @@ services:
 
   # Servers only (COMPOSE_PROFILES=server in the root .env).
   # Terminates HTTPS for the domains in deploy/caddy/$CADDY_SITE.Caddyfile,
-  # and shows deploy/caddy/maintenance.html while the site is unavailable.
+  # shows deploy/caddy/maintenance.html while the site is unavailable, and
+  # writes the access logs.
   # The config directory is mounted rather than the file, so changes pulled
   # by a deploy are visible to `caddy reload`.
   caddy:
@@ -154,6 +155,9 @@ services:
       - ./deploy/maintenance:/srv/maintenance:ro
       - caddy_data:/data
       - caddy_config:/config
+      # Access logs, kept across releases and deleted by Caddy after 90 days
+      # (the access_log snippet in deploy/caddy/site.caddy)
+      - caddy_logs:/var/log/caddy
     depends_on:
       - nginx
     networks:
@@ -188,4 +192,6 @@ volumes:
   caddy_data:
     driver: local
   caddy_config:
+    driver: local
+  caddy_logs:
     driver: local

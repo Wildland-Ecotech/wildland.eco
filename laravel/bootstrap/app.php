@@ -16,8 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // On servers, a reverse proxy terminates HTTPS and forwards requests to
         // nginx over plain HTTP. Trusting its X-Forwarded-* headers lets Laravel
-        // generate https:// URLs. Trusting any address is safe because nginx is
-        // bound to 127.0.0.1, so only the proxy on the same server can reach it.
+        // generate https:// URLs and see the visitor's address, which Caddy
+        // sends alone in X-Forwarded-For (deploy/caddy/site.caddy). Trusting
+        // any address is safe because nginx is bound to 127.0.0.1, so only the
+        // proxy on the same server can reach it.
         $middleware->trustProxies(at: '*');
 
         // Forms record each submission as soon as the session starts, before

@@ -24,6 +24,12 @@
 		lb_try_duration 15s
 		lb_try_interval 250ms
 
+		# Sends only the visitor's address (see cloudflare.caddy), which
+		# Laravel uses for sessions and rate limits. Behind Cloudflare, Caddy
+		# would otherwise add Cloudflare's address to the end of the list,
+		# and Laravel would take that one.
+		header_up X-Forwarded-For {client_ip}
+
 		@unavailable status 502 503 504
 		handle_response @unavailable {
 			error "Unavailable" {rp.status_code}
@@ -41,5 +47,22 @@
 		header Cache-Control "no-store"
 		header Retry-After "30"
 		file_server
+	}
+}
+
+# Access logs, kept for security: one JSON line per request, with the
+# visitor's address as client_ip, the page, the time, and the request's
+# headers. Caddy replaces cookies and Authorization headers with REDACTED.
+# Every site writes to the same file, in the caddy_logs volume, so the logs
+# survive deploys. The file is rolled daily, older files are gzipped, and
+# each is deleted once it is 90 days old (the privacy policy says so).
+# roll_keep is above 90 so that age, not a count, decides.
+(access_log) {
+	log {
+		output file /var/log/caddy/access.log {
+			roll_interval 24h
+			roll_keep 100
+			roll_keep_for 90d
+		}
 	}
 }

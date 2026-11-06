@@ -5,13 +5,17 @@
 
 {
 	email contact@wildland.eco
+
+	# Visitors' own addresses, from behind Cloudflare
+	import /etc/caddy/cloudflare.caddy
 }
 
-# The proxy_to_site and maintenance_page snippets
+# The proxy_to_site, maintenance_page, and access_log snippets
 import /etc/caddy/site.caddy
 
 stage.wildland.eco {
 	encode zstd gzip
+	import access_log
 
 	# Keep the staging site out of search results
 	header X-Robots-Tag "noindex, nofollow"
