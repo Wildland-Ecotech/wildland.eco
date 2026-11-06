@@ -10,6 +10,13 @@ $green: #2ECF9E;
 $error: #FF8A80;
 // Dividers between rows, sections, and the dashboard's numbers
 $line: rgba(255, 255, 255, 0.15);
+// Fields' labels, and the height of menus and small buttons, so filters,
+// checkboxes, and buttons in a row line up
+$label-size: 17px;
+$label-line-height: 1.35;
+$label-offset: $label-size * ($label-line-height + 0.4);
+$control-line-height: 1.3;
+$control-height: 16px * $control-line-height + 16px + 4px;
 
 .admin-page {
     .card {
@@ -62,7 +69,8 @@ $line: rgba(255, 255, 255, 0.15);
 
     label {
         display: block;
-        font-size: 17px;
+        font-size: $label-size;
+        line-height: $label-line-height;
         font-weight: 700;
         color: #fff;
         margin-bottom: 0.4em;
@@ -72,7 +80,8 @@ $line: rgba(255, 255, 255, 0.15);
     // filters and the forms that act on records
     legend {
         display: block;
-        font-size: 17px;
+        font-size: $label-size;
+        line-height: $label-line-height;
         font-weight: 700;
         color: #fff;
         margin-bottom: 0.4em;
@@ -87,6 +96,11 @@ $line: rgba(255, 255, 255, 0.15);
         color: #fff;
         font-family: satoshi;
         font-size: 16px;
+        line-height: $control-line-height;
+        // The height of small buttons, which browsers don't take from the
+        // line height alone
+        height: $control-height;
+        box-sizing: border-box;
         color-scheme: dark;
 
         &:focus {
@@ -194,12 +208,29 @@ $line: rgba(255, 255, 255, 0.15);
         white-space: nowrap;
     }
 
+    // Sign Out, in the card's top right corner, apart from the navigation,
+    // with a gray border so it doesn't stand out like an action on the page
+    .card.wide {
+        position: relative;
+    }
+
+    .sign-out {
+        position: absolute;
+        top: 1.25em;
+        right: 1.25em;
+        margin: 0;
+
+        .button {
+            margin: 0;
+            border-color: rgba(255, 255, 255, 0.35);
+
+            &:hover {
+                border-color: rgba(255, 255, 255, 0.6);
+            }
+        }
+    }
+
     .admin-nav {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        align-items: center;
-        gap: 0.5em 1.5em;
         margin: 0.5em 0 2em;
         padding-bottom: 1.25em;
         border-bottom: 1px solid $line;
@@ -215,6 +246,12 @@ $line: rgba(255, 255, 255, 0.15);
             list-style: none;
         }
 
+        // Without the content page's spacing between list items, so links
+        // that wrap on a phone stay close together
+        li {
+            margin: 0;
+        }
+
         a {
             color: $green;
             font-size: 17px;
@@ -228,19 +265,19 @@ $line: rgba(255, 255, 255, 0.15);
                 text-underline-offset: 6px;
             }
         }
+    }
 
-        .sign-out {
-            background: none;
-            border: 0;
-            padding: 0;
-            color: rgba(255, 255, 255, 0.6);
-            font-family: satoshi;
-            font-size: 15px;
-            cursor: pointer;
+    // Buttons to a page's related pages, such as Abandoned Checkouts on
+    // Donations, on the right of the page's filters
+    .page-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 0.75em;
+        margin: 0 0 1.5em;
 
-            &:hover {
-                color: #fff;
-            }
+        .button {
+            margin: 0;
         }
     }
 
@@ -258,9 +295,31 @@ $line: rgba(255, 255, 255, 0.15);
             min-width: 0;
         }
 
+        // Checkboxes as tall as the menus beside them, so they line up
+        .checkbox {
+            min-height: $control-height;
+            margin-bottom: 0;
+        }
+
         .hint {
             @include type.fine-print;
             margin: 0.2em 0 0;
+        }
+
+        // With page actions beside them, the filters wrap in their own
+        // group, so the actions stay on the right of the first row, level
+        // with the menus
+        .filter-group {
+            display: flex;
+            flex: 1;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            gap: 1em 2em;
+            min-width: 0;
+        }
+
+        .page-actions {
+            margin: $label-offset 0 0 auto;
         }
 
         .filter-actions {
@@ -307,6 +366,17 @@ $line: rgba(255, 255, 255, 0.15);
     .admin-content h2 {
         margin: 1.5em 0 0.5em;
         font-size: 26px;
+    }
+
+    // A part of a section, such as each grouping of the dashboard's totals:
+    // white rather than the section heading's gradient, so the sections
+    // stand out from their parts
+    .admin-content h3 {
+        display: block;
+        margin: 1.5em 0 0.5em;
+        font-size: 16px;
+        color: #fff;
+        background: none;
     }
 
     .notice {
@@ -617,6 +687,25 @@ $line: rgba(255, 255, 255, 0.15);
 
 @media screen and (max-width: 759px) {
     .admin-page {
+        // Sign Out on its own line at the top right, clear of the heading
+        .sign-out {
+            position: static;
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 0.5em;
+        }
+
+        // Above the filters, the width of the screen
+        .filters .page-actions {
+            order: -1;
+            flex-basis: 100%;
+            margin: 0;
+
+            .button {
+                flex: 1;
+            }
+        }
+
         .records-table {
             display: none;
         }

@@ -277,6 +277,12 @@ class AdminDonationsTest extends TestCase
             ->get('/admin/donations')
             ->assertSee('href="' . route('admin') . '"', false)
             ->assertSee('aria-current="page">Donations</a>', false)
+            ->assertSeeInOrder(['>Dashboard</a>', '>Leaf Applications</a>', '>Donations</a>', '>Error Logs</a>'], false)
+            // Totals are on the dashboard, and Abandoned Checkouts is a button here
+            ->assertDontSee('>Totals</a>', false)
+            ->assertSee('<a class="button dark small" href="' . route('admin.donations.abandoned') . '">Abandoned Checkouts</a>', false)
+            // Sign Out is a form of its own, apart from the links
+            ->assertSee('<form class="sign-out" method="POST" action="' . route('logout') . '">', false)
             ->assertSee('Sign Out');
 
         $this->actingAs($this->admin)
