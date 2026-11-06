@@ -8,6 +8,8 @@
 
 $green: #2ECF9E;
 $error: #FF8A80;
+// Something to do soon, such as a contact whose bags are ready
+$caution: #FFD166;
 // Dividers between rows, sections, and the dashboard's numbers
 $line: rgba(255, 255, 255, 0.15);
 // Fields' labels, and the height of menus and small buttons, so filters,
@@ -473,7 +475,9 @@ $control-height: 16px * $control-line-height + 16px + 4px;
     }
 
     // A short label beside a name, such as a drop-off site's or a contact's
-    // follow-up group on Contacts
+    // follow-up group on Contacts: green by default, red for someone to
+    // reach now, yellow for someone to reach soon, and gray for someone who
+    // can wait
     .badge {
         display: inline-block;
         margin-left: 0.5em;
@@ -485,6 +489,30 @@ $control-height: 16px * $control-line-height + 16px + 4px;
         color: $green;
         white-space: nowrap;
         vertical-align: 0.1em;
+
+        &.urgent {
+            border-color: $error;
+            background: rgba(255, 138, 128, 0.15);
+            color: $error;
+            font-weight: 700;
+        }
+
+        &.soon {
+            border-color: $caution;
+            background: rgba(255, 209, 102, 0.12);
+            color: $caution;
+        }
+
+        &.muted {
+            border-color: rgba(255, 255, 255, 0.35);
+            color: rgba(255, 255, 255, 0.65);
+        }
+    }
+
+    // A label starting a list cell, such as an application's follow-up
+    .records-table td > .badge:first-child,
+    .records-list dd > .badge:first-child {
+        margin-left: 0;
     }
 
     // The dashboard's overview: open numbers side by side, as many as there

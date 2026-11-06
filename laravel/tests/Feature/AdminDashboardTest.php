@@ -13,9 +13,10 @@ use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /**
- * The admin dashboard, /admin: who is signed in, a warning when people are
- * waiting to hear from us, the last 90 days at a glance (Recent Activity),
- * and the donation totals (Donation Statistics).
+ * The admin dashboard, /admin: who is signed in, the last 90 days at a
+ * glance (Recent Activity), and the donation totals (Donation Statistics);
+ * and the warning on every admin page when people are waiting to hear from
+ * us.
  */
 class AdminDashboardTest extends TestCase
 {
@@ -224,15 +225,21 @@ class AdminDashboardTest extends TestCase
         // Not linked to a contact, so left to Needs Review
         $this->application(daysAgo: 9);
 
+        // Under the navigation on every admin page
+        foreach (['/admin', '/admin/contacts?show=all', '/admin/leaves', '/admin/donations', '/admin/errors'] as $page) {
+            $this->actingAs($this->admin)
+                ->get($page)
+                ->assertSeeInOrder([
+                    'Error Logs</a>',
+                    '<div class="notice warning" role="status">',
+                    '1 person is waiting to hear from us, and 1 more has bags ready.',
+                    '<a class="button dark small" href="' . route('admin.contacts') . '">Follow Up</a>',
+                ], false);
+        }
+
         $this->actingAs($this->admin)
             ->get('/admin')
-            ->assertSeeInOrder([
-                'Signed in as',
-                '<div class="notice warning" role="status">',
-                '1 person is waiting to hear from us, and 1 more has bags ready.',
-                '<a class="button dark small" href="' . route('admin.contacts') . '">Follow Up</a>',
-                'Recent Activity',
-            ], false);
+            ->assertSeeInOrder(['notice warning', 'Signed in as', 'Recent Activity'], false);
     }
 
     public function test_says_who_has_bags_ready_when_nobody_is_waiting(): void

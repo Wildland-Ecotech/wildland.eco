@@ -6,19 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\LeafApplication;
 use App\Reports\DonationReport;
 use App\Reports\DonationTotalsReport;
-use App\Reports\FollowUpReport;
 use App\Reports\FormSubmissionReport;
 use App\Reports\LeafApplicationReport;
 use App\Reports\Traits\DescribesDonationTotals;
-use App\Reports\Traits\DescribesFollowUps;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
- * The admin dashboard (/admin): who is signed in, a warning when people
- * are waiting to hear from us or have bags ready, the last 90 days at a
+ * The admin dashboard (/admin): who is signed in, the last 90 days at a
  * glance (Recent Activity), with links to each list for the same period and
  * to the applications whose contact needs review, and the donations we
  * received month over month, by quarter, by year, and for all time
@@ -29,7 +25,7 @@ use Illuminate\View\View;
  */
 class DashboardController extends Controller
 {
-    use DescribesDonationTotals, DescribesFollowUps;
+    use DescribesDonationTotals;
 
     /**
      * The days the overview covers, matching a Period filter of the lists.
@@ -50,13 +46,11 @@ class DashboardController extends Controller
         LeafApplicationReport $applications,
         FormSubmissionReport $submissions,
         DonationTotalsReport $totalsReport,
-        FollowUpReport $followUps,
     ): View {
         $totals = $totalsReport->totals();
 
         return view('pages.admin.home', [
             'admin' => $request->user(),
-            'followUpNotice' => $this->followUpNotice($this->followUpsByContact($followUps)),
             'days' => self::DAYS,
             'overview' => [
                 [
@@ -99,27 +93,6 @@ class DashboardController extends Controller
             'hasTotals' => $totals['all'] !== [],
             'missingFeesNotice' => $this->missingFeesNotice($totalsReport->missingFees($totals)),
         ]);
-    }
-
-    /**
-     * The warning when contacts are waiting to hear from us or have bags
-     * ready and haven't heard from us yet, counted as Contacts lists them,
-     * or null when there are none.
-     *
-     * @param  Collection<int, array{tier: string}>  $followUps
-     */
-    private function followUpNotice(Collection $followUps): ?string
-    {
-        $waiting = $followUps->where('tier', FollowUpReport::WAITING)->count();
-        $ready = $followUps->where('tier', FollowUpReport::READY)->count();
-        $people = fn (int $count) => $count === 1 ? '1 person' : "{$count} people";
-
-        return match (true) {
-            $waiting > 0 && $ready > 0 => $people($waiting) . ($waiting === 1 ? ' is' : ' are') . " waiting to hear from us, and {$ready} more " . ($ready === 1 ? 'has' : 'have') . ' bags ready.',
-            $waiting > 0 => $people($waiting) . ($waiting === 1 ? ' is' : ' are') . ' waiting to hear from us.',
-            $ready > 0 => $people($ready) . ($ready === 1 ? ' has' : ' have') . ' bags ready and ' . ($ready === 1 ? 'hasn’t' : 'haven’t') . ' heard from us yet.',
-            default => null,
-        };
     }
 
     /**

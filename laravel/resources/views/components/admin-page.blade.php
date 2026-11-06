@@ -1,7 +1,9 @@
 {{--
     Shell for admin pages: the content page backgrounds with a wide card
     holding Sign Out in its corner, the "— Admin" label, the page's heading,
-    and links to the admin pages. Link only to admin pages that exist. Usage:
+    links to the admin pages, and, on every page, a red warning while people
+    are waiting to hear from us or have bags ready (App\Reports\FollowUpNotice).
+    Link only to admin pages that exist. Usage:
 
     <x-admin-page title="Donations" current="admin.donations">
         ...
@@ -10,6 +12,12 @@
     `current` is the route name of the link to highlight.
 --}}
 @props(['title', 'current' => null])
+
+@inject('followUpNotice', 'App\Reports\FollowUpNotice')
+
+@php
+    $followUpWarning = $followUpNotice->text();
+@endphp
 
 @php
     $links = [
@@ -43,6 +51,14 @@
             </nav>
 
             <div class="admin-content">
+                {{-- People waiting to hear from us, or with bags ready; Follow Up opens Contacts on Needs follow-up --}}
+                @if ($followUpWarning)
+                    <div class="notice warning" role="status">
+                        <p>{{ $followUpWarning }}</p>
+                        <a class="button dark small" href="{{ route('admin.contacts') }}">Follow Up</a>
+                    </div>
+                @endif
+
                 {{ $slot }}
             </div>
         </section>
