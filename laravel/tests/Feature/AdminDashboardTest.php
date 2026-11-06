@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Checkout;
+use App\Models\Contact;
 use App\Models\Donation;
 use App\Models\FormSubmission;
 use App\Models\LeafApplication;
@@ -12,8 +13,9 @@ use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /**
- * The admin dashboard, /admin: who is signed in, the last 90 days at a
- * glance (Recent Activity), and the donation totals (Donation Statistics).
+ * The admin dashboard, /admin: who is signed in, a warning when people are
+ * waiting to hear from us, the last 90 days at a glance (Recent Activity),
+ * and the donation totals (Donation Statistics).
  */
 class AdminDashboardTest extends TestCase
 {
@@ -197,6 +199,50 @@ class AdminDashboardTest extends TestCase
         $this->actingAs($this->admin)
             ->get('/admin')
             ->assertSee("Stripe's fee isn't recorded yet for 1 donation, so the fees leave it out");
+    }
+
+    /**
+     * An application made $daysAgo days ago, linked to a contact of its own.
+     */
+    private function applicant(int $daysAgo): LeafApplication
+    {
+        $application = $this->application($daysAgo);
+        $application->forceFill(['contact_id' => Contact::create(['name' => 'Jamie Rivera'])->id])->save();
+
+        return $application;
+    }
+
+    public function test_warns_when_people_are_waiting_to_hear_from_us(): void
+    {
+        $this->actingAs($this->admin)
+            ->get('/admin')
+            ->assertDontSee('notice warning', false);
+
+        // Waiting a week without hearing from us, and bags ready since yesterday
+        $this->applicant(daysAgo: 9);
+        $this->applicant(daysAgo: 1);
+        // Not linked to a contact, so left to Needs Review
+        $this->application(daysAgo: 9);
+
+        $this->actingAs($this->admin)
+            ->get('/admin')
+            ->assertSeeInOrder([
+                'Signed in as',
+                '<div class="notice warning" role="status">',
+                '1 person is waiting to hear from us, and 1 more has bags ready.',
+                '<a class="button dark small" href="' . route('admin.contacts') . '">Follow Up</a>',
+                'Recent Activity',
+            ], false);
+    }
+
+    public function test_says_who_has_bags_ready_when_nobody_is_waiting(): void
+    {
+        $this->applicant(daysAgo: 1);
+        $this->applicant(daysAgo: 2);
+
+        $this->actingAs($this->admin)
+            ->get('/admin')
+            ->assertSee('2 people have bags ready and haven’t heard from us yet.');
     }
 
     public function test_says_when_there_are_no_donations(): void
