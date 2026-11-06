@@ -10,9 +10,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Linking leaf applications to contacts (ContactLinker): by email or phone
- * number, creating a contact when nobody matches, and flagging anything
- * unclear for review instead of guessing.
+ * Linking leaf applications to contacts (ContactLinker): to the contact with
+ * the same name and email or phone number, or a new contact, flagging
+ * anything unclear for review instead of guessing.
  */
 class ContactLinkingTest extends TestCase
 {
@@ -118,22 +118,44 @@ class ContactLinkingTest extends TestCase
         $this->assertSame(1, $contact->details()->where('normalized', 'jamie@example.com')->count());
     }
 
-    public function test_a_different_name_is_linked_and_flagged_without_changing_the_contact(): void
+    public function test_a_different_name_with_the_same_phone_number_is_a_new_contact_flagged(): void
     {
         $this->linker->link($this->application());
-        $later = $this->application(['name' => 'Alex Rivera', 'email' => 'alex@example.com']);
+        $other = $this->application(['name' => 'Alex Rivera', 'email' => 'alex@example.com']);
 
-        $this->assertSame(ContactLinker::FLAGGED, $this->linker->link($later));
+        $this->assertSame(ContactLinker::CREATED, $this->linker->link($other));
 
-        $later->refresh();
-        $contact = Contact::sole();
-        $this->assertSame($contact->id, $later->contact_id);
-        $this->assertSame([LeafApplication::REVIEW_NAME], $later->contact_review);
-        $this->assertTrue($later->needsContactReview());
-        $this->assertSame([$later->id], LeafApplication::needingContactReview()->pluck('id')->all());
-        // Maybe someone else at the same number, so nothing is added
-        $this->assertSame([['jamie@example.com', true]], $this->current($contact, ContactDetail::TYPE_EMAIL));
-        $this->assertSame('Jamie Rivera', $contact->name);
+        $other->refresh();
+        $first = Contact::where('name', 'Jamie Rivera')->sole();
+        $second = Contact::where('name', 'Alex Rivera')->sole();
+        $this->assertSame($second->id, $other->contact_id);
+        $this->assertSame([LeafApplication::REVIEW_SHARED_PHONE], $other->contact_review);
+        $this->assertTrue($other->needsContactReview());
+        $this->assertSame([$other->id], LeafApplication::needingContactReview()->pluck('id')->all());
+        // Both have the number, and the first contact is unchanged
+        $this->assertSame('9705550123', $second->primary(ContactDetail::TYPE_PHONE)->normalized);
+        $this->assertSame([['jamie@example.com', true]], $this->current($first, ContactDetail::TYPE_EMAIL));
+    }
+
+    public function test_a_different_name_with_the_same_email_is_a_new_contact_flagged(): void
+    {
+        $this->linker->link($this->application());
+        $other = $this->application(['name' => 'Jim Rivera', 'phone' => '970-555-0199']);
+
+        $this->assertSame(ContactLinker::CREATED, $this->linker->link($other));
+        $this->assertSame([LeafApplication::REVIEW_SHARED_EMAIL], $other->fresh()->contact_review);
+        $this->assertSame(2, Contact::count());
+    }
+
+    public function test_a_different_name_sharing_both_is_a_new_contact_with_both_flagged(): void
+    {
+        $this->linker->link($this->application());
+        $other = $this->application(['name' => 'Alex Rivera', 'address' => '456 Sample Ave, Fort Collins, CO 80524']);
+
+        $this->assertSame(ContactLinker::CREATED, $this->linker->link($other));
+        // A new contact has no other address, so only the sharing is flagged
+        $this->assertSame([LeafApplication::REVIEW_SHARED_EMAIL, LeafApplication::REVIEW_SHARED_PHONE], $other->fresh()->contact_review);
+        $this->assertSame('456 Sample Ave, Fort Collins, CO 80524', Contact::where('name', 'Alex Rivera')->sole()->address()->value);
     }
 
     public function test_names_differing_only_in_case_and_spacing_match(): void
@@ -148,21 +170,14 @@ class ContactLinkingTest extends TestCase
         $this->linker->link($this->application());
         $later = $this->application(['address' => '456 Sample Ave, Fort Collins, CO 80524', 'phone' => '970-555-0199']);
 
-        $this->assertSame(ContactLinker::FLAGGED, $this->linker->link($later));
+        $this->assertSame(ContactLinker::LINKED, $this->linker->link($later));
 
         $contact = Contact::sole();
+        $this->assertSame($contact->id, $later->fresh()->contact_id);
         $this->assertSame([LeafApplication::REVIEW_ADDRESS], $later->fresh()->contact_review);
         $this->assertSame('123 Example St, Fort Collins, CO 80521', $contact->address()->value);
-        $this->assertCount(1, $this->current($contact, ContactDetail::TYPE_PHONE));
-    }
-
-    public function test_a_different_name_and_address_are_both_flagged(): void
-    {
-        $this->linker->link($this->application());
-        $later = $this->application(['name' => 'Alex Rivera', 'address' => '456 Sample Ave, Fort Collins, CO 80524']);
-
-        $this->assertSame(ContactLinker::FLAGGED, $this->linker->link($later));
-        $this->assertSame([LeafApplication::REVIEW_NAME, LeafApplication::REVIEW_ADDRESS], $later->fresh()->contact_review);
+        // The same person, so the new number is still added
+        $this->assertSame([['(970) 555-0123', false], ['970-555-0199', true]], $this->current($contact, ContactDetail::TYPE_PHONE));
     }
 
     public function test_the_same_address_written_differently_matches(): void
@@ -182,19 +197,35 @@ class ContactLinkingTest extends TestCase
         $this->assertSame('123 Example St, Fort Collins, CO 80521', $contact->address()->value);
     }
 
-    public function test_email_and_phone_matching_different_contacts_link_to_neither(): void
+    public function test_matching_another_contact_by_phone_links_to_the_one_with_the_same_name(): void
     {
         $this->linker->link($this->application());
         $this->linker->link($this->application(['name' => 'Alex Moreno', 'email' => 'alex@example.com', 'phone' => '970-555-0199']));
-        $mixed = $this->application(['email' => 'jamie@example.com', 'phone' => '970-555-0199']);
+        $mixed = $this->application(['phone' => '970-555-0199']);
 
-        $this->assertSame(ContactLinker::CONFLICT, $this->linker->link($mixed));
+        $this->assertSame(ContactLinker::LINKED, $this->linker->link($mixed));
 
         $mixed->refresh();
-        $this->assertNull($mixed->contact_id);
-        $this->assertSame([LeafApplication::REVIEW_CONFLICT], $mixed->contact_review);
-        $this->assertTrue($mixed->needsContactReview());
+        $jamie = Contact::where('name', 'Jamie Rivera')->sole();
+        $this->assertSame($jamie->id, $mixed->contact_id);
+        $this->assertSame([LeafApplication::REVIEW_SHARED_PHONE], $mixed->contact_review);
+        $this->assertSame('970-555-0199', $jamie->primary(ContactDetail::TYPE_PHONE)->value);
+    }
+
+    public function test_two_contacts_with_the_same_name_link_to_neither(): void
+    {
+        Contact::create(['name' => 'Jamie Rivera'])->usePrimary(ContactDetail::TYPE_EMAIL, 'jamie@example.com');
+        Contact::create(['name' => 'Jamie Rivera'])->usePrimary(ContactDetail::TYPE_PHONE, '(970) 555-0123');
+        $application = $this->application();
+
+        $this->assertSame(ContactLinker::CONFLICT, $this->linker->link($application));
+
+        $application->refresh();
+        $this->assertNull($application->contact_id);
+        $this->assertSame([LeafApplication::REVIEW_CONFLICT], $application->contact_review);
+        $this->assertTrue($application->needsContactReview());
         $this->assertSame(2, Contact::count());
+        $this->assertSame(2, ContactDetail::count());
     }
 
     public function test_deleted_contacts_are_not_matched(): void
@@ -202,9 +233,13 @@ class ContactLinkingTest extends TestCase
         $this->linker->link($this->application());
         Contact::sole()->delete();
 
-        $this->assertSame(ContactLinker::CREATED, $this->linker->link($this->application()));
+        $application = $this->application();
+
+        $this->assertSame(ContactLinker::CREATED, $this->linker->link($application));
         $this->assertSame(1, Contact::count());
         $this->assertSame(2, Contact::withTrashed()->count());
+        // Nothing shared with a deleted contact
+        $this->assertNull($application->fresh()->contact_review);
     }
 
     public function test_applications_already_linked_or_flagged_are_skipped(): void

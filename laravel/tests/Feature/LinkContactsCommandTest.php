@@ -54,7 +54,7 @@ class LinkContactsCommandTest extends TestCase
 
     /**
      * The summary table's rows for these counts, in order: new contacts,
-     * linked, linked and flagged, flagged without linking, and failed.
+     * linked to an existing contact, not linked, and failed.
      *
      * @return list<array{string, int}>
      */
@@ -71,7 +71,7 @@ class LinkContactsCommandTest extends TestCase
         $older = $this->application(daysAgo: 10);
 
         $this->artisan('contacts:link')
-            ->expectsTable(['Applications', 'Count'], $this->summary(1, 1, 0, 0, 0))
+            ->expectsTable(['Applications', 'Count'], $this->summary(1, 1, 0, 0))
             ->expectsOutputToContain('2 of 2 applications linked or flagged.')
             ->assertSuccessful();
 
@@ -86,7 +86,7 @@ class LinkContactsCommandTest extends TestCase
         $application = $this->application();
 
         $this->artisan('contacts:link', ['--dry-run' => true])
-            ->expectsTable(['Would be', 'Count'], $this->summary(1, 0, 0, 0, 0))
+            ->expectsTable(['Would be', 'Count'], $this->summary(1, 0, 0, 0))
             ->expectsOutputToContain('Dry run: nothing was saved.')
             ->assertSuccessful();
 
@@ -98,13 +98,14 @@ class LinkContactsCommandTest extends TestCase
     public function test_lists_the_applications_that_need_review(): void
     {
         $this->application(daysAgo: 10);
+        // Someone else at the same email and phone number
         $flagged = $this->application(['name' => 'Alex Rivera'], daysAgo: 2);
 
         $this->artisan('contacts:link')
-            ->expectsTable(['Applications', 'Count'], $this->summary(1, 0, 1, 0, 0))
+            ->expectsTable(['Applications', 'Count'], $this->summary(2, 0, 0, 0))
             ->expectsOutputToContain('1 need an admin to look:')
             ->expectsTable(LinkContacts::REVIEW_HEADERS, [
-                [$flagged->id, 'Nov 3, 2026 7:30 PM MST', 'Alex Rivera', 'Different name'],
+                [$flagged->id, 'Nov 3, 2026 7:30 PM MST', 'Alex Rivera', 'Email also on another contact; Phone number also on another contact'],
             ])
             ->assertSuccessful();
     }
@@ -139,7 +140,7 @@ class LinkContactsCommandTest extends TestCase
         $this->mock(ContactLinker::class)->shouldReceive('link')->andThrow(new RuntimeException('Linking failed'));
 
         $this->artisan('contacts:link')
-            ->expectsTable(['Applications', 'Count'], $this->summary(0, 0, 0, 0, 1))
+            ->expectsTable(['Applications', 'Count'], $this->summary(0, 0, 0, 1))
             ->expectsOutputToContain("Application {$application->id}: Linking failed")
             ->expectsOutputToContain('Running contacts:link again retries them.')
             ->assertFailed();

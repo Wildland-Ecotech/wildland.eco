@@ -14,41 +14,52 @@ use Illuminate\Support\Facades\DB;
  * application from being saved: linking happens after, and anything unclear
  * is left for an admin to look at rather than guessed.
  *
- * An application matches a contact, not deleted, with its email or phone
- * number (as 10 digits), current or removed:
+ * An application belongs to an existing contact only when they have the
+ * same name (ignoring case and spacing) and share its email or phone number
+ * (as 10 digits), current or removed. Deleted contacts are never matched.
  *
- * - No match: a new contact, with the application's name, email, phone
- *   number, and address.
- * - One match, with the same name and no other current address: linked.
- *   The application's email and phone number become the contact's primary
- *   ones, since the newest application has the latest details, and its
- *   address becomes the contact's if they had none.
- * - One match with a different name, or a different current address:
- *   linked, flagged for review, and the contact is left unchanged, since
- *   it may be someone else at the same number or a move.
- * - Its email and phone number match different contacts: linked to
- *   neither, and flagged for review.
+ * - One such contact: linked. The application's email and phone number
+ *   become the contact's primary ones, since the newest application has
+ *   the latest details, and its address becomes the contact's if they had
+ *   none. A different current address is flagged, and left as it is.
+ * - None: a new contact with the application's name, email, phone number,
+ *   and address, even if another contact has the same email or phone
+ *   number, since it may be someone else at the same number.
+ * - More than one: linked to neither, and flagged.
+ *
+ * Whenever the application's email or phone number is also on another
+ * contact, such as two people sharing a phone, or the same person with a
+ * name written differently, the application is flagged so an admin can
+ * merge them or leave them apart.
  */
 class ContactLinker
 {
     /**
-     * What link() did: made a new contact, linked to an existing one,
-     * linked but flagged for review, flagged without linking, or nothing,
-     * since the application was already linked or flagged.
+     * What link() did: made a new contact, linked to an existing one, linked
+     * to neither since more than one contact matched, or nothing, since the
+     * application was already linked or flagged. Whether it needs a look is
+     * in the application's `contact_review`.
      */
     public const CREATED = 'created';
 
     public const LINKED = 'linked';
-
-    public const FLAGGED = 'flagged';
 
     public const CONFLICT = 'conflict';
 
     public const SKIPPED = 'skipped';
 
     /**
-     * Link the application to its contact, or flag it for review. Returns
-     * one of the outcomes above.
+     * The details an application is matched on, and the review reason when
+     * another contact shares one.
+     */
+    private const SHARED_REASONS = [
+        ContactDetail::TYPE_EMAIL => LeafApplication::REVIEW_SHARED_EMAIL,
+        ContactDetail::TYPE_PHONE => LeafApplication::REVIEW_SHARED_PHONE,
+    ];
+
+    /**
+     * Link the application to its contact, making one if needed, and flag
+     * anything that needs a look. Returns one of the outcomes above.
      */
     public function link(LeafApplication $application): string
     {
@@ -57,34 +68,35 @@ class ContactLinker
         }
 
         return DB::transaction(function () use ($application) {
-            $matches = $this->matches($application);
+            $name = $this->comparableName($application->name);
+            $sameName = $this->matches($application)
+                ->filter(fn (Contact $contact) => $this->comparableName($contact->name) === $name)
+                ->values();
 
-            if ($matches->count() > 1) {
+            if ($sameName->count() > 1) {
                 $application->forceFill(['contact_review' => [LeafApplication::REVIEW_CONFLICT]])->save();
 
                 return self::CONFLICT;
             }
 
-            $contact = $matches->first();
+            $contact = $sameName->first();
+            $created = $contact === null;
+            $reasons = [];
 
-            if ($contact === null) {
+            if ($created) {
                 $contact = Contact::create(['name' => trim($application->name)]);
-                $this->useDetails($contact, $application);
-                $application->contact()->associate($contact)->save();
-
-                return self::CREATED;
+            } elseif ($this->movedAway($contact, $application)) {
+                $reasons[] = LeafApplication::REVIEW_ADDRESS;
             }
 
-            $reasons = $this->reviewReasons($contact, $application);
+            $this->useDetails($contact, $application);
 
-            if ($reasons === []) {
-                $this->useDetails($contact, $application);
-            }
+            $reasons = [...$reasons, ...$this->sharedReasons($contact, $application)];
 
             $application->contact()->associate($contact);
             $application->forceFill(['contact_review' => $reasons === [] ? null : $reasons])->save();
 
-            return $reasons === [] ? self::LINKED : self::FLAGGED;
+            return $created ? self::CREATED : self::LINKED;
         });
     }
 
@@ -96,10 +108,7 @@ class ContactLinker
      */
     private function matches(LeafApplication $application): Collection
     {
-        $values = array_filter([
-            ContactDetail::TYPE_EMAIL => ContactDetail::normalize(ContactDetail::TYPE_EMAIL, $application->email),
-            ContactDetail::TYPE_PHONE => ContactDetail::normalize(ContactDetail::TYPE_PHONE, $application->phone),
-        ]);
+        $values = $this->matchValues($application);
 
         if ($values === []) {
             return collect();
@@ -118,24 +127,52 @@ class ContactLinker
     }
 
     /**
-     * Why linking to this contact needs a look: a different name, or a
-     * different current address.
+     * The application's email and phone number as normalized for matching,
+     * by type, leaving out any with nothing to match on.
      *
-     * @return list<string>
+     * @return array<string, string>
      */
-    private function reviewReasons(Contact $contact, LeafApplication $application): array
+    private function matchValues(LeafApplication $application): array
     {
-        $reasons = [];
+        return array_filter([
+            ContactDetail::TYPE_EMAIL => ContactDetail::normalize(ContactDetail::TYPE_EMAIL, $application->email),
+            ContactDetail::TYPE_PHONE => ContactDetail::normalize(ContactDetail::TYPE_PHONE, $application->phone),
+        ]);
+    }
 
-        if ($this->comparableName($contact->name) !== $this->comparableName($application->name)) {
-            $reasons[] = LeafApplication::REVIEW_NAME;
-        }
-
+    /**
+     * Whether the contact has a current address other than the
+     * application's.
+     */
+    private function movedAway(Contact $contact, LeafApplication $application): bool
+    {
         $address = ContactDetail::normalize(ContactDetail::TYPE_ADDRESS, $application->address);
         $current = $contact->address();
 
-        if ($address !== null && $current !== null && $current->normalized !== $address) {
-            $reasons[] = LeafApplication::REVIEW_ADDRESS;
+        return $address !== null && $current !== null && $current->normalized !== $address;
+    }
+
+    /**
+     * The review reasons for the application's email or phone number being
+     * on any other contact, not deleted, current or removed.
+     *
+     * @return list<string>
+     */
+    private function sharedReasons(Contact $contact, LeafApplication $application): array
+    {
+        $reasons = [];
+
+        foreach ($this->matchValues($application) as $type => $normalized) {
+            $shared = ContactDetail::query()
+                ->where('type', $type)
+                ->where('normalized', $normalized)
+                ->where('contact_id', '!=', $contact->id)
+                ->whereHas('contact', fn ($query) => $query->whereNull('deleted_at'))
+                ->exists();
+
+            if ($shared) {
+                $reasons[] = self::SHARED_REASONS[$type];
+            }
         }
 
         return $reasons;
