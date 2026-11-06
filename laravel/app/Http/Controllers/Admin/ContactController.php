@@ -20,8 +20,9 @@ use Illuminate\View\View;
  * The admin contact pages (/admin/contacts): the list of contacts, with the
  * person who applied most recently first and a search by name, phone number,
  * or email; one contact with their details and applications; adding a
- * contact by hand, such as someone reached by text before they applied; and
- * editing a contact's name and notes. Their phone numbers, emails, and
+ * contact by hand, such as someone reached by text before they applied;
+ * editing a contact's name and notes; and the applications whose contact
+ * needs an admin to look (Needs Review). Their phone numbers, emails, and
  * address are edited through ContactDetailController.
  */
 class ContactController extends Controller
@@ -51,6 +52,17 @@ class ContactController extends Controller
     public const APPLICATION_NUMBER_COLUMNS = [0, 3];
 
     /**
+     * The Needs Review list's columns, the ones that make up an
+     * application's line on a phone (applied, name, and why), and the column
+     * lined up on the right (ID).
+     */
+    public const REVIEW_HEADERS = ['ID', 'Applied', 'Name', 'Contact', 'Why'];
+
+    public const REVIEW_SUMMARY_COLUMNS = [1, 2, 4];
+
+    public const REVIEW_NUMBER_COLUMNS = [0];
+
+    /**
      * The longest search the list takes; anything longer is cut short.
      */
     public const MAX_SEARCH_LENGTH = 100;
@@ -67,6 +79,7 @@ class ContactController extends Controller
 
         return view('pages.admin.contacts.index', [
             'search' => $search,
+            'reviewCount' => LeafApplication::needingContactReview()->count(),
             'summary' => $this->summary($contacts->count(), $search),
             'headers' => self::HEADERS,
             'rows' => $contacts->map(function (Contact $contact) {
@@ -121,6 +134,40 @@ class ContactController extends Controller
                 ],
                 'url' => route('admin.leaves.show', $application->id),
             ])->all(),
+        ]);
+    }
+
+    /**
+     * Applications whose contact needs an admin to look, oldest first, with
+     * the contact each is linked to and why.
+     */
+    public function review(): View
+    {
+        $applications = LeafApplication::needingContactReview()->with('contact')->orderBy('created_at')->orderBy('id')->get();
+        $count = $applications->count();
+
+        return view('pages.admin.contacts.review', [
+            'summary' => $count === 0
+                ? 'Nothing needs review.'
+                : "{$count} " . Str::plural('application', $count) . ' ' . ($count === 1 ? 'needs' : 'need') . ' review, oldest first.',
+            'headers' => self::REVIEW_HEADERS,
+            'rows' => $applications->map(function (LeafApplication $application) {
+                $why = collect($application->contact_review)->map(fn (string $reason) => LeafApplication::REVIEW_LABELS[$reason] ?? $reason)->implode('; ');
+
+                return [
+                    'cells' => [
+                        $application->id,
+                        $this->listTime($application->created_at),
+                        $application->name,
+                        $application->contact
+                            ? ['text' => $application->contact->name, 'url' => route('admin.contacts.show', $application->contact_id)]
+                            : 'Not linked',
+                        $why,
+                    ],
+                    'summary' => [$this->shortDate($application->created_at), $application->name, $why],
+                    'url' => route('admin.leaves.show', $application->id),
+                ];
+            })->all(),
         ]);
     }
 

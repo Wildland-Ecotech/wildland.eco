@@ -433,12 +433,14 @@ $control-height: 16px * $control-line-height + 16px + 4px;
         }
     }
 
-    // The dashboard's overview: open numbers side by side, separated by thin
+    // The dashboard's overview: open numbers side by side, as many as there
+    // are, separated by thin
     // lines, each with a short gradient bar under its label, and linking to
     // its list. The bar grows on hover.
     .overview {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-auto-flow: column;
+        grid-auto-columns: 1fr;
         margin: 0 0 1.5em;
         padding: 0;
         list-style: none;
@@ -731,6 +733,11 @@ $control-height: 16px * $control-line-height + 16px + 4px;
         gap: 0.75em;
         max-width: 640px;
 
+        select {
+            flex: 1;
+            min-width: 0;
+        }
+
         // Filling the row, so its button lines up with the buttons of the
         // list above it
         input {
@@ -751,6 +758,32 @@ $control-height: 16px * $control-line-height + 16px + 4px;
     // contact's details
     .record-actions {
         margin: -0.5em 0 2em;
+
+        .button {
+            margin: 0;
+        }
+    }
+
+    // Links within text, a record's values, and list cells, such as the
+    // contact an application belongs to
+    .summary a,
+    .record dd a,
+    .records-table td a {
+        color: $green;
+        text-decoration: underline;
+    }
+
+    // The ways to settle an application's contact, one under another
+    .review-actions {
+        display: grid;
+        gap: 1.5em;
+        justify-items: start;
+        margin: 0 0 2em;
+
+        form {
+            width: 100%;
+            margin: 0;
+        }
 
         .button {
             margin: 0;
@@ -857,10 +890,21 @@ $control-height: 16px * $control-line-height + 16px + 4px;
             display: none;
         }
 
-        // The overview's numbers stay side by side, smaller
+        // The overview's numbers two by two, smaller, each row starting
+        // without a line
         .overview {
+            grid-auto-flow: row;
+            grid-template-columns: repeat(2, 1fr);
+            row-gap: 1.5em;
+
             li {
+                margin: 0;
                 padding: 0.25em 0.75em;
+
+                &:nth-child(odd) {
+                    padding-left: 0;
+                    border-left: 0;
+                }
             }
 
             .count {

@@ -112,6 +112,16 @@ class LeafApplication extends Model
     }
 
     /**
+     * The admin who reviewed the application's contact, if any.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function contactReviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'contact_reviewed_by');
+    }
+
+    /**
      * Whether linking the application to its contact still needs an admin
      * to look.
      */
