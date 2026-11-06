@@ -3,20 +3,26 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SaveContactRequest;
 use App\Models\Contact;
 use App\Models\ContactDetail;
 use App\Models\LeafApplication;
 use App\Reports\ContactReport;
 use App\Reports\Traits\DescribesLeafApplications;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
  * The admin contact pages (/admin/contacts): the list of contacts, with the
  * person who applied most recently first and a search by name, phone number,
- * or email, and one contact with their details and applications.
+ * or email; one contact with their details and applications; adding a
+ * contact by hand, such as someone reached by text before they applied; and
+ * editing a contact's name and notes. Their phone numbers, emails, and
+ * address are edited through ContactDetailController.
  */
 class ContactController extends Controller
 {
@@ -116,6 +122,117 @@ class ContactController extends Controller
                 'url' => route('admin.leaves.show', $application->id),
             ])->all(),
         ]);
+    }
+
+    /**
+     * The form for adding a contact by hand.
+     */
+    public function create(): View
+    {
+        return view('pages.admin.contacts.create');
+    }
+
+    /**
+     * Add a contact. When another contact already has the phone number or
+     * email, nothing is added: the form comes back naming them, with a box
+     * to add a separate contact anyway.
+     */
+    public function store(SaveContactRequest $request): RedirectResponse
+    {
+        $validated = $request->validated();
+
+        $duplicates = $this->duplicates($validated['phone'] ?? null, $validated['email'] ?? null);
+
+        if ($duplicates !== [] && ! $request->boolean('separate')) {
+            return back()->withInput()->with('duplicates', $duplicates);
+        }
+
+        $contact = DB::transaction(function () use ($validated) {
+            $contact = Contact::create(['name' => $validated['name'], 'notes' => $validated['notes'] ?? null]);
+
+            foreach ([ContactDetail::TYPE_PHONE, ContactDetail::TYPE_EMAIL] as $type) {
+                if (($validated[$type] ?? null) !== null) {
+                    $contact->usePrimary($type, $validated[$type]);
+                }
+            }
+
+            if (($validated['address'] ?? null) !== null) {
+                $contact->moveTo($validated['address']);
+            }
+
+            return $contact;
+        });
+
+        return redirect()->route('admin.contacts.show', $contact->id)->with('status', "Added {$contact->name}.");
+    }
+
+    /**
+     * The form for editing a contact: their name and notes, and their phone
+     * numbers, emails, and address, each with its own buttons.
+     */
+    public function edit(Contact $contact): View
+    {
+        $details = $contact->details()->current()->orderByDesc('is_primary')->orderBy('id')->get();
+
+        return view('pages.admin.contacts.edit', [
+            'contact' => $contact,
+            'phones' => $details->where('type', ContactDetail::TYPE_PHONE)->values(),
+            'emails' => $details->where('type', ContactDetail::TYPE_EMAIL)->values(),
+            'address' => $details->firstWhere('type', ContactDetail::TYPE_ADDRESS),
+        ]);
+    }
+
+    /**
+     * Save a contact's name and notes.
+     */
+    public function update(SaveContactRequest $request, Contact $contact): RedirectResponse
+    {
+        $contact->update([
+            'name' => $request->validated('name'),
+            'notes' => $request->validated('notes'),
+        ]);
+
+        return redirect()->route('admin.contacts.edit', $contact->id)->with('status', 'Saved the name and notes.');
+    }
+
+    /**
+     * Other contacts, not deleted, with this phone number or email, current
+     * or previous: each with the value as entered, what it is, whose it is,
+     * whether it's a previous one of theirs, and a link to them.
+     *
+     * @return list<array{value: string, kind: string, name: string, previous: bool, url: string}>
+     */
+    private function duplicates(?string $phone, ?string $email): array
+    {
+        $duplicates = [];
+
+        foreach ([ContactDetail::TYPE_PHONE => [$phone, 'phone number'], ContactDetail::TYPE_EMAIL => [$email, 'email']] as $type => [$value, $kind]) {
+            $normalized = ContactDetail::normalize($type, $value);
+
+            if ($normalized === null) {
+                continue;
+            }
+
+            ContactDetail::query()
+                ->with('contact')
+                ->where('type', $type)
+                ->where('normalized', $normalized)
+                ->whereHas('contact', fn ($query) => $query->whereNull('deleted_at'))
+                ->orderByRaw('removed_at IS NOT NULL')
+                ->get()
+                ->unique('contact_id')
+                ->each(function (ContactDetail $detail) use (&$duplicates, $value, $kind) {
+                    $duplicates[] = [
+                        'value' => trim($value),
+                        'kind' => $kind,
+                        'name' => $detail->contact->name,
+                        'previous' => $detail->isRemoved(),
+                        'url' => route('admin.contacts.show', $detail->contact_id),
+                    ];
+                });
+        }
+
+        return $duplicates;
     }
 
     /**
