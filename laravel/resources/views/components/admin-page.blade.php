@@ -13,8 +13,8 @@
 
 @php
     $links = [
-        'admin.contacts' => 'Contacts',
         'admin' => 'Dashboard',
+        'admin.contacts' => 'Contacts',
         'admin.leaves' => 'Leaf Applications',
         'admin.donations' => 'Donations',
         'admin.errors' => 'Error Logs',

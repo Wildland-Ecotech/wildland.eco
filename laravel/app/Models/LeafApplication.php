@@ -45,26 +45,31 @@ class LeafApplication extends Model
     public const TYPES = [self::TYPE_DROP_OFF, self::TYPE_PICKUP];
 
     /**
-     * Why linking an application to its contact needs an admin to look: the
-     * contact it matched has a different name, or a different current
-     * address, or its email and phone number match different contacts, so it
-     * isn't linked to either.
+     * Why an application's contact needs an admin to look: the contact it
+     * was linked to has a different current address; its email or phone
+     * number is also on another contact, such as two people sharing a phone
+     * number, or the same person with a differently written name; or it
+     * matches more than one contact with the same name, so it isn't linked
+     * to either.
      */
-    public const REVIEW_NAME = 'name';
-
     public const REVIEW_ADDRESS = 'address';
+
+    public const REVIEW_SHARED_EMAIL = 'shared_email';
+
+    public const REVIEW_SHARED_PHONE = 'shared_phone';
 
     public const REVIEW_CONFLICT = 'conflict';
 
-    public const REVIEW_REASONS = [self::REVIEW_NAME, self::REVIEW_ADDRESS, self::REVIEW_CONFLICT];
+    public const REVIEW_REASONS = [self::REVIEW_ADDRESS, self::REVIEW_SHARED_EMAIL, self::REVIEW_SHARED_PHONE, self::REVIEW_CONFLICT];
 
     /**
      * How each review reason is described to admins.
      */
     public const REVIEW_LABELS = [
-        self::REVIEW_NAME => 'Different name',
         self::REVIEW_ADDRESS => 'Different address',
-        self::REVIEW_CONFLICT => 'Email and phone match different contacts',
+        self::REVIEW_SHARED_EMAIL => 'Email also on another contact',
+        self::REVIEW_SHARED_PHONE => 'Phone number also on another contact',
+        self::REVIEW_CONFLICT => 'Matches more than one contact with this name',
     ];
 
     /**
