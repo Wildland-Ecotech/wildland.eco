@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Admin\Traits\FiltersByPeriod;
+use App\Http\Controllers\Admin\Traits\ShowsFollowUps;
 use App\Http\Controllers\Controller;
 use App\Models\FormSubmission;
+use App\Reports\ContactReport;
 use App\Reports\FormSubmissionReport;
 use App\Reports\Traits\DescribesFormSubmissions;
 use App\Reports\Traits\FormatsCsv;
@@ -28,7 +30,7 @@ use Illuminate\View\View;
  */
 class ErrorLogController extends Controller
 {
-    use DescribesFormSubmissions, FiltersByPeriod, FormatsCsv;
+    use DescribesFormSubmissions, FiltersByPeriod, FormatsCsv, ShowsFollowUps;
 
     /**
      * The form filters' labels, keyed by FormSubmission::FORMS.
@@ -45,21 +47,12 @@ class ErrorLogController extends Controller
     public const SUMMARY_COLUMNS = [1, 4, 3];
 
     /**
-     * The list's Follow-up column, which shows an icon.
+     * The list's Name column, which links to the person's contact, and its
+     * Follow-up column, which shows an icon.
      */
-    private const FOLLOW_UP_COLUMN = 5;
+    private const NAME_COLUMN = 4;
 
-    /**
-     * The status icon for each follow-up (see the admin-records component),
-     * and the words read out with it on a phone's line.
-     */
-    private const FOLLOW_UP_ICONS = [
-        FormSubmissionReport::FOLLOW_UP_SUBMITTED_LATER => ['status' => 'success', 'label' => 'Submitted later'],
-        FormSubmissionReport::FOLLOW_UP_RESOLVED => ['status' => 'success', 'label' => 'Resolved'],
-        FormSubmissionReport::FOLLOW_UP_TEST => ['status' => 'muted', 'label' => 'Test'],
-        FormSubmissionReport::FOLLOW_UP_SPAM => ['status' => 'muted', 'label' => 'Spam'],
-        FormSubmissionReport::FOLLOW_UP_UNRESOLVED => ['status' => 'failure', 'label' => 'No record'],
-    ];
+    private const FOLLOW_UP_COLUMN = 5;
 
     /**
      * The ways to close a submission, keyed by FormSubmission::RESOLUTIONS:
@@ -86,32 +79,34 @@ class ErrorLogController extends Controller
     /**
      * The list of submissions, filtered by the query string.
      */
-    public function index(Request $request, FormSubmissionReport $report): View
+    public function index(Request $request, FormSubmissionReport $report, ContactReport $contactReport): View
     {
         $filters = $this->filters($request);
         $submissions = $this->submissions($report, $filters);
         $count = $submissions->count();
+        $contacts = $contactReport->contactsFor($submissions);
 
         return view('pages.admin.errors.index', [
             'filters' => $filters,
             'summary' => $this->periodSummary($filters['period'], $count, $this->formSubmissionListName($filters['all'], $count)),
             'headers' => self::FORM_SUBMISSION_TABLE_HEADERS,
-            'rows' => $submissions->map(function (FormSubmission $submission) {
+            'rows' => $submissions->map(function (FormSubmission $submission) use ($contacts) {
                 // Like submissions:list's row, with a shorter time for the page
                 $cells = array_replace($this->formSubmissionTableRow($submission), [1 => $this->listTime($submission->created_at)]);
-                $icon = self::FOLLOW_UP_ICONS[$this->formSubmissionFollowUp($submission)] ?? null;
+                $icon = $this->followUpIcon($submission);
+                $name = $cells[self::NAME_COLUMN];
+                $contact = $contacts[$submission->id] ?? null;
 
-                if ($icon !== null) {
-                    $cells[self::FOLLOW_UP_COLUMN] = [
-                        'text' => $cells[self::FOLLOW_UP_COLUMN],
-                        'status' => $icon['status'],
-                        'url' => $this->laterRecordUrl($submission),
-                    ];
+                $cells[self::FOLLOW_UP_COLUMN] = $this->followUpCell($submission, $cells[self::FOLLOW_UP_COLUMN]);
+
+                // The name links to the person's contact
+                if ($contact !== null) {
+                    $cells[self::NAME_COLUMN] = ['text' => $name, 'url' => route('admin.contacts.show', $contact->id)];
                 }
 
                 return [
                     'cells' => $cells,
-                    'summary' => array_values(array_filter([$this->shortDate($submission->created_at), $cells[4], $cells[3]])),
+                    'summary' => array_values(array_filter([$this->shortDate($submission->created_at), $name, $cells[3]])),
                     'status' => $icon['status'] ?? null,
                     'statusLabel' => $icon['label'] ?? null,
                     'value' => $submission->reference,
@@ -141,7 +136,7 @@ class ErrorLogController extends Controller
     /**
      * One submission in full, by its reference, whatever its outcome.
      */
-    public function show(string $reference, FormSubmissionReport $report): View
+    public function show(string $reference, FormSubmissionReport $report, ContactReport $contactReport): View
     {
         $submission = $report->find($reference);
 
@@ -151,15 +146,16 @@ class ErrorLogController extends Controller
             'Submitted' => $this->localTime($submission->created_at),
             ...$this->formSubmissionFields($submission),
         ];
-        $icon = self::FOLLOW_UP_ICONS[$this->formSubmissionFollowUp($submission)] ?? null;
 
-        if ($icon !== null) {
-            $fields['Follow-up'] = [
-                'text' => $this->formSubmissionFollowUpText($submission),
-                'status' => $icon['status'],
-                'url' => $this->laterRecordUrl($submission),
-            ];
+        if ($this->followUpIcon($submission) !== null) {
+            $fields['Follow-up'] = $this->followUpCell($submission, $this->formSubmissionFollowUpText($submission));
         }
+
+        // The person's contact, by the application it made, or their email or phone number
+        $contact = $contactReport->contactsFor(collect([$submission]))[$submission->id] ?? null;
+        $fields = $this->insertAfter($fields, 'Name', [
+            'Contact' => $contact ? ['text' => $contact->name, 'url' => route('admin.contacts.show', $contact->id)] : '',
+        ]);
 
         return view('pages.admin.errors.show', [
             'submission' => $submission,
@@ -276,27 +272,6 @@ class ErrorLogController extends Controller
     }
 
     /**
-     * The page of what the visitor's later submission made: the leaf
-     * application, or the donation. Null without one, or before the
-     * donation has arrived from the payment processor.
-     */
-    private function laterRecordUrl(FormSubmission $submission): ?string
-    {
-        // An admin's closing replaces the link, as it does the words
-        if ($submission->isClosed()) {
-            return null;
-        }
-
-        $later = $submission->laterSubmission;
-
-        return match (true) {
-            $later?->leafApplication !== null => route('admin.leaves.show', $later->leafApplication->id),
-            $later?->donation !== null => route('admin.donations.show', $later->donation->id),
-            default => null,
-        };
-    }
-
-    /**
      * The submissions the filters choose, from the report.
      *
      * @param  array{period: string, forms: array<int, string>, all: bool, later: bool, resolved: bool, spam: bool}  $filters
@@ -353,5 +328,19 @@ class ErrorLogController extends Controller
             'resolved' => $filters['resolved'] ? null : '0',
             'spam' => $filters['spam'] ? '1' : null,
         ]);
+    }
+
+    /**
+     * The fields with $insert added after the one labeled $after.
+     *
+     * @param  array<string, mixed>  $fields
+     * @param  array<string, mixed>  $insert
+     * @return array<string, mixed>
+     */
+    private function insertAfter(array $fields, string $after, array $insert): array
+    {
+        $position = array_search($after, array_keys($fields), true) + 1;
+
+        return array_slice($fields, 0, $position, true) + $insert + array_slice($fields, $position, null, true);
     }
 }
