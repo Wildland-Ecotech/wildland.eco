@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\LeafApplication;
 use App\Reports\DonationReport;
 use App\Reports\DonationTotalsReport;
 use App\Reports\FormSubmissionReport;
@@ -14,10 +15,11 @@ use Illuminate\View\View;
 
 /**
  * The admin dashboard (/admin): who is signed in, the last 90 days at a
- * glance (Recent Activity), with links to each list for the same period, and
- * the donations we received month over month, by quarter, by year, and for
- * all time (Donation Statistics). The counts come from the same report
- * classes as the lists, and the totals are the ones donations:totals shows,
+ * glance (Recent Activity), with links to each list for the same period and
+ * to the applications whose contact needs review, and the donations we
+ * received month over month, by quarter, by year, and for all time
+ * (Donation Statistics). The counts come from the same report classes and
+ * queries as the lists, and the totals are the ones donations:totals shows,
  * from DonationTotalsReport and DescribesDonationTotals, so they always
  * match.
  */
@@ -67,6 +69,13 @@ class DashboardController extends Controller
                     'count' => $submissions->list(self::DAYS, submittedLater: false, resolvedByAdmin: false)->count(),
                     'label' => 'Unresolved errors',
                     'url' => route('admin.errors', ['period' => (string) self::DAYS, 'later' => '0', 'resolved' => '0']),
+                ],
+                [
+                    // Applications from the same days whose contact needs an
+                    // admin to look; Needs Review lists them all
+                    'count' => LeafApplication::needingContactReview()->where('created_at', '>=', now()->subDays(self::DAYS))->count(),
+                    'label' => 'Applications to review',
+                    'url' => route('admin.contacts.review'),
                 ],
             ],
             'totalsHeaders' => self::DONATION_TOTALS_HEADERS,
