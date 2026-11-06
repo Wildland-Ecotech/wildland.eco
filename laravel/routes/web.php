@@ -66,6 +66,9 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
     Route::post('/contacts/{contact}', [AdminContactController::class, 'update'])
         ->where('contact', '[0-9]+')
         ->name('admin.contacts.update');
+    Route::post('/contacts/{contact}/merge/{other}', [AdminContactController::class, 'merge'])
+        ->whereNumber(['contact', 'other'])
+        ->name('admin.contacts.merge');
     // A contact's phone numbers, emails, and address; a detail must be the contact's own
     Route::scopeBindings()->whereNumber(['contact', 'detail'])->group(function () {
         Route::post('/contacts/{contact}/details', [AdminContactDetailController::class, 'store'])->name('admin.contacts.details.store');

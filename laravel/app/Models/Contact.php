@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +15,9 @@ use Illuminate\Support\Facades\DB;
  * address are ContactDetails, several per contact, kept after they change.
  *
  * Holds personal details: never paste them into issues, chat, or the
- * repository. Deleting a contact soft-deletes it.
+ * repository. Deleting a contact soft-deletes it. A contact merged into
+ * another (App\Services\ContactMerger) is deleted, with `merged_into_id`
+ * pointing to the one it became part of.
  */
 #[Fillable([
     'name',
@@ -32,6 +35,17 @@ class Contact extends Model
     public function details(): HasMany
     {
         return $this->hasMany(ContactDetail::class);
+    }
+
+    /**
+     * The contact this one was merged into, even if that one was deleted
+     * too, or null.
+     *
+     * @return BelongsTo<Contact, $this>
+     */
+    public function mergedInto(): BelongsTo
+    {
+        return $this->belongsTo(Contact::class, 'merged_into_id')->withTrashed();
     }
 
     /**

@@ -2,13 +2,18 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Traits\ShowsFollowUps;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SaveContactRequest;
 use App\Models\Contact;
 use App\Models\ContactDetail;
+use App\Models\FormSubmission;
 use App\Models\LeafApplication;
 use App\Reports\ContactReport;
+use App\Reports\FormSubmissionReport;
+use App\Reports\Traits\DescribesFormSubmissions;
 use App\Reports\Traits\DescribesLeafApplications;
+use App\Services\ContactMerger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -19,15 +24,16 @@ use Illuminate\View\View;
 /**
  * The admin contact pages (/admin/contacts): the list of contacts, with the
  * person who applied most recently first and a search by name, phone number,
- * or email; one contact with their details and applications; adding a
- * contact by hand, such as someone reached by text before they applied;
- * editing a contact's name and notes; and the applications whose contact
- * needs an admin to look (Needs Review). Their phone numbers, emails, and
- * address are edited through ContactDetailController.
+ * or email; one contact with their details, applications, and form errors;
+ * adding a contact by hand, such as someone reached by text before they
+ * applied; editing a contact's name and notes; merging another contact into
+ * one; and the applications whose contact needs an admin to look (Needs
+ * Review). Their phone numbers, emails, and address are edited through
+ * ContactDetailController.
  */
 class ContactController extends Controller
 {
-    use DescribesLeafApplications;
+    use DescribesFormSubmissions, DescribesLeafApplications, ShowsFollowUps;
 
     /**
      * The list's columns, the ones that make up a contact's line on a phone
@@ -50,6 +56,14 @@ class ContactController extends Controller
     public const APPLICATION_SUMMARY_COLUMNS = [1, 2, 3];
 
     public const APPLICATION_NUMBER_COLUMNS = [0, 3];
+
+    /**
+     * The columns of a contact's form errors, and the ones that make up a
+     * submission's line on a phone (submitted, form, and what happened).
+     */
+    public const FORM_ERROR_HEADERS = ['Reference', 'Submitted', 'Form', 'What happened', 'Follow-up'];
+
+    public const FORM_ERROR_SUMMARY_COLUMNS = [1, 2, 3];
 
     /**
      * The Needs Review list's columns, the ones that make up an
@@ -106,18 +120,27 @@ class ContactController extends Controller
     }
 
     /**
-     * One contact with their details and applications.
+     * One contact with their details, the other contacts sharing a phone
+     * number or email, and their applications. A contact merged into
+     * another goes to that one.
      */
-    public function show(string $contact, ContactReport $report): View
+    public function show(string $contact, ContactReport $report, FormSubmissionReport $submissions): View|RedirectResponse
     {
         // The route only matches digits
         $record = $report->find((int) $contact);
 
-        abort_if($record === null, 404);
+        if ($record === null) {
+            $into = $report->mergedInto((int) $contact);
+
+            abort_if($into === null, 404);
+
+            return redirect()->route('admin.contacts.show', $into->id)->with('status', 'That contact was merged into ' . $into->name . '.');
+        }
 
         return view('pages.admin.contacts.show', [
             'contact' => $record,
             'fields' => $this->fields($record),
+            'sharing' => $report->sharing($record),
             'applicationHeaders' => self::APPLICATION_HEADERS,
             'applicationRows' => $record->applications->map(fn (LeafApplication $application) => [
                 'cells' => [
@@ -134,6 +157,24 @@ class ContactController extends Controller
                 ],
                 'url' => route('admin.leaves.show', $application->id),
             ])->all(),
+            'formErrorHeaders' => self::FORM_ERROR_HEADERS,
+            'formErrorRows' => $submissions->forContact($record)->map(function (FormSubmission $submission) {
+                $fields = $this->formSubmissionFields($submission);
+
+                return [
+                    'cells' => [
+                        $submission->reference,
+                        $this->listTime($submission->created_at),
+                        $fields['Form'],
+                        $fields['What happened'],
+                        $this->followUpCell($submission, $this->formSubmissionFollowUpText($submission)),
+                    ],
+                    'summary' => [$this->shortDate($submission->created_at), $fields['Form'], $fields['What happened']],
+                    'status' => $this->followUpIcon($submission)['status'] ?? null,
+                    'statusLabel' => $this->followUpIcon($submission)['label'] ?? null,
+                    'url' => route('admin.errors.show', $submission->reference),
+                ];
+            })->all(),
         ]);
     }
 
@@ -240,6 +281,22 @@ class ContactController extends Controller
         ]);
 
         return redirect()->route('admin.contacts.edit', $contact->id)->with('status', 'Saved the name and notes.');
+    }
+
+    /**
+     * Merge another contact into this one: their applications, details,
+     * and notes move here, and their contact is deleted.
+     */
+    public function merge(Request $request, Contact $contact, Contact $other, ContactMerger $merger): RedirectResponse
+    {
+        abort_if($other->is($contact), 404);
+
+        $moved = $merger->merge($other, $contact, $request->user());
+
+        return redirect()->route('admin.contacts.show', $contact->id)->with(
+            'status',
+            "Merged {$other->name} into {$contact->name}" . ($moved > 0 ? ', with ' . $moved . ' ' . Str::plural('application', $moved) : '') . '.',
+        );
     }
 
     /**

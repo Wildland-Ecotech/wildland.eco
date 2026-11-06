@@ -53,7 +53,7 @@ class LeafApplicationController extends Controller
     public function index(Request $request, LeafApplicationReport $report): View
     {
         $filters = $this->filters($request);
-        $applications = $report->list(self::PERIODS[$filters['period']], $filters['types']);
+        $applications = $report->list(self::PERIODS[$filters['period']], $filters['types'])->load('contact');
         $count = $applications->count();
 
         return view('pages.admin.leaves.index', [
@@ -61,8 +61,14 @@ class LeafApplicationController extends Controller
             'summary' => $this->periodSummary($filters['period'], $count, $this->leafApplicationListName($filters['types'], $count)),
             'headers' => self::LEAF_APPLICATION_TABLE_HEADERS,
             'rows' => $applications->map(fn (LeafApplication $application) => [
-                // Like leaves:applications's row, with a shorter time for the page
-                'cells' => array_replace($this->leafApplicationTableRow($application), [1 => $this->listTime($application->created_at)]),
+                // Like leaves:applications's row, with a shorter time for the
+                // page, and the name linking to the person's contact
+                'cells' => array_replace($this->leafApplicationTableRow($application), array_filter([
+                    1 => $this->listTime($application->created_at),
+                    2 => $application->contact && ! $application->contact->trashed()
+                        ? ['text' => $application->name, 'url' => route('admin.contacts.show', $application->contact_id)]
+                        : null,
+                ])),
                 'summary' => [
                     $this->shortDate($application->created_at),
                     $application->name,
