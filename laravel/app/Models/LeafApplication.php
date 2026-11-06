@@ -59,6 +59,15 @@ class LeafApplication extends Model
     public const REVIEW_REASONS = [self::REVIEW_NAME, self::REVIEW_ADDRESS, self::REVIEW_CONFLICT];
 
     /**
+     * How each review reason is described to admins.
+     */
+    public const REVIEW_LABELS = [
+        self::REVIEW_NAME => 'Different name',
+        self::REVIEW_ADDRESS => 'Different address',
+        self::REVIEW_CONFLICT => 'Email and phone match different contacts',
+    ];
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
