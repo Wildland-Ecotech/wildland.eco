@@ -9,14 +9,18 @@
 
 {
 	email contact@wildland.eco
+
+	# Visitors' own addresses, from behind Cloudflare
+	import /etc/caddy/cloudflare.caddy
 }
 
-# The proxy_to_site and maintenance_page snippets
+# The proxy_to_site, maintenance_page, and access_log snippets
 import /etc/caddy/site.caddy
 
 # The public site
 wildland.eco {
 	encode zstd gzip
+	import access_log
 
 	handle {
 		import proxy_to_site
@@ -27,6 +31,8 @@ wildland.eco {
 
 # Permanent redirect to the public site, keeping the path and query string
 www.wildland.eco {
+	import access_log
+
 	redir https://wildland.eco{uri} permanent
 }
 
@@ -35,6 +41,7 @@ www.wildland.eco {
 # wildland.eco is the public site.
 prod.wildland.eco {
 	encode zstd gzip
+	import access_log
 
 	header X-Robots-Tag "noindex, nofollow"
 

@@ -1,0 +1,19 @@
+# Imported into the global options of both Caddyfiles. Not a site
+# configuration on its own.
+#
+# Cloudflare sits in front of the sites, so each visit reaches Caddy from one
+# of Cloudflare's addresses. Without this, Caddy's access logs, Laravel's
+# sessions, and the forms' rate limits would see Cloudflare's address instead
+# of the visitor's. Trusting Cloudflare's published ranges lets Caddy take the
+# visitor's address from the CF-Connecting-IP header that Cloudflare adds, as
+# {client_ip}. A request from any other address keeps its own address, so
+# connecting directly can't fake the header.
+#
+# The ranges are Cloudflare's published list (https://www.cloudflare.com/ips/),
+# copied on November 5, 2026. Cloudflare rarely changes it; when it does,
+# update the line below. Caddyfile arguments can't span lines, so the ranges
+# share one line: IPv4, then IPv6.
+servers {
+	trusted_proxies static 173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
+	client_ip_headers CF-Connecting-IP
+}

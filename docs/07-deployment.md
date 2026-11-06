@@ -183,7 +183,7 @@ Staging and production each run on their own server from a clone of the reposito
 
 | Service | Purpose |
 |---------|---------|
-| caddy | Terminates HTTPS on ports 80 and 443, obtains and renews certificates automatically, and forwards requests to nginx. Shows the maintenance page while the site is unavailable (see [Maintenance Page](#maintenance-page)). Configured by `deploy/caddy/<CADDY_SITE>.Caddyfile`, with the parts both servers share in `deploy/caddy/site.caddy`. |
+| caddy | Terminates HTTPS on ports 80 and 443, obtains and renews certificates automatically, and forwards requests to nginx. Shows the maintenance page while the site is unavailable (see [Maintenance Page](#maintenance-page)), finds each visitor's address behind Cloudflare (see [Cloudflare](#cloudflare)), and writes the access logs (see [Logs](#logs)). Configured by `deploy/caddy/<CADDY_SITE>.Caddyfile`, with the parts both servers share in `deploy/caddy/site.caddy` and `deploy/caddy/cloudflare.caddy`. |
 | webhook | Receives GitHub push webhooks at `/hooks/deploy`. It verifies the signature, and for pushes to the server's branch writes `deploy/trigger/deploy-requested`. It has no Docker access, and its port (9000) is reachable only by Caddy over Docker's internal network. |
 
 ### Images
@@ -234,6 +234,27 @@ Caddy shows `deploy/caddy/maintenance.html`, a self-contained page in the site's
 
 The rules are in `deploy/caddy/site.caddy`, which both Caddyfiles import. nginx looks up the app container's address every few seconds rather than once, so it never keeps sending requests to a container that was replaced.
 
+### Cloudflare
+
+Cloudflare's proxy sits in front of the sites: visitors connect to Cloudflare, which protects the servers from attacks and forwards each request to Caddy from one of its own addresses. Caddy still obtains the HTTPS certificates itself.
+
+So that the access logs, sessions, and form rate limits see each visitor's own address, `deploy/caddy/cloudflare.caddy` trusts Cloudflare's published address ranges and takes the visitor's address from the `CF-Connecting-IP` header that Cloudflare adds. A request from any other address keeps its own, so connecting to a server directly can't fake the header. Caddy then sends nginx and Laravel only the visitor's address, in `X-Forwarded-For` (`deploy/caddy/site.caddy`), and Laravel trusts it (`trustProxies` in `laravel/bootstrap/app.php`).
+
+The ranges are copied from [Cloudflare's list](https://www.cloudflare.com/ips/). Cloudflare rarely changes it; when it does, update the line in `cloudflare.caddy`. Until then, visits through a new range are recorded with Cloudflare's address rather than the visitor's, and nothing else breaks.
+
+### Logs
+
+The [privacy policy](https://wildland.eco/privacy) states how long the access logs and Laravel's log are kept, so update it whenever either changes.
+
+| Log | Where | Kept |
+|-----|-------|------|
+| **Access logs:** one JSON line per request, with the visitor's address (`client_ip`), the page, the time, and the request's headers, with cookies and `Authorization` replaced by `REDACTED` | `/var/log/caddy/` in the `caddy_logs` volume, written by Caddy for every site (the `access_log` snippet in `deploy/caddy/site.caddy`) | Rolled daily and gzipped; each file is deleted once it is 90 days old |
+| **Laravel's log:** errors, and anything else the application logs | `storage/logs/laravel-<date>.log` in the `storage` volume, one file per day (`LOG_STACK=daily`) | 30 days (`LOG_DAILY_DAYS=30`) |
+| **Nightly Stripe sync:** one line per synced object, by Stripe ID | `storage/logs/stripe-sync.log` in the `storage` volume | Not trimmed; it holds no names or emails |
+| **Container output:** Caddy's own messages, nginx's errors, the queue worker and scheduler | Docker (`docker compose logs`) | Until the container is replaced. Deploys replace all but Caddy and the webhook. |
+
+nginx keeps no access log of its own, since it only sees Caddy's address. Local development has no Caddy, so it has no access logs; Laravel's daily log works the same as on servers.
+
 ### Server Settings
 
 | File | Setting | Staging | Production |
@@ -249,12 +270,16 @@ The rules are in `deploy/caddy/site.caddy`, which both Caddyfiles import. nginx 
 | `laravel/.env` | `APP_URL` | `https://stage.wildland.eco` | `https://wildland.eco` |
 | `laravel/.env` | `SESSION_DRIVER` | `database` | `database` |
 | `laravel/.env` | `SESSION_SECURE_COOKIE` | `true` | `true` |
+| `laravel/.env` | `LOG_STACK` | `daily` | `daily` |
+| `laravel/.env` | `LOG_DAILY_DAYS` | `30` | `30` |
 | `laravel/.env` | `STRIPE_*` | Test mode keys and IDs | Live mode keys and IDs |
 | `laravel/.env` | `MAIL_USERNAME`, `MAIL_PASSWORD` | AhaSend SMTP credential, sandbox or live | Live AhaSend SMTP credential |
 
 Staging uses `APP_ENV=production` so it behaves exactly like production. Each server gets its own `APP_KEY`, database password, and webhook secret.
 
 `SESSION_SECURE_COOKIE=true` sends the session cookie only over HTTPS. It isn't in `laravel/.env.example`, since local development uses plain HTTP, so add it to every server's `laravel/.env` by hand. Servers set up before sign-in was added have `SESSION_DRIVER=file`: switch it to `database` only after a deploy has migrated the `sessions` table, then deploy by hand. Switching earlier breaks every page, and switching signs everyone out, though forms left open recover through [Stale Forms](03-routes-and-controllers.md#stale-forms).
+
+`LOG_STACK=daily` writes Laravel's log to one file per day, and `LOG_DAILY_DAYS=30` deletes each after 30 days, as the privacy policy says (see [Logs](#logs)). Without `LOG_DAILY_DAYS`, Laravel keeps 14. Servers set up before then have `LOG_STACK=single`, which writes one file that is never trimmed. Set both, deploy by hand, then delete the old file: `sudo -u deploy docker compose exec app rm storage/logs/laravel.log`.
 
 ### Setting Up a Server
 
@@ -302,6 +327,14 @@ journalctl -u wildland-deploy -f
 
 # Webhook and Caddy logs (from the clone's directory)
 docker compose logs -f webhook caddy
+
+# Access logs (see Logs): the latest requests, then the daily files, which
+# contain visitors' addresses
+sudo -u deploy docker compose exec caddy tail -n 50 /var/log/caddy/access.log
+sudo -u deploy docker compose exec caddy ls -lh /var/log/caddy
+
+# Laravel's log for today (one file per day, dated in UTC)
+sudo -u deploy docker compose exec app sh -c 'tail -n 100 storage/logs/laravel-$(date -u +%F).log'
 
 # Show the maintenance page for planned maintenance, then hide it. A deploy
 # that runs meanwhile leaves it on.
