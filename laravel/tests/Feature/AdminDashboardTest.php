@@ -12,8 +12,8 @@ use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /**
- * The admin dashboard, /admin: who is signed in, and the last 90 days at a
- * glance.
+ * The admin dashboard, /admin: who is signed in, the last 90 days at a
+ * glance (Recent Activity), and the donation totals (Donation Statistics).
  */
 class AdminDashboardTest extends TestCase
 {
@@ -31,6 +31,22 @@ class AdminDashboardTest extends TestCase
         $this->travelTo(Carbon::parse('2026-10-21 19:30', 'America/Denver'));
 
         $this->admin = User::factory()->admin()->withPassword()->create(['name' => 'Sam Rivera']);
+    }
+
+    /**
+     * A received donation paid at the given Fort Collins time. Times are
+     * stored in UTC.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    private function paid(string $localTime, int $amountCents, ?int $feeCents, array $attributes = []): Donation
+    {
+        return Donation::factory()->create([
+            'paid_at' => Carbon::parse($localTime, 'America/Denver')->utc(),
+            'amount_cents' => $amountCents,
+            'fee_cents' => $feeCents,
+            ...$attributes,
+        ]);
     }
 
     /**
@@ -103,7 +119,7 @@ class AdminDashboardTest extends TestCase
             ->get('/admin')
             ->assertOk()
             ->assertSee('Signed in as')
-            ->assertSee('Last 90 Days')
+            ->assertSeeInOrder(['Recent Activity', 'The last 90 days.'])
             ->assertSeeInOrder([
                 '<span class="count">2</span>', 'Donations received',
                 '<span class="count">1</span>', 'Leaf applications',
@@ -123,5 +139,57 @@ class AdminDashboardTest extends TestCase
         $response->assertSee('href="' . e(route('admin.errors', ['period' => '90', 'later' => '0', 'resolved' => '0'])) . '"', false);
 
         $response->assertSee('<span class="count">0</span>', false);
+    }
+
+    public function test_shows_each_grouping_of_totals_like_the_command(): void
+    {
+        $this->paid('2026-01-15 10:00', 5000, 175);
+        $this->paid('2026-02-10 10:00', 2000, 88);
+        $this->paid('2026-02-28 10:00', 5000, 175, ['status' => Donation::STATUS_REFUNDED, 'refunded_cents' => 5000]);
+        Donation::factory()->failed()->create();
+
+        $this->actingAs($this->admin)
+            ->get('/admin')
+            ->assertOk()
+            ->assertSeeInOrder(['Recent Activity', 'Donation Statistics', 'Month over month', 'By quarter', 'By year', 'All time'])
+            ->assertSee('Jan 2026')
+            ->assertSee('Q1 2026')
+            // $120.00 donated, $50.00 refunded, and $4.38 in fees
+            ->assertSee('$120.00')
+            ->assertSee('$50.00')
+            ->assertSee('$4.38')
+            ->assertSee('$65.62')
+            ->assertSee('href="' . route('admin.donations.totals.csv') . '"', false)
+            ->assertDontSee("Stripe's fee isn't recorded yet");
+    }
+
+    public function test_each_total_has_a_short_line_for_phones(): void
+    {
+        $this->paid('2026-01-15 10:00', 5000, 175);
+        $this->paid('2026-01-20 10:00', 2000, 88);
+
+        $this->actingAs($this->admin)
+            ->get('/admin')
+            ->assertSee('<summary>Jan 2026 · 2 donations · $70.00</summary>', false)
+            ->assertSee('<summary>All time · 2 donations · $70.00</summary>', false);
+    }
+
+    public function test_donations_without_a_fee_yet_are_pointed_out(): void
+    {
+        $this->paid('2026-01-15 10:00', 5000, null);
+
+        $this->actingAs($this->admin)
+            ->get('/admin')
+            ->assertSee("Stripe's fee isn't recorded yet for 1 donation, so the fees leave it out");
+    }
+
+    public function test_says_when_there_are_no_donations(): void
+    {
+        $this->actingAs($this->admin)
+            ->get('/admin')
+            ->assertOk()
+            ->assertSeeInOrder(['Donation Statistics', 'No donations received yet.'])
+            ->assertDontSee('Month over month')
+            ->assertDontSee(route('admin.donations.totals.csv'));
     }
 }

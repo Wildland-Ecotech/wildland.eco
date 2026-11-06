@@ -1,6 +1,6 @@
 @use('App\Http\Controllers\Admin\AbandonedCheckoutController')
 
-<x-admin-page title="Abandoned Checkouts" current="admin.donations.abandoned">
+<x-admin-page title="Abandoned Checkouts" current="admin.donations">
     <p class="intro">Donors who filled in the donate form and went to Stripe's payment page, but left without paying.</p>
 
     {{-- A plain GET form, so the filter is in the URL and works without JavaScript --}}
@@ -30,4 +30,6 @@
             :numeric="AbandonedCheckoutController::NUMBER_COLUMNS"
         />
     @endif
+
+    <a class="back" href="{{ route('admin.donations') }}">← Back to Donations</a>
 </x-admin-page>
