@@ -411,3 +411,24 @@ docker compose exec app php artisan leaves:view 12
 ```
 
 The output contains the donor's personal contact details: never paste it into issues or chat.
+
+### contacts:link (`app/Console/Commands/LinkContacts.php`)
+
+Links leaf applications that have no contact yet and aren't waiting for review, the same way new applications are linked (see [ContactLinker](#contactlinker-appservicescontactlinkerphp)). Run it once per environment for the applications made before contacts existed, and any time to pick up an application whose linking failed. It goes oldest first, so each contact ends up with the details from their newest application, and leaves out deleted applications. Safe to run any number of times.
+
+| Option | Default | Effect |
+|--------|---------|--------|
+| `--dry-run` | off | Links everything inside a transaction that is rolled back, so it shows exactly what would happen without saving anything |
+
+It shows how many applications made new contacts, were linked to an existing contact, were linked and flagged for review, were flagged without linking, or failed, then a table of those flagged (ID, when applied, name, and why). A failure is reported to the log and fails the command, and the rest still run; running it again retries it.
+
+Run a dry run first, then the real thing:
+
+```bash
+docker compose exec app php artisan contacts:link --dry-run
+docker compose exec app php artisan contacts:link
+```
+
+On a server, run them from the clone's directory as its owner, such as `sudo -u deploy docker compose exec app php artisan contacts:link --dry-run`.
+
+The output names applicants: never paste it into issues or chat.

@@ -169,7 +169,7 @@ Keeping track of the people who apply to give leaves and our conversations with 
 **Order:**
 
 1. The local geocoder.
-2. Contacts: contacts, their details, linking applications (including past ones), and contact pages. Done: the tables and linking new applications.
+2. Contacts: contacts, their details, linking applications (including past ones), and contact pages. Done: the tables, linking new applications, and `contacts:link` for past ones.
 3. Copying addresses and pasting coordinates, starting with the drop-off sites.
 4. The map of pickup locations, printable.
 5. The timeline: texts, calls, and notes.
