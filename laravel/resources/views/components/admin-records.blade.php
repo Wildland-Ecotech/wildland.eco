@@ -16,7 +16,9 @@
     />
 
     Each row is ['cells' => one value per header, 'summary' => the words of
-    the phone line, 'url' => the record's page]. Leave out 'url' for records
+    the phone line, 'url' => the record's page], with an optional 'badge':
+    a short label after the first column's link and the phone line, such as
+    "Drop-off site". Leave out 'url' for records
     without a page of their own, such as totals; the list then has no links.
     The first column should identify the record, since it is the link.
     `summary-columns` are the columns the phone line already shows, which the
@@ -61,7 +63,7 @@
                         <td class="select"><input type="checkbox" form="{{ $selectForm }}" name="{{ $selectName }}" value="{{ $row['value'] }}" aria-label="Select {{ $row['value'] }}"></td>
                     @endif
                     @foreach ($row['cells'] as $index => $cell)
-                        <td @class(['numeric' => in_array($index, $numeric, true)])>@if ($index === 0 && isset($row['url']))<a class="record-link" href="{{ $row['url'] }}">{{ $cell }}</a>@elseif (is_array($cell) && ! isset($cell['status']) && ($cell['url'] ?? null))<a href="{{ $cell['url'] }}">{{ $cell['text'] }}</a>@elseif (is_array($cell) && ! isset($cell['status'])){{ $cell['text'] }}@elseif (is_array($cell))<span class="status-cell"><span class="status-icon {{ $cell['status'] }}" aria-hidden="true">{{ $icons[$cell['status']] }}</span>@if ($cell['url'] ?? null)<a href="{{ $cell['url'] }}">{{ $cell['text'] }}</a>@else{{ $cell['text'] }}@endif</span>@else{{ $cell === '' ? '—' : $cell }}@endif</td>
+                        <td @class(['numeric' => in_array($index, $numeric, true)])>@if ($index === 0 && isset($row['url']))<a class="record-link" href="{{ $row['url'] }}">{{ $cell }}</a>{!! isset($row['badge']) ? ' <span class="badge">' . e($row['badge']) . '</span>' : '' !!}@elseif (is_array($cell) && ! isset($cell['status']) && ($cell['url'] ?? null))<a href="{{ $cell['url'] }}">{{ $cell['text'] }}</a>@elseif (is_array($cell) && ! isset($cell['status'])){{ $cell['text'] }}@elseif (is_array($cell))<span class="status-cell"><span class="status-icon {{ $cell['status'] }}" aria-hidden="true">{{ $icons[$cell['status']] }}</span>@if ($cell['url'] ?? null)<a href="{{ $cell['url'] }}">{{ $cell['text'] }}</a>@else{{ $cell['text'] }}@endif</span>@else{{ $cell === '' ? '—' : $cell }}@endif</td>
                     @endforeach
                 </tr>
             @endforeach
@@ -76,7 +78,7 @@
                 @endif
 
                 <details>
-                    <summary>@if ($row['status'] ?? null)<span class="status-icon {{ $row['status'] }}" aria-hidden="true">{{ $icons[$row['status']] }}</span><span class="visually-hidden">{{ $row['statusLabel'] }}: </span>@endif{{ implode(' · ', $row['summary']) }}</summary>
+                    <summary>@if ($row['status'] ?? null)<span class="status-icon {{ $row['status'] }}" aria-hidden="true">{{ $icons[$row['status']] }}</span><span class="visually-hidden">{{ $row['statusLabel'] }}: </span>@endif{{ implode(' · ', $row['summary']) }}{!! isset($row['badge']) ? ' <span class="badge">' . e($row['badge']) . '</span>' : '' !!}</summary>
 
                     <dl>
                         @foreach ($row['cells'] as $index => $cell)

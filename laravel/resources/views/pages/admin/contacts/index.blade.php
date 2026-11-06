@@ -5,6 +5,15 @@
     <form class="filters" method="GET" action="{{ route('admin.contacts') }}">
         <div class="filter-group">
             <div class="filter">
+                <label for="show">Show</label>
+                <select id="show" name="show">
+                    @foreach (ContactController::SHOW_CHOICES as $value => $label)
+                        <option value="{{ $value }}" @selected($show === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="filter">
                 <label for="search">Search</label>
 
                 <div class="search-box">
@@ -30,8 +39,8 @@
         <x-admin-records
             :headers="$headers"
             :rows="$rows"
-            :summary-columns="ContactController::SUMMARY_COLUMNS"
-            :numeric="ContactController::NUMBER_COLUMNS"
+            :summary-columns="$summaryColumns"
+            :numeric="$numeric"
             link-label="View Contact"
         />
     @endif
