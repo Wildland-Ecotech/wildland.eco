@@ -306,6 +306,43 @@ $control-height: 16px * $control-line-height + 16px + 4px;
             margin: 0.2em 0 0;
         }
 
+        // A search box, as tall as the menus and buttons beside it
+        input[type="search"] {
+            display: block;
+            width: 22em;
+            max-width: 100%;
+            height: $control-height;
+            box-sizing: border-box;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(46, 207, 158, 0.3);
+            border-radius: 10px;
+            padding: 0 0.75em;
+            color: #fff;
+            font-family: satoshi;
+            font-size: 16px;
+            outline: none;
+            color-scheme: dark;
+
+            &:focus {
+                border-color: $green;
+            }
+        }
+
+        // The search box with its button beside it
+        .search-box {
+            display: flex;
+            gap: 0.75em;
+
+            input[type="search"] {
+                flex: 0 1 22em;
+                min-width: 0;
+            }
+
+            .button {
+                margin: 0;
+            }
+        }
+
         // With page actions beside them, the filters wrap in their own
         // group, so the actions stay on the right of the first row, level
         // with the menus
@@ -557,6 +594,12 @@ $control-height: 16px * $control-line-height + 16px + 4px;
         color: $green;
         text-decoration: underline;
         font-size: 16px;
+    }
+
+    // Clear of a list above it, such as a contact's applications
+    .admin-records + .back {
+        display: inline-block;
+        margin-top: 1.5em;
     }
 
     // A value after a status icon, such as an error's follow-up: a check, a
