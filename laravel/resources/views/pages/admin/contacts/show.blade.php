@@ -1,6 +1,10 @@
 @use('App\Http\Controllers\Admin\ContactController')
 
 <x-admin-page :title="$contact->name" current="admin.contacts">
+    @if (session('status'))
+        <p class="status" role="status">{{ session('status') }}</p>
+    @endif
+
     <dl class="record">
         @foreach ($fields as $label => $value)
             <div>
@@ -9,6 +13,10 @@
             </div>
         @endforeach
     </dl>
+
+    <div class="record-actions">
+        <a class="button dark small" href="{{ route('admin.contacts.edit', $contact->id) }}">Edit Contact</a>
+    </div>
 
     <h2>Applications</h2>
 

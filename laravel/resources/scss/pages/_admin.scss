@@ -127,6 +127,8 @@ $control-height: 16px * $control-line-height + 16px + 4px;
         }
     }
 
+    input[type="text"],
+    input[type="tel"],
     input[type="email"],
     input[type="password"],
     textarea {
@@ -424,6 +426,11 @@ $control-height: 16px * $control-line-height + 16px + 4px;
         margin: 0 0 1.5em;
         font-size: 16px;
         color: rgba(255, 255, 255, 0.85);
+
+        a {
+            color: $green;
+            text-decoration: underline;
+        }
     }
 
     // The dashboard's overview: open numbers side by side, separated by thin
@@ -705,6 +712,103 @@ $control-height: 16px * $control-line-height + 16px + 4px;
     }
 
     // Closing one submission as resolved, a test, or spam, or reopening it
+    // Forms that add or edit a record, such as a contact: fields one under
+    // another, no wider than they need to be
+    .record-form {
+        max-width: 640px;
+        margin: 0 0 2em;
+
+        .hint {
+            @include type.fine-print;
+            margin: 0.4em 0 0;
+        }
+    }
+
+    // A field with its button beside it, such as adding a phone number: the
+    // field as tall as the button
+    .field-with-button {
+        display: flex;
+        gap: 0.75em;
+        max-width: 640px;
+
+        // Filling the row, so its button lines up with the buttons of the
+        // list above it
+        input {
+            flex: 1;
+            min-width: 0;
+            height: $control-height;
+            padding: 0 0.75em;
+            font-size: 16px;
+        }
+
+        .button {
+            flex: none;
+            margin: 0;
+        }
+    }
+
+    // Buttons for the record above them, such as Edit Contact after a
+    // contact's details
+    .record-actions {
+        margin: -0.5em 0 2em;
+
+        .button {
+            margin: 0;
+        }
+    }
+
+    // A form's buttons and its Cancel link, in a row
+    .form-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1em 1.5em;
+        margin: 1.5em 0 0;
+
+        .button {
+            margin: 0;
+        }
+    }
+
+    // A record's emails, phone numbers, or address while editing, one per
+    // line with its buttons on the right
+    .detail-list {
+        max-width: 640px;
+        margin: 0 0 1em;
+        padding: 0;
+        list-style: none;
+
+        li {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5em 0.75em;
+            margin: 0;
+            padding: 0.6em 0.25em;
+            border-bottom: 1px solid $line;
+            font-size: 16px;
+            color: #fff;
+        }
+
+        .detail-value {
+            flex: 1;
+            min-width: 12em;
+            overflow-wrap: anywhere;
+        }
+
+        .detail-note {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        form {
+            margin: 0;
+        }
+
+        .button {
+            margin: 0;
+        }
+    }
+
     .close-form {
         margin: 0 0 2em;
 

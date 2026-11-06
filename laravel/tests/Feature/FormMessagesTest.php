@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Http\Requests\AddContactDetailRequest;
 use App\Http\Requests\LoginRequest;
+use App\Http\Requests\SaveContactRequest;
 use App\Http\Requests\StartDonationRequest;
 use App\Http\Requests\StoreLeafApplicationRequest;
 use Illuminate\Foundation\Http\FormRequest;
@@ -18,7 +20,13 @@ class FormMessagesTest extends TestCase
 {
     public function test_every_form_field_has_a_message_of_its_own(): void
     {
-        $requests = [new StartDonationRequest, new StoreLeafApplicationRequest, new LoginRequest];
+        $requests = [
+            new StartDonationRequest,
+            new StoreLeafApplicationRequest,
+            new LoginRequest,
+            new SaveContactRequest,
+            new AddContactDetailRequest,
+        ];
 
         foreach ($requests as $request) {
             $this->assertFieldsHaveMessages($request);

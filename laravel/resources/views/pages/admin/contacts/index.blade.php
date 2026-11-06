@@ -3,15 +3,21 @@
 <x-admin-page title="Contacts" current="admin.contacts">
     {{-- A plain GET form, so a search is in the URL and works without JavaScript --}}
     <form class="filters" method="GET" action="{{ route('admin.contacts') }}">
-        <div class="filter">
-            <label for="search">Search</label>
+        <div class="filter-group">
+            <div class="filter">
+                <label for="search">Search</label>
 
-            <div class="search-box">
-                <input type="search" id="search" name="q" value="{{ $search }}" maxlength="{{ ContactController::MAX_SEARCH_LENGTH }}" aria-describedby="search-hint">
-                <button type="submit" class="button dark small">Search</button>
+                <div class="search-box">
+                    <input type="search" id="search" name="q" value="{{ $search }}" maxlength="{{ ContactController::MAX_SEARCH_LENGTH }}" aria-describedby="search-hint">
+                    <button type="submit" class="button dark small">Search</button>
+                </div>
+
+                <p class="hint" id="search-hint">A name, phone number, or email.</p>
             </div>
+        </div>
 
-            <p class="hint" id="search-hint">A name, phone number, or email.</p>
+        <div class="page-actions">
+            <a class="button dark small" href="{{ route('admin.contacts.create') }}">New Contact</a>
         </div>
     </form>
 
