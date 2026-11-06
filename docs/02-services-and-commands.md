@@ -27,6 +27,22 @@ Tax receipts for donations, one per donation and never more.
 
 `SendDonationReceipt` (`app/Jobs/SendDonationReceipt.php`) sends one donation's receipt on the queue, retrying failures after 1 minute, 5 minutes, 30 minutes, and 2 hours. It checks again that the receipt is still due when it runs, so a retry more than 24 hours after the donation sends nothing. It is unique per donation.
 
+### ContactLinker (`app/Services/ContactLinker.php`)
+
+Links a leaf application to the person who made it, so every application from the same person is on one contact. `LeafApplicationController@store` calls `link()` after the application is saved; a failure is reported and leaves the application unlinked, so it never turns an application away.
+
+An application matches a contact, not deleted, by its email or its phone number's 10 digits, current or removed (see [contact_details](01-database-schema.md#contact_details)). `link()` returns what it did:
+
+| Outcome | When | What happens |
+|---------|------|--------------|
+| `CREATED` | Nobody matches | A new contact with the application's name, and its email, phone number, and address |
+| `LINKED` | One contact matches, with the same name (ignoring case and spacing) and no other current address | Linked. The application's email and phone number become the contact's primary ones, since the newest application has the latest details; earlier ones stay. Its address becomes the contact's if they had none |
+| `FLAGGED` | One contact matches, with a different name, or a different current address | Linked, with `contact_review` listing `name`, `address`, or both. The contact is left unchanged, since it may be someone else at the same number, or a move |
+| `CONFLICT` | The email and phone number match different contacts | Not linked; `contact_review` is `conflict` |
+| `SKIPPED` | The application is already linked or flagged | Nothing |
+
+Each link runs in a transaction, so a failure leaves no half-made contact.
+
 ### DonationReceiptMail (`app/Mail/DonationReceiptMail.php`)
 
 The receipt email (`resources/views/mail/donation-receipt.blade.php`, a Markdown mail with HTML and plain-text versions). It thanks the donor on behalf of the Wildland Ecotech team and lists what donors need for their taxes: the receipt number, date (Fort Collins time), amount, and whether the donation was one-time, monthly, or annual; the statement that no goods or services were provided in exchange; and the organization's legal name, address, and EIN from `config/organization.php`. Receipts for recurring donations link to the Customer Portal login. Replies go to `contact@wildland.eco`. It uses the Wildland Ecotech email theme (see [Email](08-style-guide.md#email) in the style guide).

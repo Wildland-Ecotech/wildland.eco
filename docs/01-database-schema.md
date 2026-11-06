@@ -177,6 +177,39 @@ Requests to donate leaves to the leaf program, by drop-off or pickup. Model: `Ap
 | terms_accepted_at | Timestamp; when the donor agreed to the program's terms |
 | created_at, updated_at | |
 | deleted_at | Nullable; soft deletes. Deleted applications are kept but hidden, including from `leaves:applications`; `leaves:view` still shows one by its ID, marked as deleted (see [Deletion](06-planned-features.md#deletion)) |
+| contact_id | Nullable foreign key; restricts deletes. The person who applied, linked by `ContactLinker` after the application is saved (see [Contacts](#contacts)). Null until linked, or while an application whose email and phone number belong to different contacts waits for review. The application keeps its own name, email, phone, and address as submitted |
+| contact_review | Nullable JSONB list of why linking needs an admin to look (`LeafApplication::REVIEW_REASONS`): `name` (the contact it matched has a different name), `address` (the contact has a different current address), or `conflict` (its email and phone number match different contacts, so it isn't linked). Null when nothing needs a look. `needsContactReview()` and the `needingContactReview()` scope find those not reviewed yet |
+| contact_reviewed_at, contact_reviewed_by | Nullable timestamp, and a nullable foreign key to `users` that restricts deletes: when and by which admin the review was done. Set by the admin pages, never from form input |
+
+### contacts
+
+People we keep in touch with, starting with those who apply to donate leaves (see [Leaf Application CRM](06-planned-features.md#leaf-application-crm)). Model: `App\Models\Contact`. Holds names and standing notes about people; never copy its rows into the repository, issues, or chat.
+
+| Column | Notes |
+|--------|-------|
+| name | The only thing a contact needs |
+| notes | Nullable text; standing information, such as "prefers texts after 5pm" |
+| created_at, updated_at | |
+| deleted_at | Nullable; soft deletes. Deleted contacts aren't matched by new applications |
+
+`$contact->applications` are their leaf applications, and `$contact->details` all their emails, phone numbers, and addresses. `primary($type)` is the primary current email or phone number, and `address()` the current address. Change details through `usePrimary($type, $value)`, which makes an email or phone number primary, putting a matching one back in use rather than adding a copy, and `moveTo($value)`, which makes an address current and marks the previous one removed. `findDetail($type, $value)` finds the contact's detail with the same normalized value, current or removed.
+
+### contact_details
+
+A contact's emails, phone numbers, and address, several per contact. Model: `App\Models\ContactDetail`. Holds personal contact details; never copy its rows into the repository, issues, or chat.
+
+| Column | Notes |
+|--------|-------|
+| contact_id | Foreign key; restricts deletes |
+| type | String, up to 20 characters: `email`, `phone`, or `address` (`ContactDetail::TYPES`) |
+| value | Up to 500 characters, as entered, trimmed |
+| normalized | Nullable, up to 500 characters; set from the value on every save (`ContactDetail::normalize()`), for matching: an email trimmed and lowercase; a US phone number's 10 digits, without a leading country code 1; an address lowercase, with commas and periods as spaces and spacing collapsed. Null when there's nothing to match on, such as a phone number without an area code, which is kept but never matched. Indexed together with `type` |
+| label | Nullable, up to 50 characters, such as "mobile" |
+| is_primary | Boolean, default false. The one to use for each type |
+| removed_at | Nullable timestamp; set when a detail is no longer in use, such as a previous address. Removed details are kept, so matching still finds a previous number or address, and are never deleted |
+| created_at, updated_at | |
+
+A contact has **one current address**, and at most **one current primary detail of each type**; partial unique indexes make the database refuse a second (`contact_details_one_current_address` and `contact_details_one_primary`). Addresses will hold their map location (milestone step 3).
 
 ### form_submissions
 
