@@ -44,7 +44,9 @@
             @endif
 
             <p class="tax-note">
-                Wildland Ecotech is a 501(c)(3) nonprofit. All donations are tax-deductible. EIN: 33-3738514
+                Wildland Ecotech is a 501(c)(3) nonprofit. Donations are tax-deductible to the extent allowed
+                by law. EIN: 33-3738514<br>
+                <a href="{{ route('privacy') }}">Privacy Policy</a> · <a href="{{ route('refunds') }}">Refund Policy</a>
             </p>
         </div>
 

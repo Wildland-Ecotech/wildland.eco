@@ -33,7 +33,8 @@
 
         <p class="legal">
             Wildland Ecotech is a 501(c)(3) nonprofit organization.<br>
-            EIN: 33-3738514
+            EIN: 33-3738514<br>
+            <a href="{{ route('privacy') }}">Privacy Policy</a> · <a href="{{ route('refunds') }}">Refund Policy</a>
         </p>
     </div>
 </div>

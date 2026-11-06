@@ -357,6 +357,11 @@ $field-width: 400px;
     .tax-note {
         @include type.fine-print;
         margin-top: 1em;
+
+        a {
+            color: #2ECF9E;
+            text-decoration: underline;
+        }
     }
 
     // Thank-you page (pages/donate-thank-you.blade.php), in the donate card

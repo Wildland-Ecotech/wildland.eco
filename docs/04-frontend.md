@@ -66,6 +66,7 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 - Proof-of-work spam protection (`proof-of-work.js`), as on the leaf form. There is no hidden spam-trap field: browsers and password managers fill those in, which blocked real donors. Paying needs JavaScript anyway, for Stripe's own pages, so a `<noscript>` notice gives the email address to give another way.
 - While online giving is unavailable (no Stripe key), a notice says so and the button stays disabled (`data-unavailable` on the form).
 - Submitting sends the donor to Stripe Checkout. Every other page's footer links here; the donate and thank-you pages hide the footer's Donate link (`:show-donate="false"`) and link back home instead.
+- Under the form, a tax note ("tax-deductible to the extent allowed by law", as on the receipt) with links to the privacy and refund policies
 - "What You're Supporting" cards, impact stats, "Other Ways to Help", and a footer that links back home.
 
 ### Donation Thank-You (`/donate/thank-you/{reference}`) — `pages/donate-thank-you.blade.php`
@@ -74,6 +75,7 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 - Thanks the donor for their donation by amount and frequency ("monthly donation of $20"), never showing their name or email, since the URL is the only thing protecting the page
 - Notes that bank payments can take a few business days
 - For monthly and annual donations, a "Manage Your Recurring Donation" button links to the Stripe Customer Portal login (`STRIPE_PORTAL_LOGIN_URL`), where the donor signs in with an emailed link
+- The donate page's tax note, with links to the privacy and refund policies
 - A footer that links back home
 
 ### Leaves (`/leaves`) — `pages/leaves.blade.php`
@@ -81,7 +83,7 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 - Built on the Content Page component
 - Leads with the program's primary message, "Leave the Leaves": don't rake, and let yards grow back into meadows
 - "Donate Your Leaves" for people who rake anyway, with Drop-Off (marked Preferred) and Pickup cards
-- Leaf guidelines (paper bags and compostable yard waste only), and Privacy: contact details stay private, and which details about the leaves may be shared for grants and outreach
+- Leaf guidelines (paper bags and compostable yard waste only), and Privacy: contact details stay private (never sold, and shared only with the services that run the site), which details about the leaves may be shared for grants, research, and outreach, and a link to the full privacy policy
 - "Apply to Donate Leaves" buttons after the "Donate Your Leaves" text (kept out of the opening card, whose message is not to rake) and after the Privacy section
 - The opening card's text is Lead text (`.prose.lead`); everything below it is Detail text. Only section labels, headings, and buttons are centered.
 
@@ -91,7 +93,7 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 - Drop-off (selected by default, marked Preferred) or pickup, contact details, the address the leaves come from, an estimated bag count, and whether the bags are ready now. Donors never choose a pickup date or time; when the bags aren't ready, they give the soonest date they will be.
 - The "when will they be ready" date is hidden with `:has()` while "Yes, they're ready now" is checked. Browsers without `:has()` always show it, and the server ignores it when the bags are ready.
 - Validation errors appear in a red summary above the form and under each field, and every field keeps its input. The summary ends with the submission's reference (see [Form Submissions](03-routes-and-controllers.md#form-submissions)).
-- Terms with a required "Yes, I agree" checkbox
+- Terms with a required "Yes, I agree" checkbox. Applicants confirm they're 18 or older, and the sharing terms link to What We Share in the privacy policy.
 - Proof-of-work spam protection (`proof-of-work.js`, attached with `data-proof-of-work`): solving starts when the page loads, and if the form is submitted first, the button shows "Verifying…" until it finishes. The form needs JavaScript to submit: without it, a `<noscript>` notice gives the email address to apply by instead. The browser's `crypto.subtle` is only available over HTTPS and on `localhost`. A page restored from the back/forward cache reloads, since its challenge has already been used. A page open for more than 30 minutes fetches a fresh challenge and CSRF token before submitting, or when the visitor returns to the tab, from the form's `data-form-tokens-url` (see [Stale Forms](03-routes-and-controllers.md#stale-forms)).
 - After applying, the page shows a thank-you message for drop-off or pickup instead of the form
 
@@ -104,6 +106,7 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 ### Privacy Policy (`/privacy`) and Refund Policy (`/refunds`) — `pages/privacy.blade.php`, `pages/refunds.blade.php`
 
 - Built on the Content Page component, with the `policy-page` class (`scss/pages/_policy.scss`): a heading card like the FAQ's, then the whole policy in one `.prose` column with an `h2` for each part. Each `h2` has an `id` for linking, such as `/refunds#canceling`, which the privacy policy links to.
+- Linked from every page's footer, the donate and thank-you pages' tax notes, the leaf page's Privacy section and the application's terms, donation receipts, and the FAQ ("Can I get a refund?").
 - The effective date in the heading card is set by hand whenever a policy changes, never generated from the deploy date.
 - The refund policy shows a Manage Your Recurring Donation button, and mentions it in the text, only when `STRIPE_PORTAL_LOGIN_URL` is set.
 - Both describe what the site and its services actually do. Change them in the same work as anything they describe: what the forms collect, the services that handle data (Stripe, Vultr, AhaSend, Proton Mail, Cloudflare), how long data and logs are kept (see [Logs](07-deployment.md#logs)), emails sent to donors, and how refunds work. Features such as abandoned checkout reminders, a mailing list, and digital volunteer waivers need the privacy policy updated before they go live.
@@ -167,7 +170,7 @@ Full-screen blurred overlay with links to Home, Leaf Collection (`/leaves`, the 
 
 ### Footer (`footer`)
 
-Gradient footer with decorative bubbles, links to Instagram, LinkedIn, and Facebook under "Follow our progress", and the organization's EIN. Props with defaults:
+Gradient footer with decorative bubbles, links to Instagram, LinkedIn, and Facebook under "Follow our progress", the organization's EIN, and links to the privacy and refund policies. Props with defaults:
 
 - `color` (default: `'green'`)
 - `heading` (default: `'Want to make a difference?'`)

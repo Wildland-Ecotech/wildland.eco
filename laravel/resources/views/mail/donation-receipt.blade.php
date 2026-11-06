@@ -38,6 +38,8 @@ Manage Your Recurring Donation
 
 Questions about your donation? Reply to this email, or write to us at {{ $organization['email'] }}.
 
+Our [refund policy]({{ route('refunds') }}) and [privacy policy]({{ route('privacy') }}) are on our website.
+
 With gratitude,<br>
 The {{ $organization['name'] }} team
 </x-mail::message>

@@ -29,7 +29,7 @@ Tax receipts for donations, one per donation and never more.
 
 ### DonationReceiptMail (`app/Mail/DonationReceiptMail.php`)
 
-The receipt email (`resources/views/mail/donation-receipt.blade.php`, a Markdown mail with HTML and plain-text versions). It thanks the donor on behalf of the Wildland Ecotech team and lists what donors need for their taxes: the receipt number, date (Fort Collins time), amount, and whether the donation was one-time, monthly, or annual; the statement that no goods or services were provided in exchange; and the organization's legal name, address, and EIN from `config/organization.php`. Receipts for recurring donations link to the Customer Portal login. Replies go to `contact@wildland.eco`. It uses the Wildland Ecotech email theme (see [Email](08-style-guide.md#email) in the style guide).
+The receipt email (`resources/views/mail/donation-receipt.blade.php`, a Markdown mail with HTML and plain-text versions). It thanks the donor on behalf of the Wildland Ecotech team and lists what donors need for their taxes: the receipt number, date (Fort Collins time), amount, and whether the donation was one-time, monthly, or annual; the statement that no goods or services were provided in exchange; and the organization's legal name, address, and EIN from `config/organization.php`. Receipts for recurring donations link to the Customer Portal login, and every receipt links to the refund and privacy policies. Replies go to `contact@wildland.eco`. It uses the Wildland Ecotech email theme (see [Email](08-style-guide.md#email) in the style guide).
 
 Stripe's own payment receipts are turned off in the Stripe dashboard, so donors get one receipt (see [Launching Donations](07-deployment.md#launching-donations)).
 
