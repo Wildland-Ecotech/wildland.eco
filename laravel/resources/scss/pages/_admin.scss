@@ -131,6 +131,9 @@ $control-height: 16px * $control-line-height + 16px + 4px;
     input[type="tel"],
     input[type="email"],
     input[type="password"],
+    input[type="number"],
+    input[type="date"],
+    input[type="datetime-local"],
     textarea {
         display: block;
         width: 100%;
@@ -152,6 +155,17 @@ $control-height: 16px * $control-line-height + 16px + 4px;
         &[aria-invalid="true"] {
             border-color: $error;
         }
+    }
+
+    // Dates, times, and counts take only the width they need
+    input[type="number"],
+    input[type="date"],
+    input[type="datetime-local"] {
+        max-width: 16em;
+    }
+
+    input[type="number"] {
+        max-width: 8em;
     }
 
     textarea {
@@ -720,6 +734,13 @@ $control-height: 16px * $control-line-height + 16px + 4px;
         max-width: 640px;
         margin: 0 0 2em;
 
+        fieldset {
+            margin: 0 0 1.25em;
+            padding: 0;
+            border: 0;
+            min-width: 0;
+        }
+
         .hint {
             @include type.fine-print;
             margin: 0.4em 0 0;
@@ -755,13 +776,18 @@ $control-height: 16px * $control-line-height + 16px + 4px;
     }
 
     // Buttons for the record above them, such as Edit Contact after a
-    // contact's details
+    // contact's details, or for the section they start, such as Log
+    // Activity under Timeline
     .record-actions {
         margin: -0.5em 0 2em;
 
         .button {
             margin: 0;
         }
+    }
+
+    h2 + .record-actions {
+        margin: 0 0 1.25em;
     }
 
     // Links within text, a record's values, and list cells, such as the
@@ -808,6 +834,74 @@ $control-height: 16px * $control-line-height + 16px + 4px;
 
         .button {
             margin: 0;
+        }
+    }
+
+    // Logging a text, call, visit, note, pickup, or drop-off on a contact's
+    // timeline. Fields that don't apply to the kind chosen are hidden where
+    // browsers support :has(); elsewhere every field shows, and the server
+    // ignores the ones that don't apply.
+    .log-form {
+        &:has(input[name="type"][value="visit"]:checked, input[name="type"][value="note"]:checked, input[name="type"][value="pickup"]:checked, input[name="type"][value="drop_off"]:checked) .direction-field {
+            display: none;
+        }
+
+        &:not(:has(input[name="type"][value="pickup"]:checked, input[name="type"][value="drop_off"]:checked)) .bags-field {
+            display: none;
+        }
+    }
+
+    // A contact's timeline, newest first: when, what happened, and what was
+    // said, with a line down the left, white for what came from them
+    .timeline {
+        max-width: 760px;
+        margin: 0 0 2em;
+        padding: 0;
+        list-style: none;
+
+        li {
+            margin: 0;
+            padding: 0.6em 0 0.9em 1em;
+            border-left: 2px solid rgba(46, 207, 158, 0.5);
+            font-size: 16px;
+            color: #fff;
+
+            &.incoming {
+                border-left-color: rgba(255, 255, 255, 0.7);
+            }
+
+            // Added automatically, such as an application
+            &.automatic {
+                border-left-color: $line;
+            }
+        }
+
+        p {
+            font-size: 16px;
+            line-height: 1.45;
+        }
+
+        .timeline-when {
+            margin: 0;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .timeline-what {
+            margin: 0.15em 0 0;
+            font-weight: 700;
+        }
+
+        .timeline-body {
+            margin: 0.3em 0 0;
+            color: rgba(255, 255, 255, 0.85);
+            white-space: pre-line;
+            overflow-wrap: anywhere;
+        }
+
+        a {
+            color: $green;
+            text-decoration: underline;
         }
     }
 

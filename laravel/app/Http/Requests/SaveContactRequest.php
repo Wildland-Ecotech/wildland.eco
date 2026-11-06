@@ -6,8 +6,8 @@ use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Validates a contact added or edited on the admin contact pages: a name,
- * and optionally notes, and, when adding, a phone number, email, and
- * address. Only admins reach it, through the admin routes' middleware.
+ * and optionally notes, whether they're a drop-off site, and, when adding,
+ * a phone number, email, and address. Only admins reach it, through the admin routes' middleware.
  */
 class SaveContactRequest extends FormRequest
 {
@@ -37,6 +37,7 @@ class SaveContactRequest extends FormRequest
             'email' => ['nullable', 'string', 'email', 'max:255'],
             'address' => ['nullable', 'string', 'max:500'],
             'notes' => ['nullable', 'string', 'max:' . self::NOTES_MAX_LENGTH],
+            'is_drop_off_site' => ['nullable', 'boolean'],
             // Add the contact even though another has the same phone number or email
             'separate' => ['nullable', 'boolean'],
         ];
@@ -61,6 +62,7 @@ class SaveContactRequest extends FormRequest
             'email' => 'Enter a valid email address, such as name@example.com.',
             'address' => 'Enter an address of 500 characters or fewer.',
             'notes' => 'Keep the notes to ' . number_format(self::NOTES_MAX_LENGTH) . ' characters or fewer.',
+            'is_drop_off_site' => 'Check the box if this is one of our drop-off sites, or leave it unchecked.',
             'separate' => 'Check the box to add a separate contact, or leave it unchecked.',
         ];
     }

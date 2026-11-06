@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Requests\AddContactDetailRequest;
 use App\Http\Requests\LinkApplicationContactRequest;
+use App\Http\Requests\LogContactActivityRequest;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\SaveContactRequest;
 use App\Http\Requests\StartDonationRequest;
@@ -28,6 +29,7 @@ class FormMessagesTest extends TestCase
             new SaveContactRequest,
             new AddContactDetailRequest,
             new LinkApplicationContactRequest,
+            new LogContactActivityRequest,
         ];
 
         foreach ($requests as $request) {
