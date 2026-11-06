@@ -128,6 +128,11 @@ A full-page menu for visitors without JavaScript, with the same links and social
 
 Built on the Admin Page component, with styles in `_admin.scss`. Every admin page works without JavaScript and on a phone.
 
+- **Contacts** (`/admin/contacts`, `pages/admin/contacts/index.blade.php`):
+    - A Search box with its Search button beside it, the same height (`.search-box`), and a hint under it: "A name, phone number, or email."
+    - A line saying what is listed, such as "12 contacts, most recent application first." or "2 contacts matching “rivera”, most recent application first."
+    - The list: name (the link to the contact), main phone number, main email, number of applications, and when they last applied. On a phone, each contact is one line of when they last applied, name, and phone number, such as "Nov 3 · Jamie Rivera · (970) 555-0123" (without the date for someone who hasn't applied), which opens to show the rest and a View Contact button.
+- **Contact** (`/admin/contacts/{id}`, `pages/admin/contacts/show.blade.php`): the contact's name as the heading, then label and value lines: phone numbers and emails, one per line with the main one first, marked "(main)" only when there's more than one, with any label such as "(mobile)"; the current address; previous phone numbers, emails, or addresses, when there are any; notes; and when they were added. Then **Applications**, newest first: ID (the link to the application), when applied, type, bags, and when they're ready, or "No applications yet."; on a phone, one line of date, type, and bags, such as "Oct 12 · Drop-off · 12 bags". A link at the end goes back to Contacts.
 - **Dashboard** (`/admin`, `pages/admin/home.blade.php`):
     - Who is signed in, by name and email address.
     - **Recent Activity**, "The last 90 days.", and three counts side by side: donations received, leaf applications, and unresolved errors. Each is an open number in large white type, with its label and a short gradient bar under it (the bar grows on hover), separated from the next by a thin line, with no box around it. Each links to its list for the last 90 days. On a phone they stay side by side, smaller.
@@ -208,7 +213,7 @@ Laravel renders `resources/views/errors/<status>.blade.php` for an error, or `4x
 
 ### Admin Page (`admin-page`)
 
-Shell for admin pages (`<x-admin-page title="Donations" current="admin.donations">`): a content page with a wide card, up to 1400px rather than other pages' 960px so lists have room, holding Sign Out in its top right corner (on its own line above the label on a phone), the "— Admin" label, the page's heading, and a row of links to the admin pages with the current one underlined (`aria-current="page"`): Dashboard, Leaf Applications, Donations, and Error Logs. The links are listed in the component; add one only once its page exists. The page's content goes in the slot, left-aligned.
+Shell for admin pages (`<x-admin-page title="Donations" current="admin.donations">`): a content page with a wide card, up to 1400px rather than other pages' 960px so lists have room, holding Sign Out in its top right corner (on its own line above the label on a phone), the "— Admin" label, the page's heading, and a row of links to the admin pages with the current one underlined (`aria-current="page"`): Contacts, Dashboard, Leaf Applications, Donations, and Error Logs. The links are listed in the component; add one only once its page exists. The page's content goes in the slot, left-aligned.
 
 ### Admin Records (`admin-records`)
 
