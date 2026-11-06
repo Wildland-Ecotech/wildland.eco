@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Contact;
 use App\Models\LeafApplication;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -120,13 +121,42 @@ class AdminLeafApplicationsTest extends TestCase
         $this->application();
         $this->application(['name' => 'Sam Lee', 'type' => LeafApplication::TYPE_PICKUP, 'estimated_bag_count' => 1], daysAgo: 365);
 
-        // Date, name, type, and bags, with the year only when it isn't this year
+        // Date, name, type, and bags, with the year only when it isn't this
+        // year, then the follow-up label (neither is linked to a contact)
         $this->actingAs($this->admin)
             ->get('/admin/leaves?period=all')
-            ->assertSee('<summary>Oct 18 · Jamie Rivera · Drop-off · 12 bags</summary>', false)
-            ->assertSee('<summary>Oct 21, 2025 · Sam Lee · Pickup · 1 bag</summary>', false)
+            ->assertSee('<summary>Oct 18 · Jamie Rivera · Drop-off · 12 bags <span class="badge soon">Not linked</span></summary>', false)
+            ->assertSee('<summary>Oct 21, 2025 · Sam Lee · Pickup · 1 bag <span class="badge soon">Not linked</span></summary>', false)
             // The table's time also has the year only when it isn't this year
             ->assertSee('Oct 21, 2025, 7:30 PM');
+    }
+
+    public function test_each_application_shows_its_follow_up(): void
+    {
+        $waiting = $this->application(['name' => 'Sam Lee'], daysAgo: 9);
+        $waiting->forceFill(['contact_id' => Contact::create(['name' => 'Sam Lee'])->id])->save();
+        $done = $this->application(['name' => 'Alex Moreno'], daysAgo: 5);
+        $done->forceFill(['contact_id' => Contact::create(['name' => 'Alex Moreno'])->id, 'status' => LeafApplication::STATUS_COMPLETE])->save();
+        $unlinked = $this->application(['name' => 'Taylor Brooks'], daysAgo: 1);
+
+        $this->actingAs($this->admin)
+            ->get('/admin/leaves')
+            ->assertSee('>Follow-up</th>', false)
+            ->assertSee('<span class="badge urgent">Waiting on us</span> No word from us in 9 days</td>', false)
+            ->assertSee('<span class="badge muted">Complete</span></td>', false)
+            ->assertSee('<span class="badge soon">Not linked</span> Link it to a contact</td>', false);
+
+        $this->actingAs($this->admin)
+            ->get("/admin/leaves/{$waiting->id}")
+            ->assertSeeInOrder(['<dt>Applied</dt>', '<dt>Follow-up</dt>', '<dd>Waiting on us · No word from us in 9 days</dd>'], false);
+
+        $this->actingAs($this->admin)
+            ->get("/admin/leaves/{$done->id}")
+            ->assertSee('<dd>Complete</dd>', false);
+
+        $this->actingAs($this->admin)
+            ->get("/admin/leaves/{$unlinked->id}")
+            ->assertSee('<dd>Not linked · Link it to a contact</dd>', false);
     }
 
     public function test_types_and_periods_narrow_the_list(): void

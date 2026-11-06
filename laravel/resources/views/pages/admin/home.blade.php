@@ -5,14 +5,6 @@
         Signed in as <strong>{{ $admin->name ?: $admin->email }}</strong> ({{ $admin->email }}).
     </p>
 
-    {{-- People waiting to hear from us, or with bags ready, opening Contacts on Needs follow-up --}}
-    @if ($followUpNotice)
-        <div class="notice warning" role="status">
-            <p>{{ $followUpNotice }}</p>
-            <a class="button dark small" href="{{ route('admin.contacts') }}">Follow Up</a>
-        </div>
-    @endif
-
     <h2>Recent Activity</h2>
 
     <p class="summary">The last {{ $days }} days.</p>

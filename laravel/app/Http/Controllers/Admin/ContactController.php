@@ -448,6 +448,7 @@ class ContactController extends Controller
             ],
             'summary' => [$contact->name, $why],
             'badge' => self::FOLLOW_UP_GROUP_LABELS[$item['tier']],
+            'badgeTone' => self::FOLLOW_UP_GROUP_TONES[$item['tier']],
             'url' => route('admin.contacts.show', $contact->id),
         ];
     }

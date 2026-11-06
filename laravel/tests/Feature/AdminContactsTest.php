@@ -225,12 +225,13 @@ class AdminContactsTest extends TestCase
             ->assertSee('2 contacts waiting for a pickup or drop-off, who needs to hear from us first at the top.')
             ->assertSeeInOrder(['>Name</th>', '>Phone</th>', '>Follow-up</th>', '>Bags</th>', '>Ready</th>', '>Last reached</th>', '>Applied</th>'], false)
             ->assertSeeInOrder([
-                'Sam Lee</a> <span class="badge">Waiting on us</span>', 'No word from us in 9 days', '40', 'Now', 'Never',
+                // Red for those waiting on us, yellow for bags ready
+                'Sam Lee</a> <span class="badge urgent">Waiting on us</span>', 'No word from us in 9 days', '40', 'Now', 'Never',
                 // Before daylight saving time ended, so an hour later on the clock
                 'Oct 27, 8:30 PM',
-                'Jamie Rivera</a> <span class="badge">Ready</span>', 'Bags ready now',
+                'Jamie Rivera</a> <span class="badge soon">Ready</span>', 'Bags ready now',
             ], false)
-            ->assertSee('<summary>Sam Lee · No word from us in 9 days <span class="badge">Waiting on us</span></summary>', false)
+            ->assertSee('<summary>Sam Lee · No word from us in 9 days <span class="badge urgent">Waiting on us</span></summary>', false)
             ->assertDontSee('Alex Moreno')
             ->assertDontSee('Taylor Brooks')
             ->assertDontSee('North Drop-off Site');
@@ -252,21 +253,22 @@ class AdminContactsTest extends TestCase
 
     public function test_says_why_each_contact_needs_follow_up(): void
     {
+        // Why, and the label with its tone
         $cases = [
-            'Their text on Nov 4 needs a reply' => [[], [ContactActivity::TYPE_TEXT, ContactActivity::DIRECTION_INCOMING, 1]],
-            'Reached Nov 4' => [[], [ContactActivity::TYPE_CALL, ContactActivity::DIRECTION_OUTGOING, 1]],
-            'Follow-up due today' => [['follow_up_on' => '2026-11-05'], [ContactActivity::TYPE_TEXT, ContactActivity::DIRECTION_OUTGOING, 1]],
-            'Follow up on Nov 12' => [['follow_up_on' => '2026-11-12'], null],
-            'Bags ready Dec 5' => [['ready_now' => false, 'ready_date' => '2026-12-05'], null],
-            'Bags ready Nov 8' => [['ready_now' => false, 'ready_date' => '2026-11-08'], null],
+            'Their text on Nov 4 needs a reply' => [[], [ContactActivity::TYPE_TEXT, ContactActivity::DIRECTION_INCOMING, 1], '<span class="badge urgent">Waiting on us</span>'],
+            'Reached Nov 4' => [[], [ContactActivity::TYPE_CALL, ContactActivity::DIRECTION_OUTGOING, 1], '<span class="badge">Contacted</span>'],
+            'Follow-up due today' => [['follow_up_on' => '2026-11-05'], [ContactActivity::TYPE_TEXT, ContactActivity::DIRECTION_OUTGOING, 1], '<span class="badge urgent">Waiting on us</span>'],
+            'Follow up on Nov 12' => [['follow_up_on' => '2026-11-12'], null, '<span class="badge muted">Later</span>'],
+            'Bags ready Dec 5' => [['ready_now' => false, 'ready_date' => '2026-12-05'], null, '<span class="badge muted">Later</span>'],
+            'Bags ready Nov 8' => [['ready_now' => false, 'ready_date' => '2026-11-08'], null, '<span class="badge soon">Ready</span>'],
         ];
 
         // A contact for each, applied two days ago
         $names = [];
 
-        foreach ($cases as $why => [$application, $activity]) {
+        foreach ($cases as $why => [$application, $activity, $label]) {
             $contact = $this->contact('Contact ' . (count($names) + 1));
-            $names[$why] = $contact->name;
+            $names[$why] = [$contact->name, $label];
             $this->application($contact, daysAgo: 2)->forceFill($application)->save();
 
             if ($activity !== null) {
@@ -277,8 +279,8 @@ class AdminContactsTest extends TestCase
 
         $response = $this->actingAs($this->admin)->get('/admin/contacts');
 
-        foreach ($names as $why => $name) {
-            $response->assertSee("<summary>{$name} · {$why} <span class=\"badge\">", false);
+        foreach ($names as $why => [$name, $label]) {
+            $response->assertSee("<summary>{$name} · {$why} {$label}</summary>", false);
         }
     }
 

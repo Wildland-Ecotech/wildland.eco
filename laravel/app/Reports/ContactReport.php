@@ -55,17 +55,18 @@ class ContactReport
     }
 
     /**
-     * Other contacts, not deleted, sharing one of the contact's emails or
-     * phone numbers, current or previous, oldest first: each with the shared
-     * values as the contact has them. The contact's details must be loaded,
-     * as find() does.
+     * Other contacts, not deleted, with one of the contact's current emails
+     * or phone numbers as a current one of theirs, oldest first: each with
+     * the shared values as the contact has them. A previous detail on either
+     * side doesn't count, so changing a number settles it. The contact's
+     * details must be loaded, as find() does.
      *
      * @return BaseCollection<int, array{contact: Contact, values: list<string>}>
      */
     public function sharing(Contact $contact): BaseCollection
     {
         $mine = $contact->details
-            ->filter(fn (ContactDetail $detail) => $detail->type !== ContactDetail::TYPE_ADDRESS && $detail->normalized !== null)
+            ->filter(fn (ContactDetail $detail) => $detail->type !== ContactDetail::TYPE_ADDRESS && $detail->normalized !== null && ! $detail->isRemoved())
             ->keyBy(fn (ContactDetail $detail) => "{$detail->type}:{$detail->normalized}");
 
         if ($mine->isEmpty()) {
@@ -73,6 +74,7 @@ class ContactReport
         }
 
         return ContactDetail::query()
+            ->current()
             ->with('contact')
             ->where(function ($query) use ($mine) {
                 foreach ($mine as $detail) {

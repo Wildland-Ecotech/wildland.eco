@@ -94,6 +94,26 @@ class ContactMergeTest extends TestCase
             ->assertDontSee('Sam Lee');
     }
 
+    public function test_a_previous_phone_number_or_email_isnt_shared(): void
+    {
+        $jamie = $this->apply()->contact;
+        $alex = $this->apply(['name' => 'Alex Rivera', 'email' => 'alex@example.com'])->contact;
+
+        // Jamie gets a new number, keeping the shared one as a previous number
+        $jamie->usePrimary(ContactDetail::TYPE_PHONE, '(970) 555-0199');
+        $jamie->removeDetail($jamie->findDetail(ContactDetail::TYPE_PHONE, '9705550123'));
+
+        $this->actingAs($this->admin)
+            ->get("/admin/contacts/{$jamie->id}")
+            ->assertSeeInOrder(['Previous phone number', '(970) 555-0123'])
+            ->assertDontSee('Shares Details With');
+
+        // Nor does a number the other contact stopped using
+        $this->actingAs($this->admin)
+            ->get("/admin/contacts/{$alex->id}")
+            ->assertDontSee('Shares Details With');
+    }
+
     public function test_nothing_shared_shows_no_section(): void
     {
         $jamie = $this->apply()->contact;
