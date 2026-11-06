@@ -20,6 +20,8 @@
 | POST | `/login` | `login.store` | `LoginController@store` | Signs in with an email address and password |
 | POST | `/logout` | `logout` | `LoginController@destroy` | Signs out and returns to `/login` |
 | GET | `/admin` | `admin` | `Admin\DashboardController` → `pages.admin.home` | Admin dashboard: who is signed in, counts for the last 90 days, including unresolved errors, and donation totals. Admins only, like every `/admin` route (`auth`, `auth.session`, `AdminOnly`); see [Admin Pages](#admin-pages) |
+| GET | `/admin/contacts` | `admin.contacts` | `Admin\ContactController@index` → `pages.admin.contacts.index` | Contacts, the most recent applicant first, with a search in the query string |
+| GET | `/admin/contacts/{contact}` | `admin.contacts.show` | `Admin\ContactController@show` → `pages.admin.contacts.show` | One contact with their details and applications |
 | GET | `/admin/donations` | `admin.donations` | `Admin\DonationController@index` → `pages.admin.donations.index` | Donations, one payment at a time, with filters in the query string |
 | GET | `/admin/donations/csv` | `admin.donations.csv` | `Admin\DonationController@download` | The same list as a CSV download, with every detail |
 | GET | `/admin/donations/totals` | | `Route::redirect` | Redirects to the dashboard, which shows the totals now |
@@ -125,6 +127,8 @@ Sessions are stored in the `sessions` table (`SESSION_DRIVER=database`), and ser
 Admin pages show the same records and values as the report commands, from the report classes and describing traits in `app/Reports/` (see [Report Classes](02-services-and-commands.md#report-classes-appreports)), so a page and its command can't disagree. Controllers for admin pages live in `app/Http/Controllers/Admin/`, and every route is under `/admin` behind the middleware in [Signing In](#signing-in).
 
 **Dashboard (`/admin`)** shows who is signed in, then **Recent Activity**: three counts for the last 90 days (`DashboardController::DAYS`), donations received, leaf applications, and unresolved errors (leaving out errors the visitor got through later, and those an admin closed). Each comes from the same report class as its list, so it matches that list with the Last 90 days period, and links to it; unresolved errors link to Error Logs with `later=0&resolved=0`. Then **Donation Statistics**: what `donations:totals` shows, one list each for month over month, by quarter, by year, and all time, with the same notice when Stripe's fee isn't recorded yet for some donations. `/admin/donations/totals/csv` (`DonationTotalsController`) downloads `donation-totals-<date>.csv` with the same columns as `donations:totals --csv`. The totals had a page of their own, `/admin/donations/totals`, which now redirects to the dashboard.
+
+**Contacts (`/admin/contacts`)** lists contacts from `ContactReport`, the person who applied most recently first and contacts without an application last. `q` searches part of a name or email, or part of a phone number's digits however it was written, including previous ones (up to `ContactController::MAX_SEARCH_LENGTH`, 100 characters). It's a plain `GET` form, so a search is a URL. `/admin/contacts/{contact}` shows one contact's details and applications; an unknown or deleted contact is a 404. Contacts have no report command, and no CSV download yet.
 
 **Donations (`/admin/donations`)** lists payments like `donations:list`. Its filters are a plain `GET` form, so a filtered list is a URL that can be bookmarked or shared with another admin:
 

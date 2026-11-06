@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AbandonedCheckoutController as AdminAbandonedCheckoutController;
+use App\Http\Controllers\Admin\ContactController as AdminContactController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\DonationController as AdminDonationController;
 use App\Http\Controllers\Admin\DonationTotalsController as AdminDonationTotalsController;
@@ -49,6 +50,11 @@ Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 // password changes.
 Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->group(function () {
     Route::get('/', AdminDashboardController::class)->name('admin');
+
+    Route::get('/contacts', [AdminContactController::class, 'index'])->name('admin.contacts');
+    Route::get('/contacts/{contact}', [AdminContactController::class, 'show'])
+        ->where('contact', '[0-9]+')
+        ->name('admin.contacts.show');
 
     Route::get('/donations', [AdminDonationController::class, 'index'])->name('admin.donations');
     Route::get('/donations/csv', [AdminDonationController::class, 'download'])->name('admin.donations.csv');
