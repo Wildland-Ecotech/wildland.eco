@@ -42,8 +42,7 @@ class LinkContacts extends Command
     public const OUTCOME_LABELS = [
         ContactLinker::CREATED => 'New contacts',
         ContactLinker::LINKED => 'Linked to an existing contact',
-        ContactLinker::FLAGGED => 'Linked, flagged for review',
-        ContactLinker::CONFLICT => 'Not linked, flagged for review',
+        ContactLinker::CONFLICT => 'Not linked',
         'failed' => 'Failed',
     ];
 
@@ -88,7 +87,7 @@ class LinkContacts extends Command
 
                 $counts[$outcome] = ($counts[$outcome] ?? 0) + 1;
 
-                if (in_array($outcome, [ContactLinker::FLAGGED, ContactLinker::CONFLICT], true)) {
+                if ($application->contact_review !== null) {
                     $review[] = [
                         $application->id,
                         $this->tableTime($application->created_at),

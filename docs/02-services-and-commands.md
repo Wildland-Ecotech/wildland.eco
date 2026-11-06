@@ -31,16 +31,16 @@ Tax receipts for donations, one per donation and never more.
 
 Links a leaf application to the person who made it, so every application from the same person is on one contact. `LeafApplicationController@store` calls `link()` after the application is saved; a failure is reported and leaves the application unlinked, so it never turns an application away.
 
-An application matches a contact, not deleted, by its email or its phone number's 10 digits, current or removed (see [contact_details](01-database-schema.md#contact_details)). `link()` returns what it did:
+An application belongs to an existing contact only when they have the same name, ignoring case and spacing, and share its email or its phone number's 10 digits, current or removed (see [contact_details](01-database-schema.md#contact_details)). Deleted contacts are never matched. `link()` returns what it did:
 
 | Outcome | When | What happens |
 |---------|------|--------------|
-| `CREATED` | Nobody matches | A new contact with the application's name, and its email, phone number, and address |
-| `LINKED` | One contact matches, with the same name (ignoring case and spacing) and no other current address | Linked. The application's email and phone number become the contact's primary ones, since the newest application has the latest details; earlier ones stay. Its address becomes the contact's if they had none |
-| `FLAGGED` | One contact matches, with a different name, or a different current address | Linked, with `contact_review` listing `name`, `address`, or both. The contact is left unchanged, since it may be someone else at the same number, or a move |
-| `CONFLICT` | The email and phone number match different contacts | Not linked; `contact_review` is `conflict` |
+| `LINKED` | One contact with the same name matches | Linked. The application's email and phone number become the contact's primary ones, since the newest application has the latest details; earlier ones stay. Its address becomes the contact's if they had none; a different current address is flagged (`address`) and left as it is |
+| `CREATED` | No contact with the same name matches | A new contact with the application's name, email, phone number, and address, even when another contact has the same email or phone number, since it may be someone else at the same number |
+| `CONFLICT` | More than one contact with the same name matches, such as one by email and another by phone | Not linked; `contact_review` is `conflict` |
 | `SKIPPED` | The application is already linked or flagged | Nothing |
 
+Whenever the application's email or phone number is also on another contact, not deleted, the application is flagged (`shared_email`, `shared_phone`), so an admin can merge the two if they're the same person, such as a name written differently, or leave them apart, such as two people sharing a phone.
 Each link runs in a transaction, so a failure leaves no half-made contact.
 
 ### DonationReceiptMail (`app/Mail/DonationReceiptMail.php`)
@@ -421,7 +421,7 @@ Links leaf applications that have no contact yet and aren't waiting for review, 
 |--------|---------|--------|
 | `--dry-run` | off | Links everything inside a transaction that is rolled back, so it shows exactly what would happen without saving anything |
 
-It shows how many applications made new contacts, were linked to an existing contact, were linked and flagged for review, were flagged without linking, or failed, then a table of those flagged (ID, when applied, name, and why). A failure is reported to the log and fails the command, and the rest still run; running it again retries it.
+It shows how many applications made new contacts, were linked to an existing contact, weren't linked because more than one contact matched, or failed, then a table of those that need an admin to look (ID, when applied, name, and why). A failure is reported to the log and fails the command, and the rest still run; running it again retries it.
 
 Run a dry run first, then the real thing:
 

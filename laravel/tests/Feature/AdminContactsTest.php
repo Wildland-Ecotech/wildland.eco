@@ -91,11 +91,11 @@ class AdminContactsTest extends TestCase
         }
     }
 
-    public function test_contacts_come_first_in_the_admin_links(): void
+    public function test_contacts_follow_the_dashboard_in_the_admin_links(): void
     {
         $this->actingAs($this->admin)
             ->get('/admin')
-            ->assertSeeInOrder(['>Contacts</a>', '>Dashboard</a>', '>Leaf Applications</a>', '>Donations</a>', '>Error Logs</a>'], false);
+            ->assertSeeInOrder(['>Dashboard</a>', '>Contacts</a>', '>Leaf Applications</a>', '>Donations</a>', '>Error Logs</a>'], false);
 
         $this->actingAs($this->admin)
             ->get('/admin/contacts')

@@ -213,7 +213,7 @@ Laravel renders `resources/views/errors/<status>.blade.php` for an error, or `4x
 
 ### Admin Page (`admin-page`)
 
-Shell for admin pages (`<x-admin-page title="Donations" current="admin.donations">`): a content page with a wide card, up to 1400px rather than other pages' 960px so lists have room, holding Sign Out in its top right corner (on its own line above the label on a phone), the "— Admin" label, the page's heading, and a row of links to the admin pages with the current one underlined (`aria-current="page"`): Contacts, Dashboard, Leaf Applications, Donations, and Error Logs. The links are listed in the component; add one only once its page exists. The page's content goes in the slot, left-aligned.
+Shell for admin pages (`<x-admin-page title="Donations" current="admin.donations">`): a content page with a wide card, up to 1400px rather than other pages' 960px so lists have room, holding Sign Out in its top right corner (on its own line above the label on a phone), the "— Admin" label, the page's heading, and a row of links to the admin pages with the current one underlined (`aria-current="page"`): Dashboard, Contacts, Leaf Applications, Donations, and Error Logs. The links are listed in the component; add one only once its page exists. The page's content goes in the slot, left-aligned.
 
 ### Admin Records (`admin-records`)
 
