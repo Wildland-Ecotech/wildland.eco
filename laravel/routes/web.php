@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AbandonedCheckoutController as AdminAbandonedCheckoutController;
 use App\Http\Controllers\Admin\ContactController as AdminContactController;
+use App\Http\Controllers\Admin\ContactDetailController as AdminContactDetailController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\DonationController as AdminDonationController;
 use App\Http\Controllers\Admin\DonationTotalsController as AdminDonationTotalsController;
@@ -50,9 +51,23 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
     Route::get('/', AdminDashboardController::class)->name('admin');
 
     Route::get('/contacts', [AdminContactController::class, 'index'])->name('admin.contacts');
+    Route::get('/contacts/new', [AdminContactController::class, 'create'])->name('admin.contacts.create');
+    Route::post('/contacts', [AdminContactController::class, 'store'])->name('admin.contacts.store');
     Route::get('/contacts/{contact}', [AdminContactController::class, 'show'])
         ->where('contact', '[0-9]+')
         ->name('admin.contacts.show');
+    Route::get('/contacts/{contact}/edit', [AdminContactController::class, 'edit'])
+        ->where('contact', '[0-9]+')
+        ->name('admin.contacts.edit');
+    Route::post('/contacts/{contact}', [AdminContactController::class, 'update'])
+        ->where('contact', '[0-9]+')
+        ->name('admin.contacts.update');
+    // A contact's phone numbers, emails, and address; a detail must be the contact's own
+    Route::scopeBindings()->whereNumber(['contact', 'detail'])->group(function () {
+        Route::post('/contacts/{contact}/details', [AdminContactDetailController::class, 'store'])->name('admin.contacts.details.store');
+        Route::post('/contacts/{contact}/details/{detail}/primary', [AdminContactDetailController::class, 'primary'])->name('admin.contacts.details.primary');
+        Route::post('/contacts/{contact}/details/{detail}/remove', [AdminContactDetailController::class, 'remove'])->name('admin.contacts.details.remove');
+    });
 
     Route::get('/donations', [AdminDonationController::class, 'index'])->name('admin.donations');
     Route::get('/donations/csv', [AdminDonationController::class, 'download'])->name('admin.donations.csv');

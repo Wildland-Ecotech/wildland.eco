@@ -106,6 +106,48 @@ class Contact extends Model
     }
 
     /**
+     * Add an email or phone number, or put a matching one back in use. It
+     * becomes primary only when the contact has no primary one of the type.
+     * An address becomes the current address (see moveTo()).
+     */
+    public function addDetail(string $type, string $value): ContactDetail
+    {
+        if ($type === ContactDetail::TYPE_ADDRESS) {
+            return $this->moveTo($value);
+        }
+
+        return DB::transaction(function () use ($type, $value) {
+            $detail = $this->findDetail($type, $value) ?? $this->details()->make(['type' => $type, 'value' => $value]);
+            $hasPrimary = $this->details()->current()->where('type', $type)->where('is_primary', true)
+                ->when($detail->exists, fn ($query) => $query->whereKeyNot($detail->getKey()))
+                ->exists();
+
+            $detail->forceFill(['is_primary' => ! $hasPrimary || $detail->is_primary, 'removed_at' => null])->save();
+
+            return $detail;
+        });
+    }
+
+    /**
+     * Mark a detail removed: no longer in use, but kept for matching. When
+     * it was the primary one, the most recently added current detail of its
+     * type becomes primary.
+     */
+    public function removeDetail(ContactDetail $detail): void
+    {
+        DB::transaction(function () use ($detail) {
+            $wasPrimary = $detail->is_primary;
+
+            $detail->forceFill(['is_primary' => false, 'removed_at' => now()])->save();
+
+            if ($wasPrimary && $detail->type !== ContactDetail::TYPE_ADDRESS) {
+                $this->details()->current()->where('type', $detail->type)->latest('id')->first()
+                    ?->forceFill(['is_primary' => true])->save();
+            }
+        });
+    }
+
+    /**
      * The contact's detail of this type with the same normalized value,
      * current or removed, or the same value as entered when there's nothing
      * to normalize, such as a phone number without an area code.

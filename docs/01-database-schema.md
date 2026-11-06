@@ -192,7 +192,7 @@ People we keep in touch with, starting with those who apply to donate leaves (se
 | created_at, updated_at | |
 | deleted_at | Nullable; soft deletes. Deleted contacts aren't matched by new applications |
 
-`$contact->applications` are their leaf applications, and `$contact->details` all their emails, phone numbers, and addresses. `primary($type)` is the primary current email or phone number, and `address()` the current address. Change details through `usePrimary($type, $value)`, which makes an email or phone number primary, putting a matching one back in use rather than adding a copy, and `moveTo($value)`, which makes an address current and marks the previous one removed. `findDetail($type, $value)` finds the contact's detail with the same normalized value, current or removed.
+`$contact->applications` are their leaf applications, and `$contact->details` all their emails, phone numbers, and addresses. `primary($type)` is the primary current email or phone number, and `address()` the current address. Change details through `usePrimary($type, $value)`, which makes an email or phone number primary, putting a matching one back in use rather than adding a copy, and `moveTo($value)`, which makes an address current and marks the previous one removed; `addDetail($type, $value)`, which adds an email or phone number, or puts a matching one back in use, as primary only when there's no primary one yet (an address goes through `moveTo()`); and `removeDetail($detail)`, which marks a detail removed and, when it was the primary one, makes the most recently added current one of its type primary. `findDetail($type, $value)` finds the contact's detail with the same normalized value, current or removed.
 
 ### contact_details
 
