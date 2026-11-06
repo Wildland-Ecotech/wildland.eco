@@ -10,7 +10,8 @@ use Illuminate\Support\Collection;
 /**
  * How the admin pages describe who needs follow-up (FollowUpReport), so
  * Contacts, a contact's page, and the dashboard say the same: each group's
- * label, and why someone is in it, such as "No word from us in 10 days".
+ * label and how it stands out, and why someone is in it, such as "No word
+ * from us in 10 days".
  */
 trait DescribesFollowUps
 {
@@ -24,6 +25,18 @@ trait DescribesFollowUps
         FollowUpReport::READY => 'Ready',
         FollowUpReport::CONTACTED => 'Contacted',
         FollowUpReport::LATER => 'Later',
+    ];
+
+    /**
+     * How each group's label stands out, as admin-records' badge tones: red
+     * for those waiting on us, yellow for those whose bags are ready, green
+     * for those we've reached, and gray for those who can wait.
+     */
+    protected const FOLLOW_UP_GROUP_TONES = [
+        FollowUpReport::WAITING => 'urgent',
+        FollowUpReport::READY => 'soon',
+        FollowUpReport::CONTACTED => null,
+        FollowUpReport::LATER => 'muted',
     ];
 
     /**
