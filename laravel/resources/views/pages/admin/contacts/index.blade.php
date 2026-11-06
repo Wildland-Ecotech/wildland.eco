@@ -17,6 +17,9 @@
         </div>
 
         <div class="page-actions">
+            @if ($reviewCount > 0)
+                <a class="button dark small" href="{{ route('admin.contacts.review') }}">Needs Review ({{ number_format($reviewCount) }})</a>
+            @endif
             <a class="button dark small" href="{{ route('admin.contacts.create') }}">New Contact</a>
         </div>
     </form>

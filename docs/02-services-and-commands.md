@@ -16,6 +16,14 @@ Raising `DIFFICULTY` by one makes the work 16 times harder for people as well as
 
 A form open for more than 30 minutes gets a fresh challenge from `GET /form-tokens` before it submits, along with a fresh CSRF token (see [Stale Forms](03-routes-and-controllers.md#stale-forms)).
 
+### ApplicationReview (`app/Services/ApplicationReview.php`)
+
+Settling an application's contact by hand, from its admin page (see [Admin Pages](03-routes-and-controllers.md#admin-pages)).
+
+- `candidates($application)`: contacts, not deleted, other than the one it's linked to, that share its email or phone number, current or removed, oldest first, each with the types it shares. They're offered on the page, and named when it needs review.
+- `markReviewed($application, $admin)`: records who looked and when (`contact_reviewed_at`, `contact_reviewed_by`).
+- `move($application, $contact, $admin)`: links it to `$contact`, or with `null` to a new contact with its name, email, phone number, and address. An existing contact gets its email and phone number, not as the main ones (`addDetail()`), and its address if they have none, since the admin has said it's the same person. A flagged application is marked reviewed. The contact it was linked to stays as it is, to merge or leave. Runs in a transaction.
+
 ### DonationReceipts (`app/Services/DonationReceipts.php`)
 
 Tax receipts for donations, one per donation and never more.

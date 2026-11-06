@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AbandonedCheckoutController as AdminAbandonedCheckoutController;
+use App\Http\Controllers\Admin\ApplicationContactController as AdminApplicationContactController;
 use App\Http\Controllers\Admin\ContactController as AdminContactController;
 use App\Http\Controllers\Admin\ContactDetailController as AdminContactDetailController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
@@ -54,6 +55,7 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
 
     Route::get('/contacts', [AdminContactController::class, 'index'])->name('admin.contacts');
     Route::get('/contacts/new', [AdminContactController::class, 'create'])->name('admin.contacts.create');
+    Route::get('/contacts/review', [AdminContactController::class, 'review'])->name('admin.contacts.review');
     Route::post('/contacts', [AdminContactController::class, 'store'])->name('admin.contacts.store');
     Route::get('/contacts/{contact}', [AdminContactController::class, 'show'])
         ->where('contact', '[0-9]+')
@@ -87,6 +89,12 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
     Route::get('/leaves/{application}', [AdminLeafApplicationController::class, 'show'])
         ->whereNumber('application')
         ->name('admin.leaves.show');
+    Route::post('/leaves/{application}/review', [AdminApplicationContactController::class, 'review'])
+        ->whereNumber('application')
+        ->name('admin.leaves.review');
+    Route::post('/leaves/{application}/contact', [AdminApplicationContactController::class, 'contact'])
+        ->whereNumber('application')
+        ->name('admin.leaves.contact');
 
     Route::get('/errors', [AdminErrorLogController::class, 'index'])->name('admin.errors');
     Route::get('/errors/csv', [AdminErrorLogController::class, 'download'])->name('admin.errors.csv');

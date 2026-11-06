@@ -124,7 +124,21 @@ class AdminDashboardTest extends TestCase
                 '<span class="count">2</span>', 'Donations received',
                 '<span class="count">1</span>', 'Leaf applications',
                 '<span class="count">3</span>', 'Unresolved errors',
+                '<span class="count">0</span>', 'Applications to review',
             ], false);
+    }
+
+    public function test_counts_applications_from_the_last_90_days_that_need_review(): void
+    {
+        $this->application(10)->forceFill(['contact_review' => [LeafApplication::REVIEW_SHARED_PHONE]])->save();
+        $this->application(20)->forceFill(['contact_review' => [LeafApplication::REVIEW_CONFLICT]])->save();
+        // Reviewed already, or older than the overview
+        $this->application(5)->forceFill(['contact_review' => [LeafApplication::REVIEW_ADDRESS], 'contact_reviewed_at' => now()])->save();
+        $this->application(120)->forceFill(['contact_review' => [LeafApplication::REVIEW_SHARED_EMAIL]])->save();
+
+        $this->actingAs($this->admin)
+            ->get('/admin')
+            ->assertSeeInOrder(['<span class="count">2</span>', 'Applications to review'], false);
     }
 
     public function test_each_count_links_to_its_list_for_the_same_period(): void
@@ -134,6 +148,8 @@ class AdminDashboardTest extends TestCase
         foreach (['admin.donations', 'admin.leaves'] as $route) {
             $response->assertSee('href="' . route($route, ['period' => '90']) . '"', false);
         }
+
+        $response->assertSee('href="' . route('admin.contacts.review') . '"', false);
 
         // Unresolved errors link to the list without the ones resolved
         $response->assertSee('href="' . e(route('admin.errors', ['period' => '90', 'later' => '0', 'resolved' => '0'])) . '"', false);
