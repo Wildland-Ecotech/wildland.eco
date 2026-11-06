@@ -101,6 +101,13 @@ Fonts, colors, text roles, layout, buttons and links, motion, and writing are in
 - Each question is a native `<details>` element with an `id` for linking (such as `/faq#get-involved`), so questions open and close without JavaScript and several can be open at once. A plus sign turns into a minus sign when a question is open.
 - Answers use `.prose`
 
+### Privacy Policy (`/privacy`) and Refund Policy (`/refunds`) — `pages/privacy.blade.php`, `pages/refunds.blade.php`
+
+- Built on the Content Page component, with the `policy-page` class (`scss/pages/_policy.scss`): a heading card like the FAQ's, then the whole policy in one `.prose` column with an `h2` for each part. Each `h2` has an `id` for linking, such as `/refunds#canceling`, which the privacy policy links to.
+- The effective date in the heading card is set by hand whenever a policy changes, never generated from the deploy date.
+- The refund policy shows a Manage Your Recurring Donation button, and mentions it in the text, only when `STRIPE_PORTAL_LOGIN_URL` is set.
+- Both describe what the site and its services actually do. Change them in the same work as anything they describe: what the forms collect, the services that handle data (Stripe, Vultr, AhaSend, Proton Mail, Cloudflare), how long data and logs are kept (see [Logs](07-deployment.md#logs)), emails sent to donors, and how refunds work. Features such as abandoned checkout reminders, a mailing list, and digital volunteer waivers need the privacy policy updated before they go live.
+
 ### Menu (`/menu`) — `pages/menu.blade.php`
 
 A full-page menu for visitors without JavaScript, with the same links and social media icons as the menu overlay.

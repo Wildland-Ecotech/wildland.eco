@@ -35,6 +35,8 @@ Route::post('/leaves/apply', [LeafApplicationController::class, 'store'])
     ->middleware(RecordFormSubmission::class . ':' . FormSubmission::FORM_LEAF_APPLICATION)
     ->name('leaves.apply.store');
 Route::view('/faq', 'pages.faq')->name('faq');
+Route::view('/privacy', 'pages.privacy')->name('privacy');
+Route::view('/refunds', 'pages.refunds')->name('refunds');
 
 // Signing in and out. Only admins can sign in until donor accounts are built.
 Route::middleware('guest')->group(function () {

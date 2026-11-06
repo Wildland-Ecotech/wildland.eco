@@ -106,7 +106,8 @@ $fireflies-fade: 400px;
             color: #fff;
         }
 
-        a {
+        // Text links; a button inside the column keeps its own style
+        a:not(.button) {
             color: #2ECF9E;
             text-decoration: underline;
         }

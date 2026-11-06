@@ -1,0 +1,52 @@
+// The /privacy and /refunds pages, inside the content page shell
+// (components/_content-page.scss): a heading card like the FAQ's, then the
+// policy as one .prose column with an h2 for each part.
+
+@use '../typography' as type;
+
+.policy-page {
+    .intro {
+        max-width: 760px;
+        box-sizing: border-box;
+        margin: 0 auto 2em;
+        padding: 2em;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 16px;
+        text-align: center;
+
+        .effective {
+            margin: 0.5em 0 0;
+            @include type.detail;
+        }
+    }
+
+    .prose {
+        margin-bottom: 4em;
+
+        // The site-wide h2 grows to 49px from 1024px wide; these stay small
+        // enough to scan as subheadings. scroll-margin-top keeps a heading
+        // reached by its #id clear of the fixed top nav.
+        h2 {
+            font-size: 24px;
+            margin: 1.5em 0 0.25em;
+            scroll-margin-top: 100px;
+        }
+
+        .actions {
+            margin: 1.5em 0;
+            text-align: center;
+        }
+    }
+}
+
+@media screen and (max-width: 499px) {
+    .policy-page {
+        .intro {
+            padding: 1.25em 1em;
+        }
+
+        .prose h2 {
+            font-size: 22px;
+        }
+    }
+}
