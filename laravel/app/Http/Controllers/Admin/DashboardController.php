@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\LeafApplication;
 use App\Reports\DonationReport;
 use App\Reports\DonationTotalsReport;
+use App\Reports\FollowUpNotice;
 use App\Reports\FormSubmissionReport;
 use App\Reports\LeafApplicationReport;
 use App\Reports\Traits\DescribesDonationTotals;
@@ -14,8 +15,9 @@ use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
- * The admin dashboard (/admin): who is signed in, the last 90 days at a
- * glance (Recent Activity), with links to each list for the same period and
+ * The admin dashboard (/admin): who is signed in, a red warning while
+ * people are waiting to hear from us or have bags ready (FollowUpNotice),
+ * the last 90 days at a glance (Recent Activity), with links to each list for the same period and
  * to the applications whose contact needs review, and the donations we
  * received month over month, by quarter, by year, and for all time
  * (Donation Statistics). The counts come from the same report classes and
@@ -46,11 +48,13 @@ class DashboardController extends Controller
         LeafApplicationReport $applications,
         FormSubmissionReport $submissions,
         DonationTotalsReport $totalsReport,
+        FollowUpNotice $followUpNotice,
     ): View {
         $totals = $totalsReport->totals();
 
         return view('pages.admin.home', [
             'admin' => $request->user(),
+            'followUpNotice' => $followUpNotice->text(),
             'days' => self::DAYS,
             'overview' => [
                 [
