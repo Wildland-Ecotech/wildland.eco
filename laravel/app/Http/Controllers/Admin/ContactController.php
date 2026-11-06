@@ -11,7 +11,9 @@ use App\Models\ContactDetail;
 use App\Models\FormSubmission;
 use App\Models\LeafApplication;
 use App\Reports\ContactReport;
+use App\Reports\FollowUpReport;
 use App\Reports\FormSubmissionReport;
+use App\Reports\Traits\DescribesFollowUps;
 use App\Reports\Traits\DescribesFormSubmissions;
 use App\Reports\Traits\DescribesLeafApplications;
 use App\Services\ContactMerger;
@@ -24,9 +26,10 @@ use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
- * The admin contact pages (/admin/contacts): the list of contacts, with the
- * person who applied most recently first and a search by name, phone number,
- * or email; one contact with their details, timeline, applications, and form
+ * The admin contact pages (/admin/contacts): the list of contacts, opening
+ * on those who need follow-up, who needs to hear from us first at the top,
+ * or all of them, with the person who applied most recently first, and a
+ * search by name, phone number, or email; one contact with their details, timeline, applications, and form
  * errors; adding a contact by hand, such as someone reached by text before
  * they applied, or a drop-off site; editing a contact's name, notes, and
  * whether they're a drop-off site; merging another contact into one; and the
@@ -37,18 +40,42 @@ use Illuminate\View\View;
  */
 class ContactController extends Controller
 {
-    use DescribesFormSubmissions, DescribesLeafApplications, ShowsFollowUps;
+    use DescribesFollowUps, DescribesFormSubmissions, DescribesLeafApplications, ShowsFollowUps;
 
     /**
-     * The list's columns, the ones that make up a contact's line on a phone
-     * after the date they last applied (name and phone), and the column
-     * lined up on the right (applications).
+     * What the list shows: those who need follow-up (by default), or every
+     * contact.
+     */
+    public const SHOW_FOLLOW_UP = 'follow-up';
+
+    public const SHOW_ALL = 'all';
+
+    public const SHOW_CHOICES = [
+        self::SHOW_FOLLOW_UP => 'Needs follow-up',
+        self::SHOW_ALL => 'All contacts',
+    ];
+
+    /**
+     * The columns of every contact, the ones that make up a contact's line
+     * on a phone after the date they last applied (name and phone), and the
+     * column lined up on the right (applications).
      */
     public const HEADERS = ['Name', 'Phone', 'Email', 'Applications', 'Latest application'];
 
     public const SUMMARY_COLUMNS = [0, 1];
 
     public const NUMBER_COLUMNS = [3];
+
+    /**
+     * The columns of those who need follow-up, the ones that make up a
+     * contact's line on a phone (name and why), and the column lined up on
+     * the right (bags).
+     */
+    public const FOLLOW_UP_HEADERS = ['Name', 'Phone', 'Follow-up', 'Bags', 'Ready', 'Last reached', 'Applied'];
+
+    public const FOLLOW_UP_SUMMARY_COLUMNS = [0, 2];
+
+    public const FOLLOW_UP_NUMBER_COLUMNS = [3];
 
     /**
      * The columns of a contact's applications, the ones that make up an
@@ -86,20 +113,45 @@ class ContactController extends Controller
     public const MAX_SEARCH_LENGTH = 100;
 
     /**
-     * The list of contacts, matching the search in the query string.
+     * The list of contacts, matching the search in the query string: those
+     * who need follow-up, each with their group and why, in the follow-up
+     * order, or with `show=all`, every contact.
      */
-    public function index(Request $request, ContactReport $report): View
+    public function index(Request $request, ContactReport $report, FollowUpReport $followUpReport): View
     {
         $search = $request->query('q');
         $search = is_string($search) ? Str::limit(trim($search), self::MAX_SEARCH_LENGTH, '') : '';
+        $show = $request->query('show') === self::SHOW_ALL ? self::SHOW_ALL : self::SHOW_FOLLOW_UP;
 
         $contacts = $report->list($search);
 
-        return view('pages.admin.contacts.index', [
+        $page = [
             'search' => $search,
+            'show' => $show,
             'reviewCount' => LeafApplication::needingContactReview()->count(),
+        ];
+
+        if ($show === self::SHOW_FOLLOW_UP) {
+            $byId = $contacts->keyBy('id');
+            // Only the contacts the search matched, and none deleted
+            $followUps = $this->followUpsByContact($followUpReport)->filter(fn (array $item, int $id) => $byId->has($id));
+
+            return view('pages.admin.contacts.index', [
+                ...$page,
+                'summary' => $this->followUpSummary($followUps->count(), $search),
+                'headers' => self::FOLLOW_UP_HEADERS,
+                'summaryColumns' => self::FOLLOW_UP_SUMMARY_COLUMNS,
+                'numeric' => self::FOLLOW_UP_NUMBER_COLUMNS,
+                'rows' => $followUps->map(fn (array $item, int $id) => $this->followUpRow($byId[$id], $item))->values()->all(),
+            ]);
+        }
+
+        return view('pages.admin.contacts.index', [
+            ...$page,
             'summary' => $this->summary($contacts->count(), $search),
             'headers' => self::HEADERS,
+            'summaryColumns' => self::SUMMARY_COLUMNS,
+            'numeric' => self::NUMBER_COLUMNS,
             'rows' => $contacts->map(function (Contact $contact) {
                 $phone = $this->primaryValue($contact->details, ContactDetail::TYPE_PHONE);
                 $appliedAt = $contact->applications_max_created_at;
@@ -117,6 +169,7 @@ class ContactController extends Controller
                         $contact->name,
                         $phone,
                     ])),
+                    'badge' => $contact->is_drop_off_site ? 'Drop-off site' : null,
                     'url' => route('admin.contacts.show', $contact->id),
                 ];
             })->all(),
@@ -128,7 +181,7 @@ class ContactController extends Controller
      * number or email, their timeline, their applications, and their form
      * errors. A contact merged into another goes to that one.
      */
-    public function show(string $contact, ContactReport $report, FormSubmissionReport $submissions): View|RedirectResponse
+    public function show(string $contact, ContactReport $report, FormSubmissionReport $submissions, FollowUpReport $followUpReport): View|RedirectResponse
     {
         // The route only matches digits
         $record = $report->find((int) $contact);
@@ -146,7 +199,7 @@ class ContactController extends Controller
 
         return view('pages.admin.contacts.show', [
             'contact' => $record,
-            'fields' => $this->fields($record),
+            'fields' => $this->fields($record, $this->followUpsByContact($followUpReport)->get($record->id)),
             'sharing' => $report->sharing($record),
             'timeline' => $this->timeline($record, $formErrors),
             'applicationHeaders' => self::APPLICATION_HEADERS,
@@ -370,14 +423,64 @@ class ContactController extends Controller
     }
 
     /**
+     * A contact who needs follow-up, for the list: their name, with their
+     * group beside it, main phone number, why, and their first application
+     * in the follow-up order's bags, when they're ready, and when they
+     * applied, with when we last reached them.
+     *
+     * @param  array{application: LeafApplication, tier: string, reason: string, last_reached_at: ?\Carbon\CarbonInterface}  $item
+     * @return array<string, mixed>
+     */
+    private function followUpRow(Contact $contact, array $item): array
+    {
+        $application = $item['application'];
+        $why = $this->followUpReason($item);
+
+        return [
+            'cells' => [
+                $contact->name,
+                $this->primaryValue($contact->details, ContactDetail::TYPE_PHONE),
+                $why,
+                $application->estimated_bag_count,
+                $application->ready_now ? 'Now' : $application->ready_date->format('M j'),
+                $item['last_reached_at'] ? $this->shortDate($item['last_reached_at']) : 'Never',
+                $this->listTime($application->created_at),
+            ],
+            'summary' => [$contact->name, $why],
+            'badge' => self::FOLLOW_UP_GROUP_LABELS[$item['tier']],
+            'url' => route('admin.contacts.show', $contact->id),
+        ];
+    }
+
+    /**
+     * The line saying who needs follow-up.
+     */
+    private function followUpSummary(int $count, string $search): string
+    {
+        $contacts = $count . ' ' . Str::plural('contact', $count) . ' waiting for a pickup or drop-off';
+
+        if ($search !== '') {
+            return $count === 0
+                ? "Nobody waiting for a pickup or drop-off matches “{$search}”. Show all contacts to search everyone."
+                : "{$contacts} matching “{$search}”, who needs to hear from us first at the top.";
+        }
+
+        return $count === 0
+            ? 'Nobody is waiting for a pickup or drop-off.'
+            : "{$contacts}, who needs to hear from us first at the top.";
+    }
+
+    /**
      * A contact's details for their page: phone numbers and emails, one per
      * line with the main one first, the current address, any previous
      * phone numbers, emails, and addresses, whether they're a drop-off site,
+     * their follow-up group and why when they have a pending application,
      * notes, and when they were added.
      *
+     * @param  array{application: LeafApplication, tier: string, reason: string, last_reached_at: ?\Carbon\CarbonInterface}|null  $followUp
      * @return array<string, string>
      */
-    private function fields(Contact $contact): array
+    private function fields(Contact $contact, ?array $followUp): array
     {
         $current = $contact->details->reject(fn (ContactDetail $detail) => $detail->isRemoved());
         $removed = $contact->details->filter(fn (ContactDetail $detail) => $detail->isRemoved());
@@ -398,6 +501,10 @@ class ContactController extends Controller
 
         if ($contact->is_drop_off_site) {
             $fields['Drop-off site'] = 'Yes';
+        }
+
+        if ($followUp !== null) {
+            $fields['Follow-up'] = self::FOLLOW_UP_GROUP_LABELS[$followUp['tier']] . ' · ' . $this->followUpReason($followUp);
         }
 
         return [

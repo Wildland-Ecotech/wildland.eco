@@ -174,7 +174,7 @@ Keeping track of the people who apply to give leaves and our conversations with 
 1. The local geocoder.
 2. Contacts: contacts, their details, linking applications (including past ones), and contact pages. Done: the tables, linking new applications, `contacts:link` for past ones, the contact list and contact pages, adding and editing contacts by hand, the Needs Review list, settling an application's contact from its page, merging contacts, and links to contacts from applications, Error Logs, and their form errors.
 3. Locations, the timeline, and follow-up. Done: locations on addresses (PostGIS), drop-off sites as contacts, timeline entries and application status, the follow-up order, the timeline on contact pages, and logging activity.
-4. The follow-up list on Contacts and the dashboard's warning.
+4. The follow-up list on Contacts and the dashboard's warning. Done.
 5. The Map page: pending applications and drop-off sites on a printable map, copying addresses, and pasting coordinates.
 6. Tags, then automatic tags.
 7. The pickup list and loads.
