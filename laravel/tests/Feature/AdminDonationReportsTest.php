@@ -10,9 +10,9 @@ use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /**
- * The admin donation report pages: totals (/admin/donations/totals) and
- * abandoned checkouts (/admin/donations/abandoned), with their CSV
- * downloads.
+ * The admin donation reports: the totals' CSV download
+ * (/admin/donations/totals/csv), whose totals are on the dashboard, and
+ * abandoned checkouts (/admin/donations/abandoned), with its CSV download.
  */
 class AdminDonationReportsTest extends TestCase
 {
@@ -65,71 +65,22 @@ class AdminDonationReportsTest extends TestCase
         ]);
     }
 
-    public function test_only_signed_in_admins_can_see_totals(): void
+    public function test_only_signed_in_admins_can_download_totals(): void
     {
-        $pages = ['/admin/donations/totals', '/admin/donations/totals/csv'];
-
-        // Every page as a guest first, since signing in lasts for the rest of the test
-        foreach ($pages as $page) {
-            $this->get($page)->assertRedirect(route('login'));
-        }
+        $this->get('/admin/donations/totals/csv')->assertRedirect(route('login'));
 
         $donor = User::factory()->withPassword()->create();
 
-        foreach ($pages as $page) {
-            $this->actingAs($donor)->get($page)->assertForbidden();
-        }
+        $this->actingAs($donor)->get('/admin/donations/totals/csv')->assertForbidden();
     }
 
-    public function test_shows_each_grouping_with_the_same_totals_as_the_command(): void
+    public function test_the_old_totals_page_goes_to_the_dashboard(): void
     {
-        $this->paid('2026-01-15 10:00', 5000, 175);
-        $this->paid('2026-02-10 10:00', 2000, 88);
-        $this->paid('2026-02-28 10:00', 5000, 175, ['status' => Donation::STATUS_REFUNDED, 'refunded_cents' => 5000]);
-        Donation::factory()->for($this->donor)->failed()->create();
+        $this->get('/admin/donations/totals')->assertRedirect(route('login'));
 
         $this->actingAs($this->admin)
             ->get('/admin/donations/totals')
-            ->assertOk()
-            ->assertSeeInOrder(['Month over month', 'By quarter', 'By year', 'All time'])
-            ->assertSee('Jan 2026')
-            ->assertSee('Q1 2026')
-            // $120.00 donated, $50.00 refunded, and $4.38 in fees
-            ->assertSee('$120.00')
-            ->assertSee('$50.00')
-            ->assertSee('$4.38')
-            ->assertSee('$65.62')
-            ->assertSee('aria-current="page">Totals</a>', false)
-            ->assertDontSee("Stripe's fee isn't recorded yet");
-    }
-
-    public function test_each_total_has_a_short_line_for_phones(): void
-    {
-        $this->paid('2026-01-15 10:00', 5000, 175);
-        $this->paid('2026-01-20 10:00', 2000, 88);
-
-        $this->actingAs($this->admin)
-            ->get('/admin/donations/totals')
-            ->assertSee('<summary>Jan 2026 · 2 donations · $70.00</summary>', false)
-            ->assertSee('<summary>All time · 2 donations · $70.00</summary>', false);
-    }
-
-    public function test_donations_without_a_fee_yet_are_pointed_out(): void
-    {
-        $this->paid('2026-01-15 10:00', 5000, null);
-
-        $this->actingAs($this->admin)
-            ->get('/admin/donations/totals')
-            ->assertSee("Stripe's fee isn't recorded yet for 1 donation, so the fees leave it out");
-    }
-
-    public function test_says_when_there_are_no_donations(): void
-    {
-        $this->actingAs($this->admin)
-            ->get('/admin/donations/totals')
-            ->assertOk()
-            ->assertSee('No donations received yet.')
-            ->assertDontSee('Month over month');
+            ->assertRedirect('/admin');
     }
 
     public function test_the_csv_download_matches_the_command(): void
@@ -179,7 +130,9 @@ class AdminDonationReportsTest extends TestCase
             ->assertSee('Jamie Rivera')
             ->assertSee('Monthly')
             ->assertSee('<summary>Oct 18 · Jamie Rivera · $50.00</summary>', false)
-            ->assertSee('aria-current="page">Abandoned Checkouts</a>', false)
+            // Reached from Donations, which stays highlighted
+            ->assertSee('aria-current="page">Donations</a>', false)
+            ->assertSee('<a class="back" href="' . route('admin.donations') . '">← Back to Donations</a>', false)
             // No page of their own, so no View links
             ->assertDontSee('>View</a>', false);
     }

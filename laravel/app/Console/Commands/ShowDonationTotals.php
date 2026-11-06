@@ -12,9 +12,9 @@ use Illuminate\Support\Str;
 /**
  * Totals of the donations we received, month over month, by quarter, by year,
  * and for all time, with Stripe's fees and refunds, for keeping tabs on
- * giving and for board meetings, like the admin totals page
- * (/admin/donations/totals). Periods are in Fort Collins time, and periods
- * without donations are left out.
+ * giving and for board meetings, like the admin dashboard's Donation
+ * Statistics (/admin). Periods are in Fort Collins time, and periods without
+ * donations are left out.
  */
 class ShowDonationTotals extends Command
 {
