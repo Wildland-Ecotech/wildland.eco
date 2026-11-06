@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AbandonedCheckoutController as AdminAbandonedCheckoutController;
 use App\Http\Controllers\Admin\ApplicationContactController as AdminApplicationContactController;
+use App\Http\Controllers\Admin\ContactActivityController as AdminContactActivityController;
 use App\Http\Controllers\Admin\ContactController as AdminContactController;
 use App\Http\Controllers\Admin\ContactDetailController as AdminContactDetailController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
@@ -67,6 +68,13 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
     Route::post('/contacts/{contact}/merge/{other}', [AdminContactController::class, 'merge'])
         ->whereNumber(['contact', 'other'])
         ->name('admin.contacts.merge');
+    // Logging a text, call, visit, note, pickup, or drop-off on a contact's timeline
+    Route::get('/contacts/{contact}/activities/new', [AdminContactActivityController::class, 'create'])
+        ->whereNumber('contact')
+        ->name('admin.contacts.activities.create');
+    Route::post('/contacts/{contact}/activities', [AdminContactActivityController::class, 'store'])
+        ->whereNumber('contact')
+        ->name('admin.contacts.activities.store');
     // A contact's phone numbers, emails, and address; a detail must be the contact's own
     Route::scopeBindings()->whereNumber(['contact', 'detail'])->group(function () {
         Route::post('/contacts/{contact}/details', [AdminContactDetailController::class, 'store'])->name('admin.contacts.details.store');
