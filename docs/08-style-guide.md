@@ -49,6 +49,7 @@ Headings, section labels, buttons, form fields, badges, and stats have their own
 - **Section label:** an `h3` starting with an em dash, such as "— Leaf Program". Short, in title case; the CSS makes it uppercase.
 - **Heading:** an `h1` right after the label, a few words that name the section, such as "Leave the Leaves". 49px, 62px from 1024px wide; pages may set it smaller when it would wrap inside a card (the FAQ heading is 48px).
 - **Card heading:** an `h2` inside a card, such as "Drop-Off".
+- **Policy heading:** an `h2` for each part of the privacy and refund policies, such as "What We Collect". 24px at every width, 22px on phones.
 
 ## Layout
 
