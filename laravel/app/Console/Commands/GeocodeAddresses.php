@@ -2,7 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Reports\MapReport;
 use App\Services\LocationImport;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\ConnectionException;
@@ -18,13 +17,14 @@ use Illuminate\Support\Facades\Http;
  * reads a line at a time and starts as soon as the JSON is complete, so the
  * addresses never go into a file. A file or a pipe works too. The JSON and
  * what it prints are described in LocationImport. For each address, it
- * tries the address as typed, then, if that misses, its street, city, and
- * state as separate fields. ZIP codes are left out, since Nominatim matches
- * Fort Collins addresses better without them. Only a match at a house
- * (place_rank 30) is a location; matches at only the street, and addresses
- * it couldn't place, are listed separately, for the Map page to show to
- * look up by hand. It prints only IDs and coordinates, but they place
- * people's homes: never paste them into issues, chat, or the repository.
+ * tries the full address as typed, then, if that misses, its street, city,
+ * state, and ZIP code as separate fields. With US Census (TIGER) house
+ * numbers imported, the geocoder matches full addresses. Only a match at a
+ * house (place_rank 30) is a location; matches at only the street, and
+ * addresses it couldn't place, are listed separately, for the Map page to
+ * show to look up by hand. It prints only IDs and coordinates, but they
+ * place people's homes: never paste them into issues, chat, or the
+ * repository.
  */
 class GeocodeAddresses extends Command
 {
@@ -84,7 +84,7 @@ class GeocodeAddresses extends Command
         $found = [LocationImport::LOCATIONS => [], LocationImport::STREET_ONLY => [], LocationImport::NOT_FOUND => []];
 
         foreach ($addresses as $entry) {
-            $address = MapReport::withoutZip($entry['address']);
+            $address = trim($entry['address']);
 
             try {
                 $result = $this->lookUp($address);
@@ -182,11 +182,18 @@ class GeocodeAddresses extends Command
             return $best;
         }
 
-        // "123 Example St, Fort Collins, CO" as its street, city, and state
+        // "123 Example St, Fort Collins, CO 80521" as its street, city, state, and ZIP code
         $parts = array_map('trim', explode(',', $address));
 
         if (count($parts) >= 3) {
-            $structured = $this->search(['street' => $parts[0], 'city' => $parts[1], 'state' => $parts[2]]);
+            $query = ['street' => $parts[0], 'city' => $parts[1], 'state' => $parts[2]];
+
+            // A ZIP code after the state, with or without a comma before it
+            if (preg_match('/^(.*?)\s*(\d{5}(?:-\d{4})?)$/', implode(' ', array_slice($parts, 2)), $matches)) {
+                $query = ['street' => $parts[0], 'city' => $parts[1], 'state' => trim($matches[1]), 'postalcode' => $matches[2]];
+            }
+
+            $structured = $this->search(array_filter($query, fn (string $value) => $value !== ''));
 
             if ($structured !== null && ($best === null || $structured['place_rank'] > $best['place_rank'])) {
                 return $structured;

@@ -61,16 +61,16 @@ class GeocodeAddressesTest extends TestCase
         // Read only until the JSON is complete, as when it's pasted and Enter is pressed
         file_put_contents($this->file, $this->copied([
             41 => '412 Sample Ave, Fort Collins, CO 80521',
-            57 => '9 Placeholder Rd, Fort Collins, CO',
+            57 => '9 Placeholder Rd, Fort Collins, CO 80525',
             63 => '1 Example Way, Loveland, CO',
             70 => 'Nowhere',
         ]) . "\nNot read");
 
         Http::fake(function (Request $request) {
             return match (true) {
-                // Free-form searches, without the ZIP code
-                ($request['q'] ?? null) === '412 Sample Ave, Fort Collins, CO' => Http::response($this->nominatimResult('40.5853', '-105.0844', 30)),
-                ($request['q'] ?? null) === '9 Placeholder Rd, Fort Collins, CO' => Http::response($this->nominatimResult('40.5530', '-105.1000', 26)),
+                // Free-form searches, with the full address
+                ($request['q'] ?? null) === '412 Sample Ave, Fort Collins, CO 80521' => Http::response($this->nominatimResult('40.5853', '-105.0844', 30)),
+                ($request['q'] ?? null) === '9 Placeholder Rd, Fort Collins, CO 80525' => Http::response($this->nominatimResult('40.5530', '-105.1000', 26)),
                 ($request['q'] ?? null) === '1 Example Way, Loveland, CO' => Http::response($this->nominatimResult('40.3977', '-105.0750', 26)),
                 // Structured searches, after a free-form one misses the house
                 ($request['street'] ?? null) === '9 Placeholder Rd' => Http::response($this->nominatimResult('40.5531', '-105.1010', 30)),
@@ -97,16 +97,19 @@ class GeocodeAddressesTest extends TestCase
 
         // Checked against every request, so a key one doesn't have is read with ??
         Http::assertSent(fn (Request $request) => str_starts_with($request->url(), 'http://geocoder:8080/search?')
-            && ($request['q'] ?? null) === '412 Sample Ave, Fort Collins, CO'
+            && ($request['q'] ?? null) === '412 Sample Ave, Fort Collins, CO 80521'
             && $request['format'] === 'jsonv2'
             && (string) $request['limit'] === '1'
             && $request['countrycodes'] === 'us');
+        // The structured search splits the ZIP code from the state
         Http::assertSent(fn (Request $request) => ($request['street'] ?? null) === '9 Placeholder Rd'
             && $request['city'] === 'Fort Collins'
             && $request['state'] === 'CO'
+            && ($request['postalcode'] ?? null) === '80525');
+        // Without a ZIP code, the structured search has none
+        Http::assertSent(fn (Request $request) => ($request['street'] ?? null) === '1 Example Way'
+            && $request['state'] === 'CO'
             && ! isset($request['postalcode']));
-        // No ZIP code is ever sent
-        Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '80521'));
     }
 
     public function test_reads_json_laid_out_any_way(): void
