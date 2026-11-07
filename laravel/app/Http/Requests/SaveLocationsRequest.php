@@ -2,17 +2,19 @@
 
 namespace App\Http\Requests;
 
+use App\Services\LocationImport;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 /**
- * Validates locations pasted on the admin Map page (LocationImport reads
- * them), to preview or, with `confirm`, to save. Only admins reach it,
- * through the admin routes' middleware.
+ * Validates what `addresses:geocode` printed, pasted on the admin Map page
+ * (LocationImport reads it), to preview or, with `confirm`, to save. Only
+ * admins reach it, through the admin routes' middleware.
  */
 class SaveLocationsRequest extends FormRequest
 {
     /**
-     * Enough for a few thousand lines.
+     * Enough for a few thousand locations.
      */
     public const MAX_LENGTH = 200000;
 
@@ -29,9 +31,26 @@ class SaveLocationsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lines' => ['required', 'string', 'max:' . self::MAX_LENGTH],
+            'results' => ['required', 'string', 'max:' . self::MAX_LENGTH],
             // The Save button, after a preview
             'confirm' => ['nullable', 'boolean'],
+        ];
+    }
+
+    /**
+     * Check that what was pasted is the command's JSON, with its list of
+     * locations.
+     *
+     * @return array<int, callable>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator) {
+                if (! $validator->errors()->has('results') && LocationImport::decode($this->input('results')) === null) {
+                    $validator->errors()->add('results', 'Paste everything addresses:geocode printed, from the { at the start to the } at the end.');
+                }
+            },
         ];
     }
 
@@ -45,8 +64,8 @@ class SaveLocationsRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'lines.max' => 'Paste fewer lines at a time.',
-            'lines' => 'Paste the lines the geocoder printed.',
+            'results.max' => 'Paste fewer locations at a time.',
+            'results' => 'Paste what addresses:geocode printed.',
             'confirm' => 'Choose Preview or Save.',
         ];
     }

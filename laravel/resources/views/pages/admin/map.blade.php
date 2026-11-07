@@ -81,7 +81,7 @@
         @endif
     @endforeach
 
-    {{-- Copy addresses for addresses:geocode on an admin's computer, then paste its output back --}}
+    {{-- Copy addresses as JSON for addresses:geocode on an admin's computer, then paste what it printed back --}}
     <section class="no-print">
         <h2>Locate Addresses</h2>
 
@@ -97,31 +97,31 @@
             @if ($unlocatedCount > 0)
                 <div class="field">
                     <label for="unlocated">1. Copy these addresses</label>
-                    <textarea id="unlocated" class="lines-box" rows="{{ min(10, max(3, $unlocatedCount)) }}" readonly aria-describedby="unlocated-hint">{{ $unlocated }}</textarea>
-                    <p class="hint" id="unlocated-hint">Each line is an address’s number, a tab, and the address, without its ZIP code.</p>
+                    <textarea id="unlocated" class="lines-box" rows="{{ min(10, $unlocatedCount + 2) }}" readonly aria-describedby="unlocated-hint">{{ $unlocated }}</textarea>
+                    <p class="hint" id="unlocated-hint">Each address with its number, without its ZIP code, one per line.</p>
                 </div>
 
                 <div class="field">
-                    <p class="field-label">2. Run these in your local setup, paste the addresses, then press Enter and Ctrl+D</p>
+                    <p class="field-label">2. Run these in your local setup, paste the addresses, then press Enter</p>
                     <code class="command">docker compose --profile geocoder up -d geocoder
 docker compose exec app php artisan addresses:geocode</code>
-                    <p class="hint">It prints a line for each address it found at a house, then lists those it couldn’t place, to look up by hand. Nothing is saved to a file.</p>
+                    <p class="hint">It starts once everything is pasted, then prints the locations it found. Nothing is saved to a file.</p>
                 </div>
             @endif
 
             <div class="field">
-                <label for="lines">{{ $unlocatedCount > 0 ? '3. Paste what it printed' : 'Paste locations' }}</label>
-                <textarea id="lines" name="lines" class="lines-box" rows="5" maxlength="{{ SaveLocationsRequest::MAX_LENGTH }}" aria-describedby="lines-hint{{ $errors->has('lines') ? ' lines-error' : '' }}" @error('lines') aria-invalid="true" @enderror>{{ $pasted }}</textarea>
-                <p class="hint" id="lines-hint">Such as “42 40.58985,-105.08191”. Lines starting with # are left out, so paste everything it printed. Nothing is saved until you check the preview.</p>
+                <label for="results">{{ $unlocatedCount > 0 ? '3. Paste what it printed' : 'Paste what addresses:geocode printed' }}</label>
+                <textarea id="results" name="results" class="lines-box" rows="5" maxlength="{{ SaveLocationsRequest::MAX_LENGTH }}" aria-describedby="results-hint{{ $errors->has('results') ? ' results-error' : '' }}" @error('results') aria-invalid="true" @enderror>{{ $pasted }}</textarea>
+                <p class="hint" id="results-hint">Everything from the { to the }. Addresses it found only at the street, or not at all, are listed in the preview to look up by hand. Nothing is saved until you check the preview.</p>
 
-                @error('lines')
-                    <p class="field-error" id="lines-error">{{ $message }}</p>
+                @error('results')
+                    <p class="field-error" id="results-error">{{ $message }}</p>
                 @enderror
             </div>
 
             @if ($previewRows !== null)
                 <h3>Preview</h3>
-                <p class="summary">{{ $saveable }} of {{ count($previewRows) }} {{ Str::plural('location', count($previewRows)) }} can be saved. The others are left out.</p>
+                <p class="summary">{{ $saveable }} of {{ count($previewRows) }} {{ Str::plural('address', count($previewRows)) }} can be saved. The others are left out.</p>
 
                 @if ($previewRows !== [])
                     <x-admin-records
