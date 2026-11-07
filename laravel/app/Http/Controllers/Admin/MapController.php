@@ -23,7 +23,8 @@ use Illuminate\View\View;
  * with a running total of bags, and the drop-off sites; with `build=1`, a
  * new trailer load, chosen by clicking pickups on the map or checking them
  * in the list (TrailerLoadController saves it); with `load={id}`, one
- * load's stops in route order, to follow on a phone; with
+ * load's stops in route order, to follow on a phone, and with `edit=1`, the
+ * same form for a planned load's date, capacity, and stops; with
  * `show=everything`, every located contact, those in a planned load ringed;
  * with a search, the contacts it finds and how far each drop-off site is.
  * Every view but an opened load lists the trailer loads above the map.
@@ -86,14 +87,6 @@ class MapController extends Controller
     public const PAST_LOAD_SUMMARY_COLUMNS = [0, 1, 3];
 
     public const PAST_LOAD_NUMBER_COLUMNS = [2, 3];
-
-    /**
-     * An opened load's stops on wider screens, and those lined up on the
-     * right. Phones show each stop as a card instead.
-     */
-    public const STOP_HEADERS = ['Stop', 'Name', 'Bags', 'Address', 'Phone', 'Notes'];
-
-    public const STOP_NUMBER_COLUMNS = [2];
 
     /**
      * The preview's columns, and the ones on a phone's line (number and
@@ -160,9 +153,11 @@ class MapController extends Controller
         $load = is_string($loadId) && ctype_digit($loadId) ? TrailerLoad::find((int) $loadId) : null;
         abort_if($loadId !== null && $load === null, 404);
         $building = $show === self::SHOW_PICKUPS && $search === '' && $load === null && $request->boolean('build');
+        $editing = $load !== null && $load->isPlanned() && $request->boolean('edit');
         $unlocated = $report->unlocated();
 
         $page = match (true) {
+            $editing => $this->editPage($request, $report, $load),
             $load !== null => $this->loadPage($report, $load),
             $search !== '' => $this->searchPage($report, $contacts, $search),
             $show === self::SHOW_EVERYTHING => $this->everythingPage($report),
@@ -177,12 +172,31 @@ class MapController extends Controller
             'search' => $search,
             'show' => $show,
             'load' => null,
-            'building' => $building,
+            // The form for a new or edited load, with its words and where it goes
+            'builder' => match (true) {
+                $building => [
+                    'title' => 'New Trailer Load',
+                    'hint' => 'Click pickups on the map, or check them in the list, to add them. Click again to take one out.',
+                    'action' => route('admin.map.loads.store'),
+                    'button' => 'Save Load',
+                    'cancel' => route('admin.map'),
+                ],
+                $editing => [
+                    'title' => 'Edit Load',
+                    'hint' => 'Click pickups on the map, or check them in the list, to add them or take them out. New stops go at the end; move them into place after saving.',
+                    'action' => route('admin.map.loads.update', $load->id),
+                    'button' => 'Save Changes',
+                    'cancel' => route('admin.map', ['load' => $load->id]),
+                ],
+                default => null,
+            },
+            'editing' => $editing,
+            'canEdit' => false,
+            'loadOrder' => [],
             'pickupRows' => [],
             // Above the map on every view but an opened load
             ...($load === null ? $this->loadLists($report) : ['plannedLoadRows' => [], 'pastLoadRows' => []]),
             'stops' => [],
-            'stopRows' => [],
             'results' => [],
             ...$page,
             'legend' => collect($page['points'])->countBy('kind')->sortBy(fn (int $count, string $kind) => array_search($kind, array_keys(self::KIND_LABELS), true))->all(),
@@ -198,16 +212,17 @@ class MapController extends Controller
     /**
      * Pending pickups not yet in a planned trailer load, and the drop-off
      * sites, with the pickups listed soonest first and a running total of
-     * bags. When building a load, $chosen holds the applications chosen so
-     * far (from a form sent back with errors), and each pickup gets a box
-     * to add it, with its ID on its dot.
+     * bags. When building or editing a load, $chosen holds the applications
+     * chosen so far, and each pickup gets a box to add it, with its ID on
+     * its dot; when editing, $editing's own stops are listed too, and the
+     * form starts with its date and capacity.
      *
      * @param  list<int>|null  $chosen
      * @return array<string, mixed>
      */
-    private function pickupsPage(MapReport $report, ?array $chosen): array
+    private function pickupsPage(MapReport $report, ?array $chosen, ?TrailerLoad $editing = null): array
     {
-        ['pickups' => $pickups, 'scheduled' => $scheduled] = $report->toSchedule();
+        ['pickups' => $pickups, 'scheduled' => $scheduled] = $report->toSchedule($editing);
         $located = $pickups->filter(fn (array $pickup) => $pickup['address']?->location !== null);
         $bags = $pickups->sum(fn (array $pickup) => $pickup['application']->estimated_bag_count);
         $total = 0;
@@ -246,19 +261,19 @@ class MapController extends Controller
             return $page;
         }
 
-        // A new load: what each pickup weighs, for the progress bar, and how full the chosen ones make it
+        // A new or edited load: what each pickup weighs, for the progress bar, and how full the chosen ones make it
         $bagsById = $pickups->mapWithKeys(fn (array $pickup) => [$pickup['application']->id => $pickup['application']->estimated_bag_count])->all();
         $chosenBags = array_sum(array_intersect_key($bagsById, array_flip($chosen)));
         // The capacity as it was typed, such as "1,500", without the commas
         // and spaces SaveTrailerLoadRequest takes out, since the flashed input
         // is what was sent
-        $capacity = preg_replace('/[\s,]/', '', (string) old('capacity', (string) TrailerLoad::DEFAULT_CAPACITY));
+        $capacity = preg_replace('/[\s,]/', '', (string) old('capacity', (string) ($editing?->capacity ?? TrailerLoad::DEFAULT_CAPACITY)));
 
         return [
             ...$page,
             'loadBags' => $bagsById,
             'progress' => TrailerLoad::progress(count(array_intersect($chosen, array_keys($bagsById))), $chosenBags, (int) $capacity),
-            'plannedOn' => old('planned_on', Carbon::today(MapReport::TIMEZONE)->toDateString()),
+            'plannedOn' => old('planned_on', $editing?->planned_on->toDateString() ?? Carbon::today(MapReport::TIMEZONE)->toDateString()),
             'capacity' => $capacity,
         ];
     }
@@ -297,6 +312,33 @@ class MapController extends Controller
     }
 
     /**
+     * Editing a planned load: the builder with its date, capacity, and
+     * stops chosen (or what was sent, when the form comes back with
+     * errors), its pending stops listed with the pickups not in another
+     * load, and their route order so the map numbers them that way, new ones
+     * after.
+     *
+     * @return array<string, mixed>
+     */
+    private function editPage(Request $request, MapReport $report, TrailerLoad $load): array
+    {
+        $own = $report->stops($load)
+            ->filter(fn (array $stop) => ! $stop['application']->trashed() && $stop['application']->status === LeafApplication::STATUS_PENDING)
+            ->map(fn (array $stop) => $stop['application']->id)
+            ->values()
+            ->all();
+        $chosen = $request->hasSession() && $request->session()->hasOldInput() ? $this->chosenStops($request) : $own;
+
+        return [
+            ...$this->pickupsPage($report, $chosen, $load),
+            'title' => "Trailer Load: {$load->label()}",
+            'load' => $load,
+            'summary' => TrailerLoad::STATUS_LABELS[$load->status] . ' · ' . $this->count(count($own), 'stop'),
+            'loadOrder' => $own,
+        ];
+    }
+
+    /**
      * One trailer load: its stops on the map, numbered in route order, with
      * the drop-off sites, and listed with what's needed on the road, to
      * follow on a phone.
@@ -328,7 +370,7 @@ class MapController extends Controller
                 ...$this->sitePoints($report),
             ],
             'stops' => $cards,
-            'stopRows' => array_map(fn (array $stop) => $this->stopRow($stop), $cards),
+            'canEdit' => $load->isPlanned(),
         ];
     }
 
@@ -515,7 +557,7 @@ class MapController extends Controller
      * contact's notes, which can hold things like a gate code.
      *
      * @param  array{application: LeafApplication, contact: ?\App\Models\Contact, address: ?ContactDetail, position: int}  $stop
-     * @return array{position: int, name: string, url: string, bags: int, address: string, phone: ?string, tel: ?string, notes: string}
+     * @return array{application: int, position: int, name: string, url: string, bags: int, address: string, phone: ?string, tel: ?string, notes: string}
      */
     private function stop(array $stop): array
     {
@@ -526,6 +568,7 @@ class MapController extends Controller
         $digits = $phone !== null ? ContactDetail::normalize(ContactDetail::TYPE_PHONE, $phone) : null;
 
         return [
+            'application' => $application->id,
             'position' => $stop['position'],
             'name' => $contact?->name ?? $application->name,
             'url' => $contact ? route('admin.contacts.show', $contact->id) : route('admin.leaves.show', $application->id),
@@ -538,29 +581,8 @@ class MapController extends Controller
     }
 
     /**
-     * A stop as a row of the list on wider screens.
-     *
-     * @param  array{position: int, name: string, url: string, bags: int, address: string, phone: ?string, tel: ?string, notes: string}  $stop
-     * @return array<string, mixed>
-     */
-    private function stopRow(array $stop): array
-    {
-        return [
-            'cells' => [
-                $stop['position'],
-                ['text' => $stop['name'], 'url' => $stop['url']],
-                $stop['bags'],
-                $stop['address'],
-                $stop['tel'] !== null ? ['text' => $stop['phone'], 'url' => $stop['tel']] : (string) $stop['phone'],
-                $stop['notes'],
-            ],
-            'summary' => [$stop['position'] . '. ' . $stop['name'], $stop['bags'] . ' ' . Str::plural('bag', $stop['bags'])],
-        ];
-    }
-
-    /**
-     * The applications chosen for a new load in a form sent back with
-     * errors, in order.
+     * The applications chosen for a new or edited load in a form sent back
+     * with errors, in order.
      *
      * @return list<int>
      */

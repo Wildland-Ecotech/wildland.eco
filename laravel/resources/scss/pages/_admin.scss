@@ -49,6 +49,16 @@ $control-height: 16px * $control-line-height + 16px + 4px;
         margin: 0 auto;
         text-align: left;
         font-family: satoshi;
+
+        // Without JavaScript, signing in can't solve its proof of work
+        .js-notice {
+            border: 2px solid rgba(46, 207, 158, 0.6);
+            border-radius: 10px;
+            background: rgba(46, 207, 158, 0.1);
+            padding: 0.75em 1.25em;
+            margin: 0 0 1.5em;
+            @include type.detail;
+        }
     }
 
     .error-summary {
@@ -1179,6 +1189,48 @@ $control-height: 16px * $control-line-height + 16px + 4px;
         }
     }
 
+    // A planned trailer load's Edit Load button, under its progress bar
+    .load-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1em;
+        margin: -1em 0 2em;
+
+        .button {
+            margin: 0;
+        }
+    }
+
+    // Moving a planned load's stop up or down the route, in its row or
+    // under its card
+    .stop-moves {
+        display: flex;
+        gap: 0.5em;
+        white-space: nowrap;
+
+        form {
+            margin: 0;
+        }
+
+        .button {
+            margin: 0;
+        }
+    }
+
+    .stop-cards .stop-moves {
+        margin-top: 0.6em;
+    }
+
+    // Notes keep their line breaks in the table too, and a phone number
+    // stays on one line
+    .stop-table .stop-notes {
+        white-space: pre-line;
+    }
+
+    .stop-table .stop-phone {
+        white-space: nowrap;
+    }
+
     // An opened trailer load's stops: the list's table on wider screens,
     // and on phones a card for each stop with everything shown, to follow
     // on the road
@@ -1433,10 +1485,6 @@ $control-height: 16px * $control-line-height + 16px + 4px;
         }
 
         // An opened trailer load's stops as cards instead
-        .load-stops .records-list {
-            display: none;
-        }
-
         .stop-cards {
             display: block;
         }

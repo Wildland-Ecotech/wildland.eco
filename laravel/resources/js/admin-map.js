@@ -6,10 +6,12 @@
 // are numbered in route order. app.js loads this only on that page, so
 // Leaflet isn't in every page's script.
 //
-// While building a trailer load (#trailer-load), clicking a pickup's dot
-// checks or unchecks its box in the list, the chosen dots are numbered in
-// the list's order, and the progress bar follows the chosen bags. The list's
-// boxes and the form work without this script.
+// While building or editing a trailer load (#trailer-load), clicking a
+// pickup's dot checks or unchecks its box in the list, the chosen dots are
+// numbered (an edited load's stops in their route order, from #load-order,
+// then the others in the list's order, as they'll be saved), and the
+// progress bar follows the chosen bags. The list's boxes and the form work
+// without this script.
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -69,13 +71,19 @@ export function initMap(element) {
 // A new load's boxes and the dots, kept in step, with the progress bar
 function initBuilder(form, markers) {
     const bags = JSON.parse(document.getElementById('load-bags')?.textContent ?? '{}');
+    const order = JSON.parse(document.getElementById('load-order')?.textContent ?? '[]').map(String);
     const capacity = form.querySelector('[name="capacity"]');
     const bar = form.querySelector('[data-load-bar]');
     // Each pickup's box is on the page twice: in the table, and in the list shown on phones
     const boxes = () => [...document.querySelectorAll('input[type="checkbox"][form="trailer-load"]')];
 
-    // The chosen pickups' IDs, once each, in the list's order
-    const chosen = () => [...new Set(boxes().filter((box) => box.checked).map((box) => box.value))];
+    // The chosen pickups' IDs, once each: an edited load's stops in route
+    // order, then the rest in the list's order
+    const chosen = () => {
+        const checked = [...new Set(boxes().filter((box) => box.checked).map((box) => box.value))];
+
+        return [...order.filter((id) => checked.includes(id)), ...checked.filter((id) => !order.includes(id))];
+    };
 
     const update = () => {
         const ids = chosen();

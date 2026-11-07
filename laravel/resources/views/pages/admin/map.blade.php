@@ -32,7 +32,7 @@
                 </div>
             </div>
 
-            @if ($show === MapController::SHOW_PICKUPS && $search === '' && ! $building)
+            @if ($show === MapController::SHOW_PICKUPS && $search === '' && $builder === null)
                 <div class="page-actions">
                     <a class="button dark small" href="{{ route('admin.map', ['build' => 1]) }}">Start a Trailer Load</a>
                 </div>
@@ -87,13 +87,13 @@
         </ul>
     @endif
 
-    {{-- A new trailer load: the list's boxes belong to this form, and resources/js/admin-map.js adds clicking dots and the live progress bar --}}
-    @if ($building)
-        <form class="load-builder no-print" id="trailer-load" method="POST" action="{{ route('admin.map.loads.store') }}">
+    {{-- A new or edited trailer load: the list's boxes belong to this form, and resources/js/admin-map.js adds clicking dots and the live progress bar --}}
+    @if ($builder !== null)
+        <form class="load-builder no-print" id="trailer-load" method="POST" action="{{ $builder['action'] }}">
             @csrf
 
-            <h3>New Trailer Load</h3>
-            <p class="detail-hint">Click pickups on the map, or check them in the list, to add them. Click again to take one out.</p>
+            <h3>{{ $builder['title'] }}</h3>
+            <p class="detail-hint">{{ $builder['hint'] }}</p>
 
             @if ($errors->has('stops') || $errors->has('stops.*'))
                 <p class="field-error" role="alert">{{ $errors->first('stops') ?: $errors->first('stops.*') }}</p>
@@ -125,19 +125,21 @@
             </div>
 
             <div class="form-actions">
-                <button type="submit" class="button dark small">Save Load</button>
-                <a class="back" href="{{ route('admin.map') }}">Cancel</a>
+                <button type="submit" class="button dark small">{{ $builder['button'] }}</button>
+                <a class="back" href="{{ $builder['cancel'] }}">Cancel</a>
             </div>
         </form>
         <script type="application/json" id="load-bags">@json((object) $loadBags)</script>
+        {{-- An edited load's stops in route order, so the map numbers them that way, new ones after --}}
+        <script type="application/json" id="load-order">@json($loadOrder)</script>
     @endif
 
     {{-- Needs scheduling: soonest first, with a running total of bags for filling the trailer --}}
     @if ($pickupRows !== [])
         <h2>Pickups</h2>
-        <p class="summary">Soonest first, with a running total of bags, for filling the trailer.</p>
+        <p class="summary">{{ $editing ? 'This load’s stops, and the pickups not in another load, soonest first.' : 'Soonest first, with a running total of bags, for filling the trailer.' }}</p>
 
-        @if ($building)
+        @if ($builder !== null)
             <x-admin-records
                 :headers="MapController::PICKUP_HEADERS"
                 :rows="$pickupRows"
@@ -159,24 +161,74 @@
     @endif
 
     {{-- One trailer load: its stops in route order, to follow on a phone --}}
-    @if ($load !== null)
+    @if ($load !== null && ! $editing)
         <div class="load-bar {{ $progress['tone'] }}">
             <div class="load-bar-track"><div class="load-bar-fill" style="--fill: {{ $progress['percent'] }}%"></div></div>
             <p class="load-bar-label">{{ $progress['label'] }}</p>
         </div>
 
-        <h2>Stops</h2>
+        @if ($canEdit)
+            <div class="load-actions">
+                <a class="button dark small" href="{{ route('admin.map', ['load' => $load->id, 'edit' => 1]) }}">Edit Load</a>
+            </div>
+        @endif
+
+        <h2 id="stops">Stops</h2>
 
         @if ($stops === [])
             <p class="summary">This load has no stops.</p>
         @else
+            @if ($canEdit)
+                <p class="summary">In your route’s order. Move a stop up or down to change it.</p>
+            @endif
+
             {{-- A table on wider screens, and on phones a card for each stop with everything shown --}}
             <div class="load-stops">
-                <x-admin-records
-                    :headers="MapController::STOP_HEADERS"
-                    :rows="$stopRows"
-                    :numeric="MapController::STOP_NUMBER_COLUMNS"
-                />
+                <table class="records-table stop-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Stop</th>
+                            <th scope="col">Name</th>
+                            <th scope="col" class="numeric">Bags</th>
+                            <th scope="col">Address</th>
+                            <th scope="col">Phone</th>
+                            <th scope="col">Notes</th>
+                            @if ($canEdit)
+                                <th scope="col"><span class="visually-hidden">Move</span></th>
+                            @endif
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($stops as $stop)
+                            <tr>
+                                <td>{{ $stop['position'] }}</td>
+                                <td><a href="{{ $stop['url'] }}">{{ $stop['name'] }}</a></td>
+                                <td class="numeric">{{ $stop['bags'] }}</td>
+                                <td>{{ $stop['address'] }}</td>
+                                <td class="stop-phone">@if ($stop['tel'] !== null)<a href="{{ $stop['tel'] }}">{{ $stop['phone'] }}</a>@else{{ $stop['phone'] ?? '—' }}@endif</td>
+                                <td class="stop-notes">{{ $stop['notes'] !== '' ? $stop['notes'] : '—' }}</td>
+                                @if ($canEdit)
+                                    <td>
+                                        <div class="stop-moves">
+                                            @unless ($loop->first)
+                                                <form method="POST" action="{{ route('admin.map.loads.move', [$load->id, $stop['application'], 'up']) }}">
+                                                    @csrf
+                                                    <button type="submit" class="button dark small" aria-label="Move {{ $stop['name'] }} up">Up</button>
+                                                </form>
+                                            @endunless
+                                            @unless ($loop->last)
+                                                <form method="POST" action="{{ route('admin.map.loads.move', [$load->id, $stop['application'], 'down']) }}">
+                                                    @csrf
+                                                    <button type="submit" class="button dark small" aria-label="Move {{ $stop['name'] }} down">Down</button>
+                                                </form>
+                                            @endunless
+                                        </div>
+                                    </td>
+                                @endif
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
 
                 <ol class="stop-cards">
                     @foreach ($stops as $stop)
@@ -191,10 +243,53 @@
                             @if ($stop['notes'] !== '')
                                 <p class="stop-notes">{{ $stop['notes'] }}</p>
                             @endif
+                            @if ($canEdit && count($stops) > 1)
+                                <div class="stop-moves">
+                                    @unless ($loop->first)
+                                        <form method="POST" action="{{ route('admin.map.loads.move', [$load->id, $stop['application'], 'up']) }}">
+                                            @csrf
+                                            <button type="submit" class="button dark small" aria-label="Move {{ $stop['name'] }} up">Up</button>
+                                        </form>
+                                    @endunless
+                                    @unless ($loop->last)
+                                        <form method="POST" action="{{ route('admin.map.loads.move', [$load->id, $stop['application'], 'down']) }}">
+                                            @csrf
+                                            <button type="submit" class="button dark small" aria-label="Move {{ $stop['name'] }} down">Down</button>
+                                        </form>
+                                    @endunless
+                                </div>
+                            @endif
                         </li>
                     @endforeach
                 </ol>
             </div>
+        @endif
+
+        {{-- Canceling, at the end, away from Edit Load, with a box to confirm --}}
+        @if ($canEdit)
+            <h2 id="cancel">Cancel This Load</h2>
+
+            <form class="record-form" method="POST" action="{{ route('admin.map.loads.cancel', $load->id) }}">
+                @csrf
+
+                <fieldset class="field">
+                    <legend>Confirm</legend>
+
+                    <label class="checkbox">
+                        <input type="checkbox" name="confirm" value="1" aria-describedby="confirm-hint{{ $errors->has('confirm') ? ' confirm-error' : '' }}" @error('confirm') aria-invalid="true" @enderror>
+                        <span>Cancel the {{ $load->label() }} load</span>
+                    </label>
+                    <p class="hint" id="confirm-hint">Its stops go back to Needs scheduling. The load is kept, marked Canceled.</p>
+
+                    @error('confirm')
+                        <p class="field-error" id="confirm-error">{{ $message }}</p>
+                    @enderror
+                </fieldset>
+
+                <div class="form-actions">
+                    <button type="submit" class="button dark small">Cancel Load</button>
+                </div>
+            </form>
         @endif
 
         <a class="back" href="{{ route('admin.map') }}">← Back to Map</a>

@@ -338,7 +338,7 @@ class TrailerLoadTest extends TestCase
                 '<p><a href="tel:+19705550100">(970) 555-0100</a></p>',
             ], false)
             // The same in the table on wider screens
-            ->assertSee('<a href="tel:+19705550102">(970) 555-0102</a></td>', false)
+            ->assertSee('<td class="stop-phone"><a href="tel:+19705550102">(970) 555-0102</a></td>', false)
             ->assertDontSee('>Print</button>', false)
             ->assertSee('href="' . route('admin.map') . '">← Back to Map</a>', false)
             // Nothing else from the Map page
@@ -356,5 +356,214 @@ class TrailerLoadTest extends TestCase
     {
         $this->actingAs($this->admin)->get('/admin/map?load=999999')->assertNotFound();
         $this->actingAs($this->admin)->get('/admin/map?load=abc')->assertNotFound();
+    }
+
+    public function test_only_signed_in_admins_can_change_loads(): void
+    {
+        $sam = $this->application($this->contact('Sam Lee', '412 Sample Ave, Fort Collins, CO 80521'), 40);
+        $load = $this->load('2026-11-08', [$sam]);
+        $donor = User::factory()->withPassword()->create();
+
+        $requests = [
+            "/admin/map/loads/{$load->id}",
+            "/admin/map/loads/{$load->id}/stops/{$sam->id}/down",
+            "/admin/map/loads/{$load->id}/cancel",
+        ];
+
+        foreach ($requests as $url) {
+            $this->post($url, ['confirm' => '1'])->assertRedirect(route('login'));
+        }
+
+        foreach ($requests as $url) {
+            $this->actingAs($donor)->post($url, ['confirm' => '1'])->assertForbidden();
+        }
+
+        $this->assertTrue($load->fresh()->isPlanned());
+    }
+
+    public function test_editing_opens_the_form_with_the_load(): void
+    {
+        $jamie = $this->application($this->contact('Jamie Rivera', '10 New Rd, Fort Collins, CO 80521', 40.5853, -105.0844), 25);
+        $dana = $this->application($this->contact('Dana Cruz', '3 Example Blvd, Fort Collins, CO 80525', 40.553, -105.101), 30);
+        $sam = $this->application($this->contact('Sam Lee', '412 Sample Ave, Fort Collins, CO 80521', 40.56, -105.11), 40);
+        $robin = $this->application($this->contact('Robin Fox', '7 Sample Ln, Fort Collins, CO 80526', 40.5961, -105.1205), 35);
+        $load = $this->load('2026-11-08', [$dana, $jamie], capacity: 70);
+        // In another load, so not offered
+        $this->load('2026-11-09', [$robin]);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.map', ['load' => $load->id]))
+            // Blade writes the & in the address as &amp;
+            ->assertSee('<a class="button dark small" href="' . e(route('admin.map', ['load' => $load->id, 'edit' => 1])) . '">Edit Load</a>', false);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.map', ['load' => $load->id, 'edit' => 1]));
+
+        $response->assertOk()
+            ->assertSee('<h1>Trailer Load: Sun, Nov 8</h1>', false)
+            ->assertSee('<h3>Edit Load</h3>', false)
+            ->assertSee('action="' . route('admin.map.loads.update', $load->id) . '"', false)
+            ->assertSee('name="planned_on" value="2026-11-08"', false)
+            ->assertSee('name="capacity" value="70"', false)
+            ->assertSee('2 stops · 55 of 70 bags · 15 bags of room')
+            ->assertSee('value="' . $dana->id . '" aria-label="Select ' . $dana->id . '" checked>', false)
+            ->assertSee('value="' . $jamie->id . '" aria-label="Select ' . $jamie->id . '" checked>', false)
+            ->assertSee('value="' . $sam->id . '" aria-label="Select ' . $sam->id . '">', false)
+            ->assertDontSee('value="' . $robin->id . '"', false)
+            // The map numbers its stops in route order
+            ->assertSee('<script type="application/json" id="load-order">[' . $dana->id . ',' . $jamie->id . ']</script>', false)
+            ->assertSee('This load’s stops, and the pickups not in another load, soonest first.')
+            ->assertSee('<button type="submit" class="button dark small">Save Changes</button>', false)
+            ->assertSee('href="' . route('admin.map', ['load' => $load->id]) . '">Cancel</a>', false)
+            // Not the load's own page, nor the rest of the Map page
+            ->assertDontSee('<h2 id="stops">Stops</h2>', false)
+            ->assertDontSee('<h2>Trailer Loads</h2>', false)
+            ->assertDontSee('<label for="show">Show</label>', false);
+    }
+
+    public function test_saving_changes_keeps_the_order_and_adds_new_stops_at_the_end(): void
+    {
+        $jamie = $this->application($this->contact('Jamie Rivera', '10 New Rd, Fort Collins, CO 80521'), 25);
+        $dana = $this->application($this->contact('Dana Cruz', '3 Example Blvd, Fort Collins, CO 80525'), 30);
+        $taylor = $this->application($this->contact('Taylor Brooks', '2 Sample Ct, Fort Collins, CO 80525'), 15);
+        $sam = $this->application($this->contact('Sam Lee', '412 Sample Ave, Fort Collins, CO 80521'), 40);
+        $load = $this->load('2026-11-08', [$jamie, $dana, $taylor]);
+
+        // Sent in the list's order: Dana taken out, Sam added
+        $this->actingAs($this->admin)
+            ->post("/admin/map/loads/{$load->id}", [
+                'planned_on' => '2026-11-09',
+                'capacity' => '90',
+                'stops' => [(string) $taylor->id, (string) $sam->id, (string) $jamie->id],
+            ])
+            ->assertRedirect(route('admin.map', ['load' => $load->id]))
+            ->assertSessionHas('status', 'Saved the Mon, Nov 9 load: 3 stops, 80 bags.');
+
+        $load->refresh();
+        $this->assertSame('2026-11-09', $load->planned_on->toDateString());
+        $this->assertSame(90, $load->capacity);
+        $this->assertSame([$jamie->id, $taylor->id, $sam->id], $load->applications->pluck('id')->all());
+        $this->assertSame([1, 2, 3], $load->applications->pluck('pivot.position')->map(fn ($position) => (int) $position)->all());
+
+        // Dana needs scheduling again, and her application is untouched
+        $this->actingAs($this->admin)->get('/admin/map')->assertSee('<summary>Dana Cruz', false);
+        $this->assertSame(LeafApplication::STATUS_PENDING, $dana->fresh()->status);
+    }
+
+    public function test_a_stop_picked_up_on_its_own_stays_in_the_load(): void
+    {
+        $jamie = $this->application($this->contact('Jamie Rivera', '10 New Rd, Fort Collins, CO 80521'), 25);
+        $dana = $this->application($this->contact('Dana Cruz', '3 Example Blvd, Fort Collins, CO 80525'), 30);
+        $load = $this->load('2026-11-08', [$dana, $jamie]);
+        $dana->forceFill(['status' => LeafApplication::STATUS_COMPLETE])->save();
+
+        // Dana isn't offered, since her pickup was logged
+        $this->actingAs($this->admin)
+            ->get(route('admin.map', ['load' => $load->id, 'edit' => 1]))
+            ->assertDontSee('value="' . $dana->id . '"', false);
+
+        $this->actingAs($this->admin)
+            ->post("/admin/map/loads/{$load->id}", ['planned_on' => '2026-11-08', 'capacity' => '80', 'stops' => [(string) $jamie->id]])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame([$dana->id, $jamie->id], $load->fresh()->applications->pluck('id')->all());
+    }
+
+    public function test_moves_stops_up_and_down_the_route(): void
+    {
+        $jamie = $this->application($this->contact('Jamie Rivera', '10 New Rd, Fort Collins, CO 80521'), 25);
+        $dana = $this->application($this->contact('Dana Cruz', '3 Example Blvd, Fort Collins, CO 80525'), 30);
+        $taylor = $this->application($this->contact('Taylor Brooks', '2 Sample Ct, Fort Collins, CO 80525'), 15);
+        $load = $this->load('2026-11-08', [$jamie, $dana, $taylor]);
+        $order = fn () => $load->fresh()->applications->pluck('id')->all();
+
+        // The first stop can only go down, the last only up
+        $this->actingAs($this->admin)
+            ->get(route('admin.map', ['load' => $load->id]))
+            ->assertSee('In your route’s order. Move a stop up or down to change it.')
+            ->assertSee('action="' . route('admin.map.loads.move', [$load->id, $dana->id, 'up']) . '"', false)
+            ->assertSee('aria-label="Move Dana Cruz down">Down</button>', false)
+            ->assertDontSee('aria-label="Move Jamie Rivera up"', false)
+            ->assertDontSee('aria-label="Move Taylor Brooks down"', false);
+
+        $this->actingAs($this->admin)
+            ->post("/admin/map/loads/{$load->id}/stops/{$dana->id}/up")
+            ->assertRedirect(route('admin.map', ['load' => $load->id]) . '#stops');
+        $this->assertSame([$dana->id, $jamie->id, $taylor->id], $order());
+
+        $this->actingAs($this->admin)->post("/admin/map/loads/{$load->id}/stops/{$jamie->id}/down");
+        $this->assertSame([$dana->id, $taylor->id, $jamie->id], $order());
+
+        // Past either end, nothing changes
+        $this->actingAs($this->admin)->post("/admin/map/loads/{$load->id}/stops/{$dana->id}/up");
+        $this->actingAs($this->admin)->post("/admin/map/loads/{$load->id}/stops/{$jamie->id}/down");
+        $this->assertSame([$dana->id, $taylor->id, $jamie->id], $order());
+        $this->assertSame([1, 2, 3], $load->fresh()->applications->pluck('pivot.position')->map(fn ($position) => (int) $position)->all());
+
+        // A pickup not in the load
+        $other = $this->application($this->contact('Sam Lee', '412 Sample Ave, Fort Collins, CO 80521'), 40);
+        $this->actingAs($this->admin)->post("/admin/map/loads/{$load->id}/stops/{$other->id}/up")->assertNotFound();
+    }
+
+    public function test_cancels_a_load_once_confirmed(): void
+    {
+        $jamie = $this->application($this->contact('Jamie Rivera', '10 New Rd, Fort Collins, CO 80521'), 25);
+        $dana = $this->application($this->contact('Dana Cruz', '3 Example Blvd, Fort Collins, CO 80525'), 30);
+        $load = $this->load('2026-11-08', [$jamie, $dana]);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.map', ['load' => $load->id]))
+            ->assertSeeInOrder(['<h2 id="cancel">Cancel This Load</h2>', 'action="' . route('admin.map.loads.cancel', $load->id) . '"', 'Cancel the Sun, Nov 8 load', 'Its stops go back to Needs scheduling. The load is kept, marked Canceled.', 'Cancel Load</button>'], false);
+
+        $this->actingAs($this->admin)
+            ->post("/admin/map/loads/{$load->id}/cancel")
+            ->assertRedirect(route('admin.map', ['load' => $load->id]) . '#cancel')
+            ->assertSessionHasErrors(['confirm' => 'Check the box to confirm, then press Cancel Load.']);
+        $this->assertTrue($load->fresh()->isPlanned());
+
+        $this->actingAs($this->admin)
+            ->post("/admin/map/loads/{$load->id}/cancel", ['confirm' => '1'])
+            ->assertRedirect(route('admin.map'))
+            ->assertSessionHas('status', 'Canceled the Sun, Nov 8 load. Its 2 stops need scheduling again.');
+
+        $load->refresh();
+        $this->assertSame(TrailerLoad::STATUS_CANCELED, $load->status);
+        $this->assertSame($this->admin->id, $load->finished_by);
+        $this->assertNotNull($load->finished_at);
+        // Kept, with its stops, and listed with the past loads
+        $this->assertSame(2, $load->applications->count());
+        $this->actingAs($this->admin)
+            ->get('/admin/map')
+            ->assertSee('2 pickups need scheduling, 55 bags in all')
+            ->assertSee('<summary>Sun, Nov 8 · Canceled · 55 of 80 bags</summary>', false);
+    }
+
+    public function test_a_done_or_canceled_load_cannot_be_changed(): void
+    {
+        $jamie = $this->application($this->contact('Jamie Rivera', '10 New Rd, Fort Collins, CO 80521'), 25);
+        $dana = $this->application($this->contact('Dana Cruz', '3 Example Blvd, Fort Collins, CO 80525'), 30);
+        $load = $this->load('2026-11-08', [$jamie, $dana], TrailerLoad::STATUS_CANCELED);
+
+        // Its page has nothing to change it, even when asked to edit
+        $this->actingAs($this->admin)
+            ->get(route('admin.map', ['load' => $load->id, 'edit' => 1]))
+            ->assertSee('Canceled · 2 stops')
+            ->assertDontSee('Edit Load')
+            ->assertDontSee('Move Dana Cruz')
+            ->assertDontSee('Cancel This Load');
+
+        foreach ([
+            ["/admin/map/loads/{$load->id}", ['planned_on' => '2026-11-09', 'capacity' => '80', 'stops' => [(string) $jamie->id]]],
+            ["/admin/map/loads/{$load->id}/stops/{$dana->id}/up", []],
+            ["/admin/map/loads/{$load->id}/cancel", ['confirm' => '1']],
+        ] as [$url, $input]) {
+            $this->actingAs($this->admin)
+                ->post($url, $input)
+                ->assertRedirect(route('admin.map', ['load' => $load->id]))
+                ->assertSessionHas('status', 'This load is canceled, so it can’t be changed.');
+        }
+
+        $load->refresh();
+        $this->assertSame('2026-11-08', $load->planned_on->toDateString());
+        $this->assertSame([$jamie->id, $dana->id], $load->applications->pluck('id')->all());
     }
 }
