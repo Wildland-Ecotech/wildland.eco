@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\FormSubmission;
 use App\Reports\ContactReport;
 use App\Reports\FormSubmissionReport;
+use App\Reports\SignInReport;
 use App\Reports\Traits\DescribesFormSubmissions;
 use App\Reports\Traits\FormatsCsv;
 use Illuminate\Http\RedirectResponse;
@@ -27,6 +28,8 @@ use Illuminate\View\View;
  * Admins close submissions that need no more follow-up as resolved, a test,
  * or spam, from the list or a submission's page, and reopen them. For now
  * the log holds form submissions; it may grow into general error reporting.
+ * Its Sign-Ins button opens the attempts to sign in, and a red warning
+ * points there while any failed in the last day (SignInReport).
  */
 class ErrorLogController extends Controller
 {
@@ -79,7 +82,7 @@ class ErrorLogController extends Controller
     /**
      * The list of submissions, filtered by the query string.
      */
-    public function index(Request $request, FormSubmissionReport $report, ContactReport $contactReport): View
+    public function index(Request $request, FormSubmissionReport $report, ContactReport $contactReport, SignInReport $signIns): View
     {
         $filters = $this->filters($request);
         $submissions = $this->submissions($report, $filters);
@@ -87,6 +90,7 @@ class ErrorLogController extends Controller
         $contacts = $contactReport->contactsFor($submissions);
 
         return view('pages.admin.errors.index', [
+            'signInNotice' => $signIns->notice(),
             'filters' => $filters,
             'summary' => $this->periodSummary($filters['period'], $count, $this->formSubmissionListName($filters['all'], $count)),
             'headers' => self::FORM_SUBMISSION_TABLE_HEADERS,

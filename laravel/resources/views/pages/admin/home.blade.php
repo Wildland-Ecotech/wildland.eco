@@ -1,4 +1,5 @@
 @use('App\Http\Controllers\Admin\DashboardController')
+@use('App\Http\Controllers\Admin\SignInController')
 
 <x-admin-page title="Dashboard" current="admin">
     <p class="signed-in">
@@ -10,6 +11,14 @@
         <div class="notice warning" role="status">
             <p>{{ $followUpNotice }}</p>
             <a class="button dark small" href="{{ route('admin.contacts') }}">Follow Up</a>
+        </div>
+    @endif
+
+    {{-- Failed attempts to sign in in the last day; Review Sign-Ins opens the failed ones --}}
+    @if ($signInNotice)
+        <div class="notice warning" role="status">
+            <p>{{ $signInNotice }}</p>
+            <a class="button dark small" href="{{ route('admin.sign-ins', ['show' => SignInController::SHOW_FAILED]) }}">Review Sign-Ins</a>
         </div>
     @endif
 

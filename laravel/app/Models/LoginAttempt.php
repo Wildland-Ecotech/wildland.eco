@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 /**
  * One attempt to sign in at /login, recorded by RecordLoginAttempt whether
@@ -101,6 +102,51 @@ class LoginAttempt extends Model
     public function succeeded(): bool
     {
         return $this->outcome === self::OUTCOME_SIGNED_IN;
+    }
+
+    /**
+     * Whether it didn't sign anyone in, for whatever reason.
+     */
+    public function failed(): bool
+    {
+        return ! $this->succeeded();
+    }
+
+    /**
+     * The browser, roughly, from its user agent, such as "Firefox on Linux"
+     * or "Safari on iPhone". A user agent that isn't a familiar browser,
+     * such as a script's "curl/8.5.0", is shown as it is, cut short; it's
+     * often the sign of someone guessing passwords. Empty without one.
+     */
+    public function browser(): string
+    {
+        $agent = (string) $this->user_agent;
+
+        // In the order that tells them apart: Edge and Opera also say
+        // Chrome, Chrome also says Safari, and an iPhone also says Mac OS X
+        $browser = match (true) {
+            str_contains($agent, 'HeadlessChrome/') => null,
+            str_contains($agent, 'Edg/') || str_contains($agent, 'EdgiOS/') || str_contains($agent, 'EdgA/') => 'Edge',
+            str_contains($agent, 'OPR/') => 'Opera',
+            str_contains($agent, 'SamsungBrowser/') => 'Samsung Internet',
+            str_contains($agent, 'Firefox/') || str_contains($agent, 'FxiOS/') => 'Firefox',
+            str_contains($agent, 'Chrome/') || str_contains($agent, 'CriOS/') => 'Chrome',
+            str_contains($agent, 'Safari/') => 'Safari',
+            default => null,
+        };
+
+        $system = match (true) {
+            str_contains($agent, 'iPhone') => 'iPhone',
+            str_contains($agent, 'iPad') => 'iPad',
+            str_contains($agent, 'Android') => 'Android',
+            str_contains($agent, 'CrOS') => 'ChromeOS',
+            str_contains($agent, 'Windows') => 'Windows',
+            str_contains($agent, 'Macintosh') => 'Mac',
+            str_contains($agent, 'Linux') => 'Linux',
+            default => null,
+        };
+
+        return $browser !== null && $system !== null ? "{$browser} on {$system}" : Str::limit($agent, 60);
     }
 
     /**
