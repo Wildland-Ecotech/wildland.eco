@@ -24,6 +24,13 @@ Settling an application's contact by hand, from its admin page (see [Admin Pages
 - `markReviewed($application, $admin)`: records who looked and when (`contact_reviewed_at`, `contact_reviewed_by`).
 - `move($application, $contact, $admin)`: links it to `$contact`, or with `null` to a new contact with its name, email, phone number, and address. An existing contact gets its email and phone number, not as the main ones (`addDetail()`), and its address if they have none, since the admin has said it's the same person. A flagged application is marked reviewed. The contact it was linked to stays as it is, to merge or leave. Runs in a transaction.
 
+### LocationImport (`app/Services/LocationImport.php`)
+
+Locations pasted on the Map page (see [Admin Pages](03-routes-and-controllers.md#admin-pages)), as [addresses:geocode](#addressesgeocode-appconsolecommandsgeocodeaddressesphp) prints them: one per line, an address's ID, a tab or spaces, and a latitude and longitude separated by a comma, such as `42	40.58985,-105.08191`. Lines starting with `#` are left out.
+
+- `preview($text)`: each line with what it would do: `save`, `replace` (the address already has a location), `unknown` (no address with that ID, or its contact is deleted), `changed` (the address was replaced since it was copied, so the location may be for the old one), `outside` (not inside Colorado, roughly latitude 36.95 to 41.05 and longitude −109.1 to −102.0), `invalid` (not an ID and a location), or `repeated` (a later line has the same ID, and the later one counts). `RESULT_LABELS` words them for the page.
+- `save($text, $admin)`: sets each location that would be saved or replaced (`ContactDetail::locate()`), recording the admin, in one transaction, and returns how many.
+
 ### ContactMerger (`app/Services/ContactMerger.php`)
 
 Merges one contact into another, when an admin finds they're the same person, from the contact page's Merge button. `merge($from, $into, $admin)`, in a transaction:
@@ -180,6 +187,7 @@ The queries behind the report commands and admin pages, as plain classes, so the
 | `AbandonedCheckoutReport` | `list($days)`: abandoned checkouts with `donated_later`, from the last `$days` days or ever with `null` | `donations:abandoned`, `/admin/donations/abandoned` |
 | `LeafApplicationReport` | `list($days, $types)`: applications from the last `$days` days or ever with `null`, limited to some of `LeafApplication::TYPES`. `find($id)`, including a deleted application | `leaves:applications`, `leaves:view`, `/admin/leaves` |
 | `ContactReport` | `list($search)`: contacts, not deleted, with the most recent applicant first and those without an application last, each with its current details, `applications_count`, and `applications_max_created_at`. `$search` matches part of a name or email, ignoring case, or part of a phone number's digits however it was written, including previous emails and phone numbers; LIKE wildcards are taken literally. `find($id)`: one contact, not deleted, with every detail and their applications, newest first. `sharing($contact)`: other contacts, not deleted, with one of its current emails or phone numbers as a current one of theirs, each with the shared values; previous ones don't count, so changing a number settles it. `mergedInto($id)`: the contact a merged contact became part of, following merges of merges. `contactsFor($submissions)`: each form submission's contact, keyed by its ID: the contact of the application it made, or else one with its email, or else with its phone number | `/admin/contacts`, the names on `/admin/leaves` and `/admin/errors` |
+| `MapReport` | `pickups()`: pending pickup applications, soonest first (ready now in the order they applied, then by ready date), each with its contact, the contact's current address and location, how urgent it is (`now`: ready now, overdue, or within 7 days; `soon`: within 14; `later`), and the days until the bags are ready. `sites()`: the drop-off sites with their addresses. `everything()`: every contact whose current address has a location, as a site, a pickup in its color, or `other`. `search($search, $contacts)`: contacts as Contacts' search finds them, up to 10, each with the drop-off sites nearest first and the straight-line distance in miles. `unlocatedLines()`: current addresses without a location to copy for the geocoder, drop-off sites first, then those waiting for a pickup, then those waiting to drop off, then everyone else, each as the ID, a tab, and the address without its ZIP code (`withoutZip()`) | The Map page (`/admin/map`) |
 | `FollowUpReport` | `pending()`: pending applications, not deleted, in the order to follow up with them, each with its group (`tier`: `waiting`, `ready`, `contacted`, or `later`, listed in that order, each oldest application first), its `reason`, and `last_reached_at`, when we last reached them since they applied. Reaching someone is a text or call from us, or a visit; notes don't count. Each gets the first reason that fits: `unanswered` (waiting: their last text or call came from them), `follow_up_due` (waiting: the follow-up date has come, and nobody has reached them since it), `follow_up_later` (later: it's still to come), `not_reached` (waiting: nobody has reached them a week after they applied), `ready_later` (later: bags not ready for more than a week, so they move up a week before), `ready` (nobody has reached them yet, and the bags are ready now or within a week), or `contacted` (we've reached them; the pickup or drop-off is still to come). Days are Fort Collins days | Needs follow-up on `/admin/contacts`, a contact's page, the Follow-up column on `/admin/leaves` and an application's page, and the dashboard's warning (`FollowUpNotice`) |
 | `FollowUpNotice` | `text()`: the dashboard's warning while contacts are waiting to hear from us or have bags ready, counted as Contacts' Needs follow-up lists them, such as "3 people are waiting to hear from us, and 2 more have bags ready.", or null | The dashboard (`/admin`) |
 | `FormSubmissionReport` | `list($days, $forms, $all, $submittedLater, $resolvedByAdmin, $spamAndTests)`: submissions from the last `$days` days or ever with `null`, limited to some of `FormSubmission::FORMS`, that need a follow-up, or all of them with `$all`. Each comes with `$submission->laterSubmission`, the visitor's later successful submission of the same form, if any (see [Follow-ups](01-database-schema.md#form_submissions)). `followUp($submission)` says where each stands (`FOLLOW_UP_SUBMITTED_LATER`, `FOLLOW_UP_RESOLVED`, `FOLLOW_UP_TEST`, `FOLLOW_UP_SPAM`, or `FOLLOW_UP_UNRESOLVED`); unresolved ones are always listed, and the three flags include the others (the first two by default). `find($reference)`: one submission whatever its outcome, case-insensitively, with its later submission. `forContact($contact)`: the submissions needing a follow-up that came from a contact, closed ones too, newest first: those that made one of their applications, or with one of their emails or phone numbers (compared once their spelling is normalized), current or previous. `needsAttention($submission)` | `submissions:list`, `/admin/errors`, the dashboard's unresolved errors |
@@ -435,6 +443,26 @@ docker compose exec app php artisan leaves:view 12
 ```
 
 The output contains the donor's personal contact details: never paste it into issues or chat.
+
+### addresses:geocode (`app/Console/Commands/GeocodeAddresses.php`)
+
+Looks up addresses copied from the Map page in the local [Geocoder](07-deployment.md#geocoder) and prints their locations, to paste back on the page. It runs only on an admin's computer (the `local` environment, or `testing`), so no address leaves it; on a server it refuses.
+
+| Argument or option | Default | Effect |
+|--------|---------|--------|
+| `file` | standard input | A file of lines copied from the Map page: an address's ID, a tab, and the address. Without one, it reads what's pasted or piped in; in a terminal it asks for the lines, and they end with Enter and Ctrl+D |
+| `--url` | `http://geocoder:8080` | The geocoder, as the `app` container reaches it |
+
+For each address, without any ZIP code, it searches free-form (`q`, `format=jsonv2`, `limit=1`, `countrycodes=us`), and when that doesn't find the house, searches with the street, city, and state as separate fields (never `postalcode`), keeping the higher-ranked result. Only a result at a house (`place_rank` 30) is printed, as `42	40.5898512,-105.0819134`. After the locations, on standard error with `#` in front so redirecting the output keeps only lines to paste, it lists those where only the street was found (with the street's coordinates, to check on a map) and those it couldn't place. If the geocoder can't be reached it says how to start it and fails. No throttling, since the geocoder is ours.
+
+Run it, paste the lines from the Map page, then press Enter and Ctrl+D, so the addresses never go into a file. It marks where the output to copy begins with a `#` line, which the Map page leaves out with the other `#` lines:
+
+```bash
+docker compose --profile geocoder up -d geocoder
+docker compose exec app php artisan addresses:geocode
+```
+
+A file works too (`docker compose exec -T app php artisan addresses:geocode < addresses.txt`); keep it outside the repository and delete it after. The addresses are personal: never paste them or the output into issues or chat.
 
 ### contacts:link (`app/Console/Commands/LinkContacts.php`)
 

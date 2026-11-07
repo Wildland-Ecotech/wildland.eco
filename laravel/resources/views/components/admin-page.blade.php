@@ -15,6 +15,7 @@
     $links = [
         'admin' => 'Dashboard',
         'admin.contacts' => 'Contacts',
+        'admin.map' => 'Map',
         'admin.leaves' => 'Leaf Applications',
         'admin.donations' => 'Donations',
         'admin.errors' => 'Error Logs',

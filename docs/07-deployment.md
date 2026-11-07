@@ -141,9 +141,16 @@ curl 'http://localhost:8088/search?q=300+Laporte+Ave,+Fort+Collins,+CO&format=js
 
 The result's `lat` and `lon` are the coordinates. Stop it with `docker compose stop geocoder` when you're done; it doesn't start again on its own.
 
+**Locating contacts' addresses:** the Map page's Locate Addresses section lists the addresses without a location, one per line. Copy them, run [addresses:geocode](02-services-and-commands.md#addressesgeocode-appconsolecommandsgeocodeaddressesphp), paste them into the terminal, press Enter and Ctrl+D, and paste everything it prints into the same section. Nothing goes into a file. The page previews each line and saves only when you confirm. Anyone signed in as an admin can paste a location typed by hand the same way, such as one found on a map for an address the geocoder couldn't place. New applications appear on the map only once their addresses are located; at a few dozen a week, that's a minute's work. Re-import every few months (below) to pick up new streets and house numbers.
+
+```bash
+docker compose --profile geocoder up -d geocoder
+docker compose exec app php artisan addresses:geocode
+```
+
 Settings in the root `.env`, read only by the first import:
 
-- `GEOCODER_TIGER=true` adds US Census (TIGER) house numbers where OpenStreetMap has none. The download covers the whole US and is much larger, so try addresses without it first.
+- `GEOCODER_TIGER=true` adds US Census (TIGER) house numbers where OpenStreetMap has none. Keep it on: without it, real Fort Collins addresses were found only at the street. TIGER numbers are spread evenly along each block, so a location can be a few houses off, which is close enough for planning pickups. The download covers the whole US, and its step ("Importing Tiger address data", after the OpenStreetMap import, which takes about 6½ minutes) reads all 3,235 county files with little output, so it can run for a long time; don't stop it partway, or the import has to start over. `docker stats` shows it's still busy. A TIGER file cut down to Colorado's counties would make it faster.
 - `GEOCODER_PBF_URL` imports a different Geofabrik extract.
 
 To re-import, for newer data or after changing a setting, remove the container and its volume, then start it again:
@@ -162,6 +169,13 @@ Tests run against the `db-test` service, a separate PostgreSQL + PostGIS databas
 ```bash
 docker compose --profile testing up -d db-test
 docker compose exec app php artisan test
+```
+
+After pulling changes, or switching branches, clear Laravel's caches first, and rebuild the styles and scripts when they changed, so tests and pages don't use a stale compiled view, route, or stylesheet:
+
+```bash
+docker compose exec app php artisan optimize:clear
+docker compose run --rm node npm run build
 ```
 
 Its data is kept in memory and discarded whenever the container stops, and tests that use the database migrate it from scratch. `phpunit.xml` points the database settings at `db-test`, and `tests/TestCase.php` stops every test before it touches a database if the connection is anything else, for example when the configuration is cached (run `docker compose exec app php artisan config:clear`).
