@@ -4,12 +4,19 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Admin\Traits\FiltersByPeriod;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\LinkApplicationContactRequest;
+use App\Models\Contact;
+use App\Models\ContactDetail;
 use App\Models\LeafApplication;
+use App\Reports\FollowUpReport;
 use App\Reports\LeafApplicationReport;
+use App\Reports\Traits\DescribesFollowUps;
 use App\Reports\Traits\DescribesLeafApplications;
 use App\Reports\Traits\FormatsCsv;
 use Illuminate\Http\Request;
+use App\Services\ApplicationReview;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -17,11 +24,15 @@ use Illuminate\View\View;
  * The admin leaf application pages (/admin/leaves): the list of applications
  * with filters and a CSV download, and one application in full. They show
  * the same records and values as leaves:applications and leaves:view, from
- * LeafApplicationReport and DescribesLeafApplications.
+ * LeafApplicationReport and DescribesLeafApplications, with each
+ * application's follow-up: complete, not linked to a contact yet, or its
+ * follow-up group and why (FollowUpReport). An application's page also shows
+ * its contact, and why it needs review, with the forms that settle it
+ * (ApplicationContactController).
  */
 class LeafApplicationController extends Controller
 {
-    use DescribesLeafApplications, FiltersByPeriod, FormatsCsv;
+    use DescribesFollowUps, DescribesLeafApplications, FiltersByPeriod, FormatsCsv;
 
     /**
      * The type filters' labels, keyed by LeafApplication::TYPES.
@@ -43,27 +54,44 @@ class LeafApplicationController extends Controller
     /**
      * The list of applications, filtered by the query string.
      */
-    public function index(Request $request, LeafApplicationReport $report): View
+    public function index(Request $request, LeafApplicationReport $report, FollowUpReport $followUpReport): View
     {
         $filters = $this->filters($request);
-        $applications = $report->list(self::PERIODS[$filters['period']], $filters['types']);
+        $applications = $report->list(self::PERIODS[$filters['period']], $filters['types'])->load('contact');
         $count = $applications->count();
+        $followUps = $followUpReport->pending()->keyBy(fn (array $item) => $item['application']->id);
 
         return view('pages.admin.leaves.index', [
             'filters' => $filters,
             'summary' => $this->periodSummary($filters['period'], $count, $this->leafApplicationListName($filters['types'], $count)),
-            'headers' => self::LEAF_APPLICATION_TABLE_HEADERS,
-            'rows' => $applications->map(fn (LeafApplication $application) => [
-                // Like leaves:applications's row, with a shorter time for the page
-                'cells' => array_replace($this->leafApplicationTableRow($application), [1 => $this->listTime($application->created_at)]),
-                'summary' => [
-                    $this->shortDate($application->created_at),
-                    $application->name,
-                    $this->leafApplicationType($application),
-                    $application->estimated_bag_count . ' ' . Str::plural('bag', $application->estimated_bag_count),
-                ],
-                'url' => route('admin.leaves.show', $application->id),
-            ])->all(),
+            'headers' => [...self::LEAF_APPLICATION_TABLE_HEADERS, 'Follow-up'],
+            'rows' => $applications->map(function (LeafApplication $application) use ($followUps) {
+                $followUp = $this->followUpCell($application, $followUps->get($application->id));
+
+                return [
+                    // Like leaves:applications's row, with a shorter time for
+                    // the page, the name linking to the person's contact, and
+                    // the follow-up
+                    'cells' => [
+                        ...array_replace($this->leafApplicationTableRow($application), array_filter([
+                            1 => $this->listTime($application->created_at),
+                            2 => $application->contact && ! $application->contact->trashed()
+                                ? ['text' => $application->name, 'url' => route('admin.contacts.show', $application->contact_id)]
+                                : null,
+                        ])),
+                        $followUp,
+                    ],
+                    'summary' => [
+                        $this->shortDate($application->created_at),
+                        $application->name,
+                        $this->leafApplicationType($application),
+                        $application->estimated_bag_count . ' ' . Str::plural('bag', $application->estimated_bag_count),
+                    ],
+                    'badge' => $followUp['badge'],
+                    'badgeTone' => $followUp['tone'],
+                    'url' => route('admin.leaves.show', $application->id),
+                ];
+            })->all(),
             'csvUrl' => route('admin.leaves.csv', $this->query($filters)),
         ]);
     }
@@ -86,24 +114,115 @@ class LeafApplicationController extends Controller
     }
 
     /**
-     * One application in full, including a deleted one, marked as deleted.
+     * One application in full, including a deleted one, marked as deleted,
+     * with its contact.
      */
-    public function show(string $application, LeafApplicationReport $report): View
+    public function show(string $application, LeafApplicationReport $report, ApplicationReview $review, FollowUpReport $followUpReport): View
     {
         // The route only matches digits
         $record = $report->find((int) $application);
 
         abort_if($record === null, 404);
 
+        $candidates = $review->candidates($record);
+
         return view('pages.admin.leaves.show', [
             'application' => $record,
             'fields' => [
                 'Applied' => $this->localTime($record->created_at),
+                // Not for a deleted application, which the follow-up list leaves out
+                ...($record->trashed() ? [] : ['Follow-up' => $this->followUpLine(
+                    $this->followUpCell($record, $followUpReport->pending()->first(fn (array $item) => $item['application']->id === $record->id)),
+                )]),
                 ...$this->leafApplicationFields($record),
                 'Terms accepted' => $this->localTime($record->terms_accepted_at),
             ],
             'deletedAt' => $record->trashed() ? $this->localTime($record->deleted_at) : null,
+            'contact' => $record->contact,
+            'reviewReasons' => $record->needsContactReview() ? $this->reviewReasons($record, $candidates) : [],
+            'reviewedNote' => $this->reviewedNote($record),
+            'contactOptions' => [
+                ...$candidates->map(fn (array $candidate) => [
+                    'value' => (string) $candidate['contact']->id,
+                    'label' => $candidate['contact']->name . ' · ' . ($candidate['types'][0] === ContactDetail::TYPE_EMAIL ? $record->email : $record->phone),
+                ])->all(),
+                ['value' => LinkApplicationContactRequest::NEW_CONTACT, 'label' => 'A new contact'],
+            ],
         ]);
+    }
+
+    /**
+     * An application's follow-up: complete once its pickup or drop-off is
+     * logged, not linked to a contact yet (Needs Review lists it), or its
+     * follow-up group and why, as FollowUpReport gives them. A cell for the
+     * list: a label with its tone, then words.
+     *
+     * @param  array{application: LeafApplication, tier: string, reason: string, last_reached_at: ?\Carbon\CarbonInterface}|null  $item
+     * @return array{badge: string, tone: ?string, text: string}
+     */
+    private function followUpCell(LeafApplication $application, ?array $item): array
+    {
+        return match (true) {
+            $application->status === LeafApplication::STATUS_COMPLETE => ['badge' => 'Complete', 'tone' => 'muted', 'text' => ''],
+            $application->contact_id === null => ['badge' => 'Not linked', 'tone' => 'soon', 'text' => 'Link it to a contact'],
+            $item !== null => [
+                'badge' => self::FOLLOW_UP_GROUP_LABELS[$item['tier']],
+                'tone' => self::FOLLOW_UP_GROUP_TONES[$item['tier']],
+                'text' => $this->followUpReason($item),
+            ],
+            default => ['badge' => 'Pending', 'tone' => null, 'text' => ''],
+        };
+    }
+
+    /**
+     * The follow-up as one line for an application's page, such as "Waiting
+     * on us · No word from us in 9 days" or "Complete".
+     *
+     * @param  array{badge: string, tone: ?string, text: string}  $cell
+     */
+    private function followUpLine(array $cell): string
+    {
+        return $cell['badge'] . ($cell['text'] !== '' ? ' · ' . $cell['text'] : '');
+    }
+
+    /**
+     * Why the application's contact needs review, one sentence each as
+     * HTML, naming the other contacts it's about with links to them. Every
+     * part is escaped here, so the page prints the sentences as they are.
+     *
+     * @param  Collection<int, array{contact: Contact, types: list<string>}>  $candidates
+     * @return list<string>
+     */
+    private function reviewReasons(LeafApplication $application, Collection $candidates): array
+    {
+        $link = fn (array $candidate, string $note = '') => '<a href="' . e(route('admin.contacts.show', $candidate['contact']->id)) . '">' . e($candidate['contact']->name) . '</a>' . e($note);
+        $sharing = fn (string $type) => $candidates->filter(fn (array $candidate) => in_array($type, $candidate['types'], true))->map(fn (array $candidate) => $link($candidate))->all();
+        $sentence = fn (string $text, array $links = []) => e($text) . ($links === [] ? '' : ': ' . implode(', ', $links)) . '.';
+
+        return collect($application->contact_review)->map(fn (string $reason) => match ($reason) {
+            LeafApplication::REVIEW_SHARED_EMAIL => $sentence('Email also on another contact', $sharing(ContactDetail::TYPE_EMAIL)),
+            LeafApplication::REVIEW_SHARED_PHONE => $sentence('Phone number also on another contact', $sharing(ContactDetail::TYPE_PHONE)),
+            LeafApplication::REVIEW_ADDRESS => $sentence('Different address from the contact’s current one'),
+            LeafApplication::REVIEW_CONFLICT => $sentence('Matches more than one contact with this name', $candidates->map(
+                fn (array $candidate) => $link($candidate, ' (by ' . ($candidate['types'][0] === ContactDetail::TYPE_EMAIL ? 'email' : 'phone number') . ')'),
+            )->all()),
+            default => $sentence(LeafApplication::REVIEW_LABELS[$reason] ?? $reason),
+        })->values()->all();
+    }
+
+    /**
+     * Who reviewed the application's contact, and when, or null.
+     */
+    private function reviewedNote(LeafApplication $application): ?string
+    {
+        if ($application->contact_reviewed_at === null) {
+            return null;
+        }
+
+        $reviewer = $application->contactReviewer;
+        $by = $reviewer ? ' by ' . ($reviewer->name ?: $reviewer->email) : '';
+
+        return "Reviewed{$by} on {$this->listTime($application->contact_reviewed_at)}.";
     }
 
     /**

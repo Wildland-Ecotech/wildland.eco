@@ -8,8 +8,17 @@
 
 $green: #2ECF9E;
 $error: #FF8A80;
+// Something to do soon, such as a contact whose bags are ready
+$caution: #FFD166;
 // Dividers between rows, sections, and the dashboard's numbers
 $line: rgba(255, 255, 255, 0.15);
+// Fields' labels, and the height of menus and small buttons, so filters,
+// checkboxes, and buttons in a row line up
+$label-size: 17px;
+$label-line-height: 1.35;
+$label-offset: $label-size * ($label-line-height + 0.4);
+$control-line-height: 1.3;
+$control-height: 16px * $control-line-height + 16px + 4px;
 
 .admin-page {
     .card {
@@ -62,7 +71,8 @@ $line: rgba(255, 255, 255, 0.15);
 
     label {
         display: block;
-        font-size: 17px;
+        font-size: $label-size;
+        line-height: $label-line-height;
         font-weight: 700;
         color: #fff;
         margin-bottom: 0.4em;
@@ -72,7 +82,8 @@ $line: rgba(255, 255, 255, 0.15);
     // filters and the forms that act on records
     legend {
         display: block;
-        font-size: 17px;
+        font-size: $label-size;
+        line-height: $label-line-height;
         font-weight: 700;
         color: #fff;
         margin-bottom: 0.4em;
@@ -87,6 +98,11 @@ $line: rgba(255, 255, 255, 0.15);
         color: #fff;
         font-family: satoshi;
         font-size: 16px;
+        line-height: $control-line-height;
+        // The height of small buttons, which browsers don't take from the
+        // line height alone
+        height: $control-height;
+        box-sizing: border-box;
         color-scheme: dark;
 
         &:focus {
@@ -113,8 +129,13 @@ $line: rgba(255, 255, 255, 0.15);
         }
     }
 
+    input[type="text"],
+    input[type="tel"],
     input[type="email"],
     input[type="password"],
+    input[type="number"],
+    input[type="date"],
+    input[type="datetime-local"],
     textarea {
         display: block;
         width: 100%;
@@ -136,6 +157,17 @@ $line: rgba(255, 255, 255, 0.15);
         &[aria-invalid="true"] {
             border-color: $error;
         }
+    }
+
+    // Dates, times, and counts take only the width they need
+    input[type="number"],
+    input[type="date"],
+    input[type="datetime-local"] {
+        max-width: 16em;
+    }
+
+    input[type="number"] {
+        max-width: 8em;
     }
 
     textarea {
@@ -194,12 +226,29 @@ $line: rgba(255, 255, 255, 0.15);
         white-space: nowrap;
     }
 
+    // Sign Out, in the card's top right corner, apart from the navigation,
+    // with a gray border so it doesn't stand out like an action on the page
+    .card.wide {
+        position: relative;
+    }
+
+    .sign-out {
+        position: absolute;
+        top: 1.25em;
+        right: 1.25em;
+        margin: 0;
+
+        .button {
+            margin: 0;
+            border-color: rgba(255, 255, 255, 0.35);
+
+            &:hover {
+                border-color: rgba(255, 255, 255, 0.6);
+            }
+        }
+    }
+
     .admin-nav {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        align-items: center;
-        gap: 0.5em 1.5em;
         margin: 0.5em 0 2em;
         padding-bottom: 1.25em;
         border-bottom: 1px solid $line;
@@ -215,6 +264,12 @@ $line: rgba(255, 255, 255, 0.15);
             list-style: none;
         }
 
+        // Without the content page's spacing between list items, so links
+        // that wrap on a phone stay close together
+        li {
+            margin: 0;
+        }
+
         a {
             color: $green;
             font-size: 17px;
@@ -228,19 +283,19 @@ $line: rgba(255, 255, 255, 0.15);
                 text-underline-offset: 6px;
             }
         }
+    }
 
-        .sign-out {
-            background: none;
-            border: 0;
-            padding: 0;
-            color: rgba(255, 255, 255, 0.6);
-            font-family: satoshi;
-            font-size: 15px;
-            cursor: pointer;
+    // Buttons to a page's related pages, such as Abandoned Checkouts on
+    // Donations, on the right of the page's filters
+    .page-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 0.75em;
+        margin: 0 0 1.5em;
 
-            &:hover {
-                color: #fff;
-            }
+        .button {
+            margin: 0;
         }
     }
 
@@ -258,9 +313,68 @@ $line: rgba(255, 255, 255, 0.15);
             min-width: 0;
         }
 
+        // Checkboxes as tall as the menus beside them, so they line up
+        .checkbox {
+            min-height: $control-height;
+            margin-bottom: 0;
+        }
+
         .hint {
             @include type.fine-print;
             margin: 0.2em 0 0;
+        }
+
+        // A search box, as tall as the menus and buttons beside it
+        input[type="search"] {
+            display: block;
+            width: 22em;
+            max-width: 100%;
+            height: $control-height;
+            box-sizing: border-box;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(46, 207, 158, 0.3);
+            border-radius: 10px;
+            padding: 0 0.75em;
+            color: #fff;
+            font-family: satoshi;
+            font-size: 16px;
+            outline: none;
+            color-scheme: dark;
+
+            &:focus {
+                border-color: $green;
+            }
+        }
+
+        // The search box with its button beside it
+        .search-box {
+            display: flex;
+            gap: 0.75em;
+
+            input[type="search"] {
+                flex: 0 1 22em;
+                min-width: 0;
+            }
+
+            .button {
+                margin: 0;
+            }
+        }
+
+        // With page actions beside them, the filters wrap in their own
+        // group, so the actions stay on the right of the first row, level
+        // with the menus
+        .filter-group {
+            display: flex;
+            flex: 1;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            gap: 1em 2em;
+            min-width: 0;
+        }
+
+        .page-actions {
+            margin: $label-offset 0 0 auto;
         }
 
         .filter-actions {
@@ -309,6 +423,17 @@ $line: rgba(255, 255, 255, 0.15);
         font-size: 26px;
     }
 
+    // A part of a section, such as each grouping of the dashboard's totals:
+    // white rather than the section heading's gradient, so the sections
+    // stand out from their parts
+    .admin-content h3 {
+        display: block;
+        margin: 1.5em 0 0.5em;
+        font-size: 16px;
+        color: #fff;
+        background: none;
+    }
+
     .notice {
         border: 2px solid rgba(46, 207, 158, 0.6);
         border-radius: 10px;
@@ -317,14 +442,87 @@ $line: rgba(255, 255, 255, 0.15);
         margin: 0 0 1.5em;
         font-size: 16px;
         color: rgba(255, 255, 255, 0.85);
+
+        a {
+            color: $green;
+            text-decoration: underline;
+        }
     }
 
-    // The dashboard's overview: open numbers side by side, separated by thin
+    // Something to act on soon, such as people waiting to hear from us on
+    // the dashboard: red, with its button after the words
+    .notice.warning {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75em 1.5em;
+        margin: 0 0 2em;
+        border-color: $error;
+        background: rgba(255, 138, 128, 0.12);
+
+        p {
+            margin: 0;
+            font-size: 18px;
+            color: #fff;
+        }
+
+        .button {
+            margin: 0;
+            color: #fff;
+            text-decoration: none;
+        }
+    }
+
+    // A short label beside a name, such as a drop-off site's or a contact's
+    // follow-up group on Contacts: green by default, red for someone to
+    // reach now, yellow for someone to reach soon, and gray for someone who
+    // can wait
+    .badge {
+        display: inline-block;
+        margin-left: 0.5em;
+        padding: 0.05em 0.6em;
+        border: 1px solid rgba(46, 207, 158, 0.6);
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 400;
+        color: $green;
+        white-space: nowrap;
+        vertical-align: 0.1em;
+
+        &.urgent {
+            border-color: $error;
+            background: rgba(255, 138, 128, 0.15);
+            color: $error;
+            font-weight: 700;
+        }
+
+        &.soon {
+            border-color: $caution;
+            background: rgba(255, 209, 102, 0.12);
+            color: $caution;
+        }
+
+        &.muted {
+            border-color: rgba(255, 255, 255, 0.35);
+            color: rgba(255, 255, 255, 0.65);
+        }
+    }
+
+    // A label starting a list cell, such as an application's follow-up
+    .records-table td > .badge:first-child,
+    .records-list dd > .badge:first-child {
+        margin-left: 0;
+    }
+
+    // The dashboard's overview: open numbers side by side, as many as there
+    // are, separated by thin
     // lines, each with a short gradient bar under its label, and linking to
     // its list. The bar grows on hover.
     .overview {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-auto-flow: column;
+        grid-auto-columns: 1fr;
         margin: 0 0 1.5em;
         padding: 0;
         list-style: none;
@@ -489,6 +687,12 @@ $line: rgba(255, 255, 255, 0.15);
         font-size: 16px;
     }
 
+    // Clear of a list above it, such as a contact's applications
+    .admin-records + .back {
+        display: inline-block;
+        margin-top: 1.5em;
+    }
+
     // A value after a status icon, such as an error's follow-up: a check, a
     // cross, or a dash in a colored circle, always beside words, since color
     // alone doesn't carry meaning
@@ -592,6 +796,222 @@ $line: rgba(255, 255, 255, 0.15);
     }
 
     // Closing one submission as resolved, a test, or spam, or reopening it
+    // Forms that add or edit a record, such as a contact: fields one under
+    // another, no wider than they need to be
+    .record-form {
+        max-width: 640px;
+        margin: 0 0 2em;
+
+        fieldset {
+            margin: 0 0 1.25em;
+            padding: 0;
+            border: 0;
+            min-width: 0;
+        }
+
+        .hint {
+            @include type.fine-print;
+            margin: 0.4em 0 0;
+        }
+    }
+
+    // A field with its button beside it, such as adding a phone number: the
+    // field as tall as the button
+    .field-with-button {
+        display: flex;
+        gap: 0.75em;
+        max-width: 640px;
+
+        select {
+            flex: 1;
+            min-width: 0;
+        }
+
+        // Filling the row, so its button lines up with the buttons of the
+        // list above it
+        input {
+            flex: 1;
+            min-width: 0;
+            height: $control-height;
+            padding: 0 0.75em;
+            font-size: 16px;
+        }
+
+        .button {
+            flex: none;
+            margin: 0;
+        }
+    }
+
+    // Buttons for the record above them, such as Edit Contact after a
+    // contact's details, or for the section they start, such as Log
+    // Activity under Timeline
+    .record-actions {
+        margin: -0.5em 0 2em;
+
+        .button {
+            margin: 0;
+        }
+    }
+
+    h2 + .record-actions {
+        margin: 0 0 1.25em;
+    }
+
+    // Links within text, a record's values, and list cells, such as the
+    // contact an application belongs to
+    .summary a,
+    .record dd a,
+    .records-table td a,
+    .detail-list a {
+        color: $green;
+        text-decoration: underline;
+    }
+
+    // What a list's buttons do, under the list, such as merging contacts
+    .detail-hint {
+        @include type.fine-print;
+        max-width: 640px;
+        margin: -0.25em 0 2em;
+    }
+
+    // The ways to settle an application's contact, one under another
+    .review-actions {
+        display: grid;
+        gap: 1.5em;
+        justify-items: start;
+        margin: 0 0 2em;
+
+        form {
+            width: 100%;
+            margin: 0;
+        }
+
+        .button {
+            margin: 0;
+        }
+    }
+
+    // A form's buttons and its Cancel link, in a row
+    .form-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1em 1.5em;
+        margin: 1.5em 0 0;
+
+        .button {
+            margin: 0;
+        }
+    }
+
+    // Logging a text, call, visit, note, pickup, or drop-off on a contact's
+    // timeline. Fields that don't apply to the kind chosen are hidden where
+    // browsers support :has(); elsewhere every field shows, and the server
+    // ignores the ones that don't apply.
+    .log-form {
+        &:has(input[name="type"][value="visit"]:checked, input[name="type"][value="note"]:checked, input[name="type"][value="pickup"]:checked, input[name="type"][value="drop_off"]:checked) .direction-field {
+            display: none;
+        }
+
+        &:not(:has(input[name="type"][value="pickup"]:checked, input[name="type"][value="drop_off"]:checked)) .bags-field {
+            display: none;
+        }
+    }
+
+    // A contact's timeline, newest first: when, what happened, and what was
+    // said, with a line down the left, white for what came from them
+    .timeline {
+        max-width: 760px;
+        margin: 0 0 2em;
+        padding: 0;
+        list-style: none;
+
+        li {
+            margin: 0;
+            padding: 0.6em 0 0.9em 1em;
+            border-left: 2px solid rgba(46, 207, 158, 0.5);
+            font-size: 16px;
+            color: #fff;
+
+            &.incoming {
+                border-left-color: rgba(255, 255, 255, 0.7);
+            }
+
+            // Added automatically, such as an application
+            &.automatic {
+                border-left-color: $line;
+            }
+        }
+
+        p {
+            font-size: 16px;
+            line-height: 1.45;
+        }
+
+        .timeline-when {
+            margin: 0;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .timeline-what {
+            margin: 0.15em 0 0;
+            font-weight: 700;
+        }
+
+        .timeline-body {
+            margin: 0.3em 0 0;
+            color: rgba(255, 255, 255, 0.85);
+            white-space: pre-line;
+            overflow-wrap: anywhere;
+        }
+
+        a {
+            color: $green;
+            text-decoration: underline;
+        }
+    }
+
+    // A record's emails, phone numbers, or address while editing, one per
+    // line with its buttons on the right
+    .detail-list {
+        max-width: 640px;
+        margin: 0 0 1em;
+        padding: 0;
+        list-style: none;
+
+        li {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5em 0.75em;
+            margin: 0;
+            padding: 0.6em 0.25em;
+            border-bottom: 1px solid $line;
+            font-size: 16px;
+            color: #fff;
+        }
+
+        .detail-value {
+            flex: 1;
+            min-width: 12em;
+            overflow-wrap: anywhere;
+        }
+
+        .detail-note {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        form {
+            margin: 0;
+        }
+
+        .button {
+            margin: 0;
+        }
+    }
+
     .close-form {
         margin: 0 0 2em;
 
@@ -617,14 +1037,44 @@ $line: rgba(255, 255, 255, 0.15);
 
 @media screen and (max-width: 759px) {
     .admin-page {
+        // Sign Out on its own line at the top right, clear of the heading
+        .sign-out {
+            position: static;
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 0.5em;
+        }
+
+        // Above the filters, the width of the screen
+        .filters .page-actions {
+            order: -1;
+            flex-basis: 100%;
+            margin: 0;
+
+            .button {
+                flex: 1;
+            }
+        }
+
         .records-table {
             display: none;
         }
 
-        // The overview's numbers stay side by side, smaller
+        // The overview's numbers two by two, smaller, each row starting
+        // without a line
         .overview {
+            grid-auto-flow: row;
+            grid-template-columns: repeat(2, 1fr);
+            row-gap: 1.5em;
+
             li {
+                margin: 0;
                 padding: 0.25em 0.75em;
+
+                &:nth-child(odd) {
+                    padding-left: 0;
+                    border-left: 0;
+                }
             }
 
             .count {

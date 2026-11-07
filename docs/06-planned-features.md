@@ -118,7 +118,7 @@ After launch. See [Accounts](#accounts). The dashboard shows donation history, a
 
 ### 10. Administrator Pages
 
-In progress. Admins are created with `users:admin` and sign in at `/login` with an email address and password (see [Signing In](03-routes-and-controllers.md#signing-in)). Done: the donation and leaf application lists with filters and CSV downloads, and a donation or application in full (see [Admin Pages](03-routes-and-controllers.md#admin-pages)). Also done: a dashboard with counts for the last 90 days, the totals and abandoned checkout pages, and Error Logs, form submissions that didn't go through, which may grow into general error reporting. Next: the CRM, planned in its own session. Planned: pages for users with the `admin` role, which board members are given too: donor search, donation and subscription lists with filters, a donor detail page with full history, CSV export, and the reports below. Refunds are issued from the Stripe dashboard and synced back automatically. Administrators can soft-delete spam accounts that have no transaction history (see [Deletion](#deletion)).
+In progress. Admins are created with `users:admin` and sign in at `/login` with an email address and password (see [Signing In](03-routes-and-controllers.md#signing-in)). Done: the donation and leaf application lists with filters and CSV downloads, and a donation or application in full (see [Admin Pages](03-routes-and-controllers.md#admin-pages)). Also done: a dashboard with counts for the last 90 days and the donation totals, the abandoned checkouts page, and Error Logs, form submissions that didn't go through. Error Logs work like automatic tickets: each shows whether the visitor got through later, and admins close the rest as resolved, a test, or spam. Next: the [Leaf Application CRM](#leaf-application-crm). Planned: pages for users with the `admin` role, which board members are given too: donor search, donation and subscription lists with filters, a donor detail page with full history, CSV export, and the reports below. Refunds are issued from the Stripe dashboard and synced back automatically. Administrators can soft-delete spam accounts that have no transaction history (see [Deletion](#deletion)).
 
 **Reports:**
 
@@ -138,6 +138,51 @@ After launch. Stripe Checkout and the no-code Customer Portal are a quick MVP so
 - Donors manage recurring donations from the member dashboard (milestone 9): update their payment method, change the amount, or cancel, replacing the Customer Portal. Until then, donors change an amount by canceling and starting a new donation.
 - Stripe's payment fields need JavaScript, which Stripe uses for fraud detection, so paying has no fallback without it; this is an agreed exception to [Progressive Enhancement](05-ai-development-notes.md#progressive-enhancement).
 - The `PaymentGateway` interface and gateway-neutral columns keep this a change to the donation pages, not to the schema or the sync code.
+
+## Leaf Application CRM
+
+Keeping track of the people who apply to give leaves and our conversations with them, so nobody slips through the cracks. **Following up with people who applied through the site comes first**; importing past records and other conveniences come after. The CRM is merged and deployed once contacts, the timeline, the follow-up list, and the map with geocoding are all done, since following up and planning the first pickup route need all of them.
+
+**Decisions:**
+
+- **Contacts are people.** One application belongs to one contact. Leaf applications come first; donors (`users`) become contacts too, linked by a `contact_id`.
+- **Contact details:** only a name is required. Emails, phone numbers (US, stored normalized), and addresses are their own records, several per contact, kept after they change, so matching still finds a previous number or address. A contact has one current address, which holds their map location; a previous address is kept for matching.
+- **Linking:** new applications link to the contact with the same name and the same email or phone number, and the newest application's email and phone number become the contact's primary ones. A different name makes a new contact, since it may be someone else at the same number, and an email or phone number on more than one contact is flagged for review, so an admin can merge them or leave them apart. A different current address is flagged too, and an application matching more than one contact with the same name links to neither. Nothing is merged automatically, and nothing ever stops an application from being saved.
+- **Contacts by hand:** admins add contacts for people reached before they applied, such as by text, and combine them with applications submitted since.
+- **Links everywhere:** every application and Error Logs entry links to its contact on every admin page, and a contact's page shows their applications and form errors, so admins move through the records without going back and forth.
+- **Timeline:** one history per contact, newest first, on the contact's page. Added automatically: applications and form errors (with how Error Logs closed them), and later emails sent. Logged by hand on a Log Activity page, from a button under the timeline: texts and calls (with who reached out), visits, notes, pickups, and drop-offs (with bags), with the date and time, what was said, the application it was about, and which admin, with "Save and Add Another" for a back-and-forth. Texts are logged by hand until automatic SMS, which adds a provider, message ID, and delivery status.
+- **Application status:** an application is pending until a pickup or drop-off is logged for it, which marks it complete and takes it off the map and the follow-up list, like crossing someone off the pending list after their pickup.
+- **Follow-up:** pending applications are ranked so whoever needs to hear from us first is at the top (`FollowUpReport`), in four groups, oldest first in each. **Waiting on us:** their last text or call came from them, a follow-up date has come, or nobody has reached them a week after they applied. **Ready:** bags ready now or within a week, and we haven't reached out yet. **Contacted:** we've reached them, and the pickup or drop-off is still to come. **Later:** bags not ready for more than a week, or a follow-up date still to come. Reaching someone is a text or call from us, or a visit. A follow-up date, set when logging, such as when the donor asks us to check back next week, moves them to Later until then. Contacts opens on a Needs follow-up view in this order, each labeled with its group and why (Waiting on us in red, Ready in yellow), Leaf Applications and each application's page show the same, and the dashboard shows a red warning while people are waiting or ready, with a Follow Up button to Contacts. The groups work like automatic tags, and become them when tags are built.
+- **Edits:** everything can be edited, and every edit records which admin changed what and when. The record of edits comes after launch.
+- **Tags:** applications and contacts get tags, several at a time, in groups; a group can allow only one tag at a time, such as a stage. The specific tags are decided from a list of examples later.
+- **Bans:** a banned contact has a reason. Any contact or application whose phone, email, address, or name matches a banned contact's, current or past, shows a red flag naming the match, and lists can filter by it; nothing is blocked automatically. If a banned person asks for their data to be removed, only hashes of their details are kept for matching, and purged after a few years (built when first needed).
+- **Pickups:** a list of people waiting for a pickup, from which an admin chooses a cluster that fills a trailer load (about 70 to 80 bags), with a printable map of their locations. Admins plan the route themselves.
+- **Drop-off sites:** two, whose addresses stay private until an application is approved. They're contacts with "Drop-off site" checked, so their name, address, and phone number are kept like anyone's, and they're marked on Contacts. The first places geocoded.
+- **Email and SMS templates:** scaffolding with placeholder fields, refined once in use. Emails are sent one at a time through AhaSend, never in bulk.
+- **Access:** every admin, currently board members, sees and edits everything. Permissions come later.
+
+**Geocoding and the map:**
+
+- **Geocoding stays on an admin's computer:** the local [Geocoder](07-deployment.md#geocoder), never an outside service or the servers. The Map page lists addresses without a location to copy; the admin geocodes them locally and pastes the coordinates back on the same page.
+- **One Map page** for everything to do with locations: the pending applications and the drop-off sites on the map, for planning routes, and copying addresses and pasting coordinates.
+- **Locations** are PostGIS points (the extension is created in a migration, as [AI Development Notes](05-ai-development-notes.md) describes), so the database finds the nearest drop-off site and nearby pickups.
+- **The map** uses Leaflet, bundled with npm, and OpenStreetMap's tile server, with its attribution, loading only the tiles in view. Tile requests show OpenStreetMap the area viewed, never addresses or names. It prints for planning a route. The map needs JavaScript, an exception for admin pages; every list works without it.
+- **Later:** self-hosted routing, such as OSRM, if planning routes by hand stops being enough.
+
+**Order:**
+
+1. The local geocoder.
+2. Contacts: contacts, their details, linking applications (including past ones), and contact pages. Done: the tables, linking new applications, `contacts:link` for past ones, the contact list and contact pages, adding and editing contacts by hand, the Needs Review list, settling an application's contact from its page, merging contacts, and links to contacts from applications, Error Logs, and their form errors.
+3. Locations, the timeline, and follow-up. Done: locations on addresses (PostGIS), drop-off sites as contacts, timeline entries and application status, the follow-up order, the timeline on contact pages, and logging activity.
+4. The follow-up list on Contacts and the dashboard's warning. Done.
+5. The Map page: pending applications and drop-off sites on a printable map, copying addresses, and pasting coordinates.
+6. Tags, then automatic tags.
+7. The pickup list and loads.
+8. Email and SMS templates.
+9. Bans.
+10. Importing the past spreadsheets (an accounts sheet of names, addresses, phone numbers, and emails, and a ledger of pickups and drop-offs with bags, dates, and notes).
+
+**Later:** volunteer hours, grants, and programs; automatic SMS through a multi-provider setup; admin permissions.
 
 ## Donation Flow
 

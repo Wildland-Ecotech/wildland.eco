@@ -8,7 +8,7 @@
 # use the code mounted from this directory, so changes show up without a
 # rebuild. Install dependencies and build assets on the host as described in
 # docs/07-deployment.md. Also adds the services only local development uses:
-# the test database, the Node tools, and the Stripe CLI.
+# the test database, the Node tools, the Stripe CLI, and the geocoder.
 
 # Mounts the code and the host's storage directory over what the image holds
 x-dev-php: &dev-php
@@ -111,3 +111,49 @@ services:
       - nginx
     networks:
       - app-network
+
+  # Looks up addresses' map coordinates on this computer, so contacts'
+  # addresses are never sent to an outside service and the servers never
+  # geocode. Nominatim with OpenStreetMap's Colorado data, imported with the
+  # address style: streets and house numbers, without points of interest.
+  # The first start downloads the extract, imports it, and deletes the
+  # download; it is ready once the log says "Nominatim is ready to accept
+  # requests". Only the database stays, in the geocoder-data volume. Not
+  # started by `docker compose up`; run it when geocoding (see
+  # docs/07-deployment.md#geocoder):
+  #   docker compose --profile geocoder up -d geocoder
+  #   docker compose logs -f geocoder
+  #   docker compose stop geocoder
+  geocoder:
+    image: mediagis/nominatim:5.3.3
+    profiles: ["geocoder"]
+    container_name: ${APP_NAME}-geocoder
+    environment:
+      PBF_URL: ${GEOCODER_PBF_URL:-https://download.geofabrik.de/north-america/us/colorado-latest.osm.pbf}
+      IMPORT_STYLE: address
+      # Postcodes for US addresses, a small download
+      IMPORT_US_POSTCODES: "true"
+      # US Census house numbers where OpenStreetMap has none: a much larger
+      # download, for the whole US. Read only by the first import.
+      IMPORT_TIGER_ADDRESSES: ${GEOCODER_TIGER:-false}
+      # No updates after the import, which saves space; re-import for newer
+      # data instead
+      FREEZE: "true"
+      # Sized for a laptop and one state rather than the image's defaults
+      # for a large server
+      POSTGRES_SHARED_BUFFERS: 1GB
+      POSTGRES_MAINTENANCE_WORK_MEM: 2GB
+      POSTGRES_AUTOVACUUM_WORK_MEM: 1GB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 4GB
+    shm_size: 1gb
+    # The search page and API, from this computer only
+    ports:
+      - "127.0.0.1:${GEOCODER_PORT:-8088}:8080"
+    volumes:
+      - geocoder-data:/var/lib/postgresql/16/main
+    networks:
+      - app-network
+
+volumes:
+  geocoder-data:
+    driver: local

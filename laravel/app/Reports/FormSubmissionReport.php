@@ -3,13 +3,16 @@
 namespace App\Reports;
 
 use App\Models\Checkout;
+use App\Models\Contact;
+use App\Models\ContactDetail;
 use App\Models\FormSubmission;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Submissions of the donate and leaf application forms that need a
- * follow-up, for submissions:list, the admin Error Logs page, and the
- * dashboard's count of unresolved errors: rejected, expired, rate-limited,
+ * follow-up, for submissions:list, the admin Error Logs page, a contact's
+ * Form Errors, and the dashboard's count of unresolved errors: rejected, expired, rate-limited,
  * and failed submissions, submissions that stopped without an outcome, and
  * donors who went to pay but left the payment page without finishing.
  *
@@ -83,6 +86,46 @@ class FormSubmissionReport
                 default => true,
             })
             ->values();
+    }
+
+    /**
+     * The submissions needing a follow-up that came from a contact, newest
+     * first, closed ones too, with their checkouts and later submissions:
+     * those that made one of their leaf applications, or with one of their
+     * emails, or one of their phone numbers once its spelling is normalized,
+     * current or previous.
+     *
+     * @return Collection<int, FormSubmission>
+     */
+    public function forContact(Contact $contact): Collection
+    {
+        $details = $contact->details()->get();
+        $emails = $details->where('type', ContactDetail::TYPE_EMAIL)->pluck('normalized')->filter()->unique()->values()->all();
+        $phones = $details->where('type', ContactDetail::TYPE_PHONE)->pluck('normalized')->filter()->unique()->values()->all();
+        $applications = $contact->applications()->withTrashed()->pluck('id')->all();
+
+        if ($emails === [] && $phones === [] && $applications === []) {
+            return collect();
+        }
+
+        // A phone number's digits, without a leading US country code 1
+        $digits = "regexp_replace(regexp_replace(data->>'phone', '[^0-9]', '', 'g'), '^1([0-9]{10})$', '\\1')";
+
+        $submissions = FormSubmission::query()
+            ->with(['checkout', 'resolvedBy'])
+            ->where(fn ($query) => $query
+                ->whereIn('email', $emails)
+                ->orWhereIn('leaf_application_id', $applications)
+                ->when($phones !== [], fn ($query) => $query->orWhereIn(DB::raw($digits), $phones)))
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->get()
+            ->filter($this->needsAttention(...))
+            ->values();
+
+        $this->findLaterSubmissions($submissions);
+
+        return $submissions;
     }
 
     /**

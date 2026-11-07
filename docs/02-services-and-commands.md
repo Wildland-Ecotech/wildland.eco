@@ -16,6 +16,26 @@ Raising `DIFFICULTY` by one makes the work 16 times harder for people as well as
 
 A form open for more than 30 minutes gets a fresh challenge from `GET /form-tokens` before it submits, along with a fresh CSRF token (see [Stale Forms](03-routes-and-controllers.md#stale-forms)).
 
+### ApplicationReview (`app/Services/ApplicationReview.php`)
+
+Settling an application's contact by hand, from its admin page (see [Admin Pages](03-routes-and-controllers.md#admin-pages)).
+
+- `candidates($application)`: contacts, not deleted, other than the one it's linked to, that share its email or phone number, current or removed, oldest first, each with the types it shares. They're offered on the page, and named when it needs review.
+- `markReviewed($application, $admin)`: records who looked and when (`contact_reviewed_at`, `contact_reviewed_by`).
+- `move($application, $contact, $admin)`: links it to `$contact`, or with `null` to a new contact with its name, email, phone number, and address. An existing contact gets its email and phone number, not as the main ones (`addDetail()`), and its address if they have none, since the admin has said it's the same person. A flagged application is marked reviewed. The contact it was linked to stays as it is, to merge or leave. Runs in a transaction.
+
+### ContactMerger (`app/Services/ContactMerger.php`)
+
+Merges one contact into another, when an admin finds they're the same person, from the contact page's Merge button. `merge($from, $into, $admin)`, in a transaction:
+
+- Every application of `$from`, deleted ones too, moves to `$into`, and so does every timeline entry (`contact_activities`).
+- Each detail of `$from` moves to `$into`, unless `$into` has the same one, in which case `$into`'s is kept (and put back in use if only `$from`'s was current). A moved address or primary detail stays current or primary only when `$into` has none; otherwise it's kept as a previous address, or as a phone number or email that isn't the main one. Duplicates stay with the deleted contact, which matching ignores.
+- `$from`'s notes are added after `$into`'s, separated by a blank line.
+- `$from` is deleted, with `merged_into_id` pointing to `$into`.
+- Reviews of `$into`'s applications flagged only for sharing an email or phone number are marked done by `$admin` once no other contact has it. Other reasons, such as a different address, stay open.
+
+It returns how many applications moved.
+
 ### DonationReceipts (`app/Services/DonationReceipts.php`)
 
 Tax receipts for donations, one per donation and never more.
@@ -26,6 +46,22 @@ Tax receipts for donations, one per donation and never more.
 - **Never twice:** the database's partial unique index refuses a second receipt for the same donation, as a safeguard behind the code (see [donation_receipts](01-database-schema.md#donation_receipts)).
 
 `SendDonationReceipt` (`app/Jobs/SendDonationReceipt.php`) sends one donation's receipt on the queue, retrying failures after 1 minute, 5 minutes, 30 minutes, and 2 hours. It checks again that the receipt is still due when it runs, so a retry more than 24 hours after the donation sends nothing. It is unique per donation.
+
+### ContactLinker (`app/Services/ContactLinker.php`)
+
+Links a leaf application to the person who made it, so every application from the same person is on one contact. `LeafApplicationController@store` calls `link()` after the application is saved; a failure is reported and leaves the application unlinked, so it never turns an application away.
+
+An application belongs to an existing contact only when they have the same name, ignoring case and spacing, and share its email or its phone number's 10 digits, current or removed (see [contact_details](01-database-schema.md#contact_details)). Deleted contacts are never matched. `link()` returns what it did:
+
+| Outcome | When | What happens |
+|---------|------|--------------|
+| `LINKED` | One contact with the same name matches | Linked. The application's email and phone number become the contact's primary ones, since the newest application has the latest details; earlier ones stay. Its address becomes the contact's if they had none; a different current address is flagged (`address`) and left as it is |
+| `CREATED` | No contact with the same name matches | A new contact with the application's name, email, phone number, and address, even when another contact has the same email or phone number, since it may be someone else at the same number |
+| `CONFLICT` | More than one contact with the same name matches, such as one by email and another by phone | Not linked; `contact_review` is `conflict` |
+| `SKIPPED` | The application is already linked or flagged | Nothing |
+
+Whenever the application's email or phone number is also on another contact, not deleted, the application is flagged (`shared_email`, `shared_phone`), so an admin can merge the two if they're the same person, such as a name written differently, or leave them apart, such as two people sharing a phone.
+Each link runs in a transaction, so a failure leaves no half-made contact.
 
 ### DonationReceiptMail (`app/Mail/DonationReceiptMail.php`)
 
@@ -135,15 +171,18 @@ Tasks are scheduled in `routes/console.php` and run by the `scheduler` container
 
 ### Report Classes (`app/Reports/`)
 
-The queries behind the report commands, as plain classes, so the commands and the admin pages list the same records. Each command validates its options, asks its report class for the records, and writes them; the report classes take plain values, such as a number of days, and never read options or requests. Resolve them from the container, as the commands' `handle()` methods do.
+The queries behind the report commands and admin pages, as plain classes, so the commands and the admin pages list the same records. Each command validates its options, asks its report class for the records, and writes them; the report classes take plain values, such as a number of days, and never read options or requests. Resolve them from the container, as the commands' `handle()` methods do.
 
 | Class | Methods | Used by |
 |-------|---------|---------|
 | `DonationReport` | `list($days, $types, $all)`: payments by the date they were made, oldest first, from the last `$days` days or ever with `null`, limited to some of `TYPES` (`one-time`, `monthly`, `annual`), received only unless `$all`. `find($id)`: one donation by its ID or Stripe payment ID, including a deleted one | `donations:list`, `donations:view`, `/admin/donations` |
-| `DonationTotalsReport` | `totals()`: totals by month, quarter, year, and all time, keyed by `GROUPINGS`, each with its `net` (the amount less refunds and fees). `missingFees($totals)` | `donations:totals`, `/admin/donations/totals` |
+| `DonationTotalsReport` | `totals()`: totals by month, quarter, year, and all time, keyed by `GROUPINGS`, each with its `net` (the amount less refunds and fees). `missingFees($totals)` | `donations:totals`, the dashboard (`/admin`), `/admin/donations/totals/csv` |
 | `AbandonedCheckoutReport` | `list($days)`: abandoned checkouts with `donated_later`, from the last `$days` days or ever with `null` | `donations:abandoned`, `/admin/donations/abandoned` |
 | `LeafApplicationReport` | `list($days, $types)`: applications from the last `$days` days or ever with `null`, limited to some of `LeafApplication::TYPES`. `find($id)`, including a deleted application | `leaves:applications`, `leaves:view`, `/admin/leaves` |
-| `FormSubmissionReport` | `list($days, $forms, $all, $submittedLater, $resolvedByAdmin, $spamAndTests)`: submissions from the last `$days` days or ever with `null`, limited to some of `FormSubmission::FORMS`, that need a follow-up, or all of them with `$all`. Each comes with `$submission->laterSubmission`, the visitor's later successful submission of the same form, if any (see [Follow-ups](01-database-schema.md#form_submissions)). `followUp($submission)` says where each stands (`FOLLOW_UP_SUBMITTED_LATER`, `FOLLOW_UP_RESOLVED`, `FOLLOW_UP_TEST`, `FOLLOW_UP_SPAM`, or `FOLLOW_UP_UNRESOLVED`); unresolved ones are always listed, and the three flags include the others (the first two by default). `find($reference)`: one submission whatever its outcome, case-insensitively, with its later submission. `needsAttention($submission)` | `submissions:list`, `/admin/errors`, the dashboard's unresolved errors |
+| `ContactReport` | `list($search)`: contacts, not deleted, with the most recent applicant first and those without an application last, each with its current details, `applications_count`, and `applications_max_created_at`. `$search` matches part of a name or email, ignoring case, or part of a phone number's digits however it was written, including previous emails and phone numbers; LIKE wildcards are taken literally. `find($id)`: one contact, not deleted, with every detail and their applications, newest first. `sharing($contact)`: other contacts, not deleted, with one of its current emails or phone numbers as a current one of theirs, each with the shared values; previous ones don't count, so changing a number settles it. `mergedInto($id)`: the contact a merged contact became part of, following merges of merges. `contactsFor($submissions)`: each form submission's contact, keyed by its ID: the contact of the application it made, or else one with its email, or else with its phone number | `/admin/contacts`, the names on `/admin/leaves` and `/admin/errors` |
+| `FollowUpReport` | `pending()`: pending applications, not deleted, in the order to follow up with them, each with its group (`tier`: `waiting`, `ready`, `contacted`, or `later`, listed in that order, each oldest application first), its `reason`, and `last_reached_at`, when we last reached them since they applied. Reaching someone is a text or call from us, or a visit; notes don't count. Each gets the first reason that fits: `unanswered` (waiting: their last text or call came from them), `follow_up_due` (waiting: the follow-up date has come, and nobody has reached them since it), `follow_up_later` (later: it's still to come), `not_reached` (waiting: nobody has reached them a week after they applied), `ready_later` (later: bags not ready for more than a week, so they move up a week before), `ready` (nobody has reached them yet, and the bags are ready now or within a week), or `contacted` (we've reached them; the pickup or drop-off is still to come). Days are Fort Collins days | Needs follow-up on `/admin/contacts`, a contact's page, the Follow-up column on `/admin/leaves` and an application's page, and the dashboard's warning (`FollowUpNotice`) |
+| `FollowUpNotice` | `text()`: the dashboard's warning while contacts are waiting to hear from us or have bags ready, counted as Contacts' Needs follow-up lists them, such as "3 people are waiting to hear from us, and 2 more have bags ready.", or null | The dashboard (`/admin`) |
+| `FormSubmissionReport` | `list($days, $forms, $all, $submittedLater, $resolvedByAdmin, $spamAndTests)`: submissions from the last `$days` days or ever with `null`, limited to some of `FormSubmission::FORMS`, that need a follow-up, or all of them with `$all`. Each comes with `$submission->laterSubmission`, the visitor's later successful submission of the same form, if any (see [Follow-ups](01-database-schema.md#form_submissions)). `followUp($submission)` says where each stands (`FOLLOW_UP_SUBMITTED_LATER`, `FOLLOW_UP_RESOLVED`, `FOLLOW_UP_TEST`, `FOLLOW_UP_SPAM`, or `FOLLOW_UP_UNRESOLVED`); unresolved ones are always listed, and the three flags include the others (the first two by default). `find($reference)`: one submission whatever its outcome, case-insensitively, with its later submission. `forContact($contact)`: the submissions needing a follow-up that came from a contact, closed ones too, newest first: those that made one of their applications, or with one of their emails or phone numbers (compared once their spelling is normalized), current or previous. `needsAttention($submission)` | `submissions:list`, `/admin/errors`, the dashboard's unresolved errors |
 
 What each list includes, such as which payments count as received or when a checkout counts as abandoned, is described with its command below.
 
@@ -155,9 +194,10 @@ Traits shared by the report commands, so each command has only its own fields. T
 
 - **`DescribesDonations`:** how `donations:list`, `donations:view`, and `donations:abandoned` describe a donation, so they show the same donor, type, status, date, and amounts: `donationFields()` (keyed by `DONATION_LABELS`), `donor()` (the name of a donation's or checkout's donor, or their email address without one), `donationType()` and `checkoutType()` (One-time, Monthly, or Annual), `donationStatus()`, and `donationMadeAt()`. Load donations with `donationRelations()`, which includes soft-deleted donors, subscriptions, and designations. `DONATION_TABLE_HEADERS` and `donationTableRow()` are a donation's row in a list, `donationCsvHeader()` and `donationCsvRow()` its row in a CSV, and `donationListName()` names a list, such as "monthly donations received", so `donations:list` and the admin donations page show the same rows and words. Uses `FormatsMoney` and `FormatsTimes`.
 - **`DescribesLeafApplications`:** how `leaves:applications`, its CSV, `leaves:view`, and the admin leaf application pages describe a leaf program application: `leafApplicationFields()` (keyed by `LEAF_APPLICATION_LABELS`), `leafApplicationType()` (Pickup or Drop-off), and `bagsReady()` (Now, or the date given). `LEAF_APPLICATION_TABLE_HEADERS` and `leafApplicationTableRow()` are an application's row in a list, `leafApplicationCsvHeader()` and `leafApplicationCsvRow()` its row in a CSV, and `leafApplicationListName()` names a list, such as "pickup applications". Uses `FormatsTimes`.
-- **`DescribesDonationTotals`:** how `donations:totals`, its CSV, and the admin totals page describe totals: `DONATION_TOTALS_HEADERS` and `donationTotalRow()` for a table, and `donationTotalsCsvHeader()` and `donationTotalsCsvRows()` for a CSV with a Grouping column. Uses `FormatsMoney`.
+- **`DescribesDonationTotals`:** how `donations:totals`, its CSV, and the dashboard's Donation Statistics describe totals: `DONATION_TOTALS_HEADERS` and `donationTotalRow()` for a table, and `donationTotalsCsvHeader()` and `donationTotalsCsvRows()` for a CSV with a Grouping column. Uses `FormatsMoney`.
 - **`DescribesCheckouts`:** how `donations:abandoned`, its CSV, and the admin abandoned checkouts page describe an abandoned checkout: `CHECKOUT_TABLE_HEADERS` and `checkoutTableRow()` for a list, `checkoutCsvHeader()` and `checkoutCsvRow()` for a CSV with the donor's name and email address, and `donatedLater()` (Yes or No). Uses `DescribesDonations`.
 - **`DescribesFormSubmissions`:** how `submissions:list`, its CSV, and the admin Error Logs pages describe a form submission: `formSubmissionFields()` (keyed by `FORM_SUBMISSION_LABELS`), `formSubmissionOutcome()` (what happened, in plain words), `formSubmissionDetails()` (the amount and frequency, or the pickup or drop-off details), and `formSubmissionFollowUp()` with `formSubmissionFollowUpText()`: whether the visitor got through later ("Submitted 4 minutes later", followed by " as PAID44" in the CSV and the command), an admin closed it ("Resolved by Rachel Shelton", "Marked as a test", or "Marked as spam", followed by the admin's note in the CSV and the command), or neither ("No record"); empty for one that went through. `formSubmissionClosedBy()` names the admin who closed it. `FORM_SUBMISSION_TABLE_HEADERS` and `formSubmissionTableRow()` are a submission's row in a list (the email address stands in for a missing name), `formSubmissionCsvHeader()` and `formSubmissionCsvRow()` its row in a CSV, and `formSubmissionListName()` names a list ("submissions that did not succeed"). Get submissions from `FormSubmissionReport`, which loads their checkouts and later submissions. Uses `FormatsTimes`.
+- **`DescribesFollowUps`:** how the admin pages describe who needs follow-up, so Contacts, a contact's page, and the dashboard say the same: `followUpsByContact($report)` (each contact's first pending application in `FollowUpReport`'s order, keyed by contact ID, leaving out applications not linked to a contact), `FOLLOW_UP_GROUP_LABELS` (Waiting on us, Ready, Contacted, Later), `FOLLOW_UP_GROUP_TONES` (their labels' colors: `urgent` red, `soon` yellow, green, and `muted` gray), and `followUpReason($item)`, why someone is in their group, such as "Their text on Nov 5 needs a reply", "Follow-up due today", "Follow-up was due Nov 4", "Follow up on Nov 13", "No word from us in 10 days", "Bags ready Dec 5", "Bags ready now", "Bags ready since Nov 3", or "Reached Nov 2". Uses `FormatsTimes`.
 - **`FormatsMoney`:** `money($cents, $currency)` formats an amount for reading the way receipts do, such as `$1,250.00` or `-$1.75`, with the currency code instead of a dollar sign for anything but US dollars (`20.00 EUR`). `decimal($cents)` formats it as a plain number for CSV, such as `1250.00`. Laravel's `Number::currency()` isn't used because it needs PHP's `intl` extension, which the Docker image doesn't install.
 - **`FormatsTimes`:** `localTime($time, $format)` formats a time in Fort Collins time, by default such as `Wed, Oct 21, 2026 7:30 PM MDT`, `tableTime($time)` without the weekday for commands' table columns, such as `Oct 21, 2026 7:30 PM MDT`, `listTime($time)` for admin pages' lists, without the time zone, such as `Oct 21, 7:30 PM`, and `shortDate($time)` for a short line, such as `Oct 21`. The last two have the year only when it isn't this year (`Oct 21, 2025, 7:30 PM` and `Oct 21, 2025`). Admin list controllers replace the time in a command's table row with `listTime()`.
 - **`FormatsCsv`:** `csv($header, $rows)` returns a header row and the rows as CSV text. Values starting with `=`, `+`, `-`, or `@` get a leading apostrophe, which keeps spreadsheets from running them as formulas. Plain negative numbers, such as `-1.75`, are left as they are so spreadsheets can add them up.
@@ -395,3 +435,24 @@ docker compose exec app php artisan leaves:view 12
 ```
 
 The output contains the donor's personal contact details: never paste it into issues or chat.
+
+### contacts:link (`app/Console/Commands/LinkContacts.php`)
+
+Links leaf applications that have no contact yet and aren't waiting for review, the same way new applications are linked (see [ContactLinker](#contactlinker-appservicescontactlinkerphp)). Run it once per environment for the applications made before contacts existed, and any time to pick up an application whose linking failed. It goes oldest first, so each contact ends up with the details from their newest application, and leaves out deleted applications. Safe to run any number of times.
+
+| Option | Default | Effect |
+|--------|---------|--------|
+| `--dry-run` | off | Links everything inside a transaction that is rolled back, so it shows exactly what would happen without saving anything |
+
+It shows how many applications made new contacts, were linked to an existing contact, weren't linked because more than one contact matched, or failed, then a table of those that need an admin to look (ID, when applied, name, and why). A failure is reported to the log and fails the command, and the rest still run; running it again retries it.
+
+Run a dry run first, then the real thing:
+
+```bash
+docker compose exec app php artisan contacts:link --dry-run
+docker compose exec app php artisan contacts:link
+```
+
+On a server, run them from the clone's directory as its owner, such as `sudo -u deploy docker compose exec app php artisan contacts:link --dry-run`.
+
+The output names applicants: never paste it into issues or chat.

@@ -6,7 +6,8 @@ use App\Reports\DonationTotalsReport;
 
 /**
  * How reports describe donation totals from DonationTotalsReport, so
- * donations:totals, its CSV, and the admin totals page show the same rows.
+ * donations:totals, its CSV, and the admin dashboard's Donation Statistics
+ * show the same rows.
  */
 trait DescribesDonationTotals
 {

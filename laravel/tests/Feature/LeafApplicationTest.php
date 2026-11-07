@@ -4,11 +4,15 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\LeafApplicationController;
 use App\Http\Requests\StoreLeafApplicationRequest;
+use App\Models\ContactDetail;
 use App\Models\FormSubmission;
 use App\Models\LeafApplication;
+use App\Services\ContactLinker;
 use App\Services\ProofOfWork;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Exceptions;
+use RuntimeException;
 use Tests\TestCase;
 
 class LeafApplicationTest extends TestCase
@@ -101,6 +105,32 @@ class LeafApplicationTest extends TestCase
         $this->assertNull($application->ready_date);
         $this->assertNull($application->questions);
         $this->assertNotNull($application->terms_accepted_at);
+    }
+
+    public function test_an_application_is_linked_to_a_contact(): void
+    {
+        $this->post(route('leaves.apply.store'), $this->application())->assertSessionHasNoErrors();
+
+        $contact = LeafApplication::sole()->contact;
+
+        $this->assertSame('Test Donor', $contact->name);
+        $this->assertSame('donor@example.com', $contact->primary(ContactDetail::TYPE_EMAIL)->value);
+        $this->assertSame('9705550123', $contact->primary(ContactDetail::TYPE_PHONE)->normalized);
+    }
+
+    public function test_a_failure_linking_a_contact_never_turns_an_application_away(): void
+    {
+        Exceptions::fake();
+        $this->mock(ContactLinker::class)->shouldReceive('link')->andThrow(new RuntimeException('Linking failed'));
+
+        $this->post(route('leaves.apply.store'), $this->application())
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('leaves.apply'));
+
+        $application = LeafApplication::sole();
+        $this->assertNull($application->contact_id);
+        $this->assertSame(FormSubmission::OUTCOME_SAVED, FormSubmission::sole()->outcome);
+        Exceptions::assertReported(RuntimeException::class);
     }
 
     public function test_thank_you_message_matches_the_application_type(): void

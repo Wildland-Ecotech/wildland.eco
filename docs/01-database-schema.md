@@ -1,6 +1,6 @@
 # Database Schema
 
-PostgreSQL 17 with PostGIS 3.5 (see [AI Development Notes](05-ai-development-notes.md#database-connections) for connection details). The PostGIS extension is available in the Docker image but is not enabled yet; it will be created in a migration when the first spatial table is added.
+PostgreSQL 17 with PostGIS 3.5 (see [AI Development Notes](05-ai-development-notes.md#database-connections) for connection details). The PostGIS extension is created by the migration that added addresses' map locations (`CREATE EXTENSION IF NOT EXISTS postgis`). The `postgis/postgis` image already creates it in a new database, and its database user is a superuser, so the migration needs no administrator on any server.
 
 The planned donation schema is described in [Planned Features](06-planned-features.md#planned-schema). This document lists only the tables that currently exist.
 
@@ -177,6 +177,67 @@ Requests to donate leaves to the leaf program, by drop-off or pickup. Model: `Ap
 | terms_accepted_at | Timestamp; when the donor agreed to the program's terms |
 | created_at, updated_at | |
 | deleted_at | Nullable; soft deletes. Deleted applications are kept but hidden, including from `leaves:applications`; `leaves:view` still shows one by its ID, marked as deleted (see [Deletion](06-planned-features.md#deletion)) |
+| status | String, up to 20 characters, default `pending` (`LeafApplication::STATUSES`): `pending` while waiting for its pickup or drop-off, and `complete` once one is logged for it on the contact's timeline (see [contact_activities](#contact_activities)). Indexed. `pending()` finds those waiting. Set only that way and by admin pages, never from the application form |
+| follow_up_on | Nullable date; when an admin said to check back, such as when the donor asked to hear from us next week. Until then the application waits in the follow-up list's Later group (see [Report Classes](02-services-and-commands.md#report-classes-appreports)) |
+| contact_id | Nullable foreign key; restricts deletes. The person who applied, linked by `ContactLinker` after the application is saved, or by [contacts:link](02-services-and-commands.md#contactslink-appconsolecommandslinkcontactsphp) for earlier ones (see [contacts](#contacts)). Null until linked, or while an application that matches more than one contact with the same name waits for review. The application keeps its own name, email, phone, and address as submitted |
+| contact_review | Nullable JSONB list of why linking needs an admin to look (`LeafApplication::REVIEW_REASONS`): `address` (the contact it was linked to has a different current address), `shared_email` or `shared_phone` (its email or phone number is also on another contact, such as two people sharing a phone, or the same person with a name written differently), or `conflict` (it matches more than one contact with the same name, so it isn't linked). Null when nothing needs a look. `needsContactReview()` and the `needingContactReview()` scope find those not reviewed yet |
+| contact_reviewed_at, contact_reviewed_by | Nullable timestamp, and a nullable foreign key to `users` that restricts deletes: when and by which admin the review was done (`$application->contactReviewer`), by marking it reviewed or moving it to a contact on the application's admin page (see [ApplicationReview](02-services-and-commands.md#applicationreview-appservicesapplicationreviewphp)). Set only there, never from form input. The reasons stay in `contact_review` as a record of why it was flagged |
+
+### contacts
+
+People we keep in touch with, starting with those who apply to donate leaves (see [Leaf Application CRM](06-planned-features.md#leaf-application-crm)). Model: `App\Models\Contact`. Holds names and standing notes about people; never copy its rows into the repository, issues, or chat.
+
+| Column | Notes |
+|--------|-------|
+| name | The only thing a contact needs |
+| notes | Nullable text; standing information, such as "prefers texts after 5pm" |
+| created_at, updated_at | |
+| deleted_at | Nullable; soft deletes. Deleted contacts aren't matched by new applications |
+| merged_into_id | Nullable foreign key to `contacts`; restricts deletes. Set when the contact was merged into another and deleted (see [ContactMerger](02-services-and-commands.md#contactmerger-appservicescontactmergerphp)), so its page sends admins to that one (`$contact->mergedInto`) |
+| is_drop_off_site | Boolean, default false. One of our drop-off sites, kept as a contact so its name, address, and phone number are stored like anyone's. Their addresses stay private until an application is approved |
+
+`$contact->applications` are their leaf applications, `$contact->activities` their timeline entries (see [contact_activities](#contact_activities)), and `$contact->details` all their emails, phone numbers, and addresses. `primary($type)` is the primary current email or phone number, and `address()` the current address. Change details through `usePrimary($type, $value)`, which makes an email or phone number primary, putting a matching one back in use rather than adding a copy, and `moveTo($value)`, which makes an address current and marks the previous one removed; `addDetail($type, $value)`, which adds an email or phone number, or puts a matching one back in use, as primary only when there's no primary one yet (an address goes through `moveTo()`); and `removeDetail($detail)`, which marks a detail removed and, when it was the primary one, makes the most recently added current one of its type primary. `findDetail($type, $value)` finds the contact's detail with the same normalized value, current or removed.
+
+### contact_details
+
+A contact's emails, phone numbers, and address, several per contact. Model: `App\Models\ContactDetail`. Holds personal contact details; never copy its rows into the repository, issues, or chat.
+
+| Column | Notes |
+|--------|-------|
+| contact_id | Foreign key; restricts deletes |
+| type | String, up to 20 characters: `email`, `phone`, or `address` (`ContactDetail::TYPES`) |
+| value | Up to 500 characters, as entered, trimmed |
+| normalized | Nullable, up to 500 characters; set from the value on every save (`ContactDetail::normalize()`), for matching: an email trimmed and lowercase; a US phone number's 10 digits, without a leading country code 1; an address lowercase, with commas and periods as spaces and spacing collapsed. Null when there's nothing to match on, such as a phone number without an area code, which is kept but never matched. Indexed together with `type` |
+| label | Nullable, up to 50 characters, such as "mobile" |
+| is_primary | Boolean, default false. The one to use for each type |
+| removed_at | Nullable timestamp; set when a detail is no longer in use, such as a previous address. Removed details are kept, so matching still finds a previous number or address, and are never deleted |
+| location | Nullable PostGIS `geography(point, 4326)`, with a spatial (GiST) index; an address's map location, as a longitude and latitude. Read and set as `['latitude' => …, 'longitude' => …]` (`App\Casts\GeographyPoint`), to seven decimal places. Null until geocoded. A check constraint (`contact_details_location_only_on_addresses`) refuses one on an email or phone number |
+| located_at | Nullable timestamp; when the location was set |
+| located_by | Nullable foreign key to `users`; restricts deletes. The admin who set it |
+| created_at, updated_at | |
+
+A contact has **one current address**, and at most **one current primary detail of each type**; partial unique indexes make the database refuse a second (`contact_details_one_current_address` and `contact_details_one_primary`).
+
+`$detail->locate($latitude, $longitude, $admin)` sets an address's location and records who set it and when. Since a changed address is a new detail, it starts without a location, and a detail's location always belongs to its own address; an earlier address put back in use keeps the location it had.
+
+### contact_activities
+
+Entries on a contact's timeline, logged by admins: texts and calls, visits, notes, and pickups and drop-offs of leaves. Applications and form errors appear on the timeline from their own tables and aren't copied here. Model: `App\Models\ContactActivity`. Holds conversations with people; never copy its rows into the repository, issues, or chat.
+
+| Column | Notes |
+|--------|-------|
+| contact_id | Foreign key; restricts deletes. Indexed together with `happened_at` |
+| type | String, up to 20 characters (`ContactActivity::TYPES`): `text`, `call`, `visit`, `note`, `pickup`, or `drop_off` |
+| direction | Nullable string, up to 20 characters, for texts and calls (`DIRECTIONS`): `outgoing` (from us) or `incoming` (from them) |
+| happened_at | Timestamp; when it happened, which may be before it was logged |
+| body | Nullable text; what was said, or the note |
+| bag_count | Nullable integer; for pickups and drop-offs |
+| leaf_application_id | Nullable foreign key; restricts deletes. The application a pickup or drop-off was for |
+| logged_by | Nullable foreign key to `users`; restricts deletes. The admin who logged it, set by the admin pages, never from form input |
+| created_at, updated_at | |
+| deleted_at | Nullable; soft deletes. Deleted entries are kept but left off the timeline |
+
+**A pickup or drop-off for an application marks it complete** (`status`), when it's saved with that type and application, so it leaves the map and the follow-up list. `reachedThem()` is true for a text or call from us, or a visit, which the follow-up list counts as reaching someone; notes are only for us. `$activity->contact`, `application`, and `loggedBy` are what they belong to, and `$application->activities` an application's entries. Merging contacts moves their entries (see [ContactMerger](02-services-and-commands.md#contactmerger-appservicescontactmergerphp)).
 
 ### form_submissions
 

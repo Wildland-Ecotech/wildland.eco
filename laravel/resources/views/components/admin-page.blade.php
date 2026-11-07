@@ -1,7 +1,7 @@
 {{--
     Shell for admin pages: the content page backgrounds with a wide card
-    holding the "— Admin" label, the page's heading, links to the admin
-    pages, and Sign Out. Link only to admin pages that exist. Usage:
+    holding Sign Out in its corner, the "— Admin" label, the page's heading,
+    and links to the admin pages. Link only to admin pages that exist. Usage:
 
     <x-admin-page title="Donations" current="admin.donations">
         ...
@@ -14,10 +14,9 @@
 @php
     $links = [
         'admin' => 'Dashboard',
-        'admin.donations' => 'Donations',
-        'admin.donations.totals' => 'Totals',
-        'admin.donations.abandoned' => 'Abandoned Checkouts',
+        'admin.contacts' => 'Contacts',
         'admin.leaves' => 'Leaf Applications',
+        'admin.donations' => 'Donations',
         'admin.errors' => 'Error Logs',
     ];
 @endphp
@@ -25,6 +24,11 @@
 <x-layout :title="$title . ' — Admin — Wildland Ecotech'">
     <x-content-page class="admin-page">
         <section class="card wide">
+            <form class="sign-out" method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" class="button dark small">Sign Out</button>
+            </form>
+
             <h3>— Admin</h3>
             <h1>{{ $title }}</h1>
 
@@ -36,11 +40,6 @@
                         </li>
                     @endforeach
                 </ul>
-
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button type="submit" class="sign-out">Sign Out</button>
-                </form>
             </nav>
 
             <div class="admin-content">
