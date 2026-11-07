@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\DonationController as AdminDonationController;
 use App\Http\Controllers\Admin\DonationTotalsController as AdminDonationTotalsController;
 use App\Http\Controllers\Admin\ErrorLogController as AdminErrorLogController;
 use App\Http\Controllers\Admin\LeafApplicationController as AdminLeafApplicationController;
+use App\Http\Controllers\Admin\MapController as AdminMapController;
 use App\Http\Controllers\DonationController;
 use App\Http\Controllers\DonationReceiptPreviewController;
 use App\Http\Controllers\FormTokenController;
@@ -83,6 +84,10 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
         Route::post('/contacts/{contact}/details/{detail}/primary', [AdminContactDetailController::class, 'primary'])->name('admin.contacts.details.primary');
         Route::post('/contacts/{contact}/details/{detail}/remove', [AdminContactDetailController::class, 'remove'])->name('admin.contacts.details.remove');
     });
+
+    // The map of pickups and drop-off sites, and locating addresses
+    Route::get('/map', [AdminMapController::class, 'index'])->name('admin.map');
+    Route::post('/map/locations', [AdminMapController::class, 'locations'])->name('admin.map.locations');
 
     Route::get('/donations', [AdminDonationController::class, 'index'])->name('admin.donations');
     Route::get('/donations/csv', [AdminDonationController::class, 'download'])->name('admin.donations.csv');

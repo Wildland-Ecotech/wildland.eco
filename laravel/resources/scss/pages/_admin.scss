@@ -69,13 +69,16 @@ $control-height: 16px * $control-line-height + 16px + 4px;
         margin: 0 0 1.5em;
     }
 
-    label {
+    // A field's label, or a step's words where there's no field to label,
+    // such as the command on the Map page
+    label,
+    .field-label {
         display: block;
         font-size: $label-size;
         line-height: $label-line-height;
         font-weight: 700;
         color: #fff;
-        margin-bottom: 0.4em;
+        margin: 0 0 0.4em;
     }
 
     // Menus, checkboxes and radio buttons, and their group's label, in
@@ -973,6 +976,114 @@ $control-height: 16px * $control-line-height + 16px + 4px;
         }
     }
 
+    // The Map page's map, tall enough to plan a route. Its markers' colors
+    // are set in resources/js/admin-map.js, and the legend under it names
+    // them, since color alone doesn't carry meaning.
+    .map-view {
+        height: 560px;
+        margin: 0 0 0.75em;
+        border: 2px solid rgba(46, 207, 158, 0.3);
+        border-radius: 10px;
+        overflow: hidden;
+        background: rgba(0, 0, 0, 0.4);
+        // Leaflet's own text, such as the attribution, on its light boxes
+        color: #000;
+
+        // Without JavaScript, instead of the map
+        .map-fallback {
+            margin: 0;
+            padding: 1.5em;
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .leaflet-popup-content {
+            font-family: satoshi;
+            font-size: 15px;
+
+            a {
+                color: #0B7A5A;
+                font-weight: 700;
+            }
+        }
+    }
+
+    .map-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5em 1.5em;
+        margin: 0 0 2em;
+        padding: 0;
+        list-style: none;
+        font-size: 15px;
+        color: rgba(255, 255, 255, 0.85);
+
+        li {
+            margin: 0;
+        }
+
+        .swatch {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            margin-right: 0.4em;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            vertical-align: -2px;
+
+            &.now {
+                background: $error;
+            }
+
+            &.soon {
+                background: $caution;
+            }
+
+            &.later {
+                background: $green;
+            }
+
+            &.other {
+                background: #5AA9E6;
+            }
+
+            &.preview {
+                background: #B388FF;
+            }
+
+            &.site {
+                background: #9AA0A6;
+                border-color: #000;
+                border-radius: 3px;
+            }
+        }
+    }
+
+    // Lines to copy or paste, such as addresses for the geocoder, and the
+    // command that looks them up
+    .lines-box {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 14px;
+        white-space: pre;
+        overflow-wrap: normal;
+        overflow-x: auto;
+        min-height: 9em;
+    }
+
+    .command {
+        display: block;
+        max-width: 640px;
+        margin: 0 0 1.25em;
+        padding: 0.75em 1em;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.5);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 14px;
+        color: #fff;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+
     // A record's emails, phone numbers, or address while editing, one per
     // line with its buttons on the right
     .detail-list {
@@ -1099,6 +1210,45 @@ $control-height: 16px * $control-line-height + 16px + 4px;
 
         h1 {
             font-size: 44px;
+        }
+    }
+}
+
+// Printing the Map page for planning a route: the map and the list of stops
+// in black on white, without the navigation, backgrounds, or geocoding
+@media print {
+    .top-nav,
+    .content-page:has(.map-view) .backgrounds,
+    .admin-page:has(.map-view) .sign-out,
+    .admin-page:has(.map-view) .admin-nav,
+    .admin-page .no-print {
+        display: none !important;
+    }
+
+    .admin-page:has(.map-view) {
+        .card {
+            max-width: none;
+            padding: 0;
+            background: none;
+        }
+
+        .card,
+        .card h1,
+        .card h2,
+        .card h3,
+        .card p,
+        .card td,
+        .card th,
+        .card a,
+        .map-legend {
+            color: #000 !important;
+            background: none !important;
+            -webkit-text-fill-color: #000;
+        }
+
+        .map-view {
+            height: 6.5in;
+            break-inside: avoid;
         }
     }
 }

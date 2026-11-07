@@ -1,6 +1,6 @@
 // Progressive enhancements. Every page works without this script, except
 // that the leaf application and donate forms require their proof-of-work
-// spam protection.
+// spam protection, and the admin Map page's map needs it.
 // Vite loads it as a module, which runs after the page has been parsed.
 
 import { initMenu } from './menu';
@@ -20,3 +20,10 @@ initModals();
 initBlobs();
 initRainbowBorders();
 initProofOfWork();
+
+// The admin Map page's map, loaded only there, since Leaflet is large
+const mapElement = document.querySelector('[data-map]');
+
+if (mapElement) {
+    import('./admin-map').then(({ initMap }) => initMap(mapElement));
+}

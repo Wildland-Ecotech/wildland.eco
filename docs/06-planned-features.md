@@ -164,7 +164,7 @@ Keeping track of the people who apply to give leaves and our conversations with 
 **Geocoding and the map:**
 
 - **Geocoding stays on an admin's computer:** the local [Geocoder](07-deployment.md#geocoder), never an outside service or the servers. The Map page lists addresses without a location to copy; the admin geocodes them locally and pastes the coordinates back on the same page.
-- **One Map page** for everything to do with locations: the pending applications and the drop-off sites on the map, for planning routes, and copying addresses and pasting coordinates.
+- **One Map page** for everything to do with locations, after Contacts in the navigation, and copying addresses and pasting coordinates. Its uses, in order: seeing who needs a pickup, by date and how many bags fit in the trailer (the default view: pending pickups, red when ready now, overdue, or within a week, yellow within two weeks, green later, with the drop-off sites in gray and a running total of bags); finding the closest drop-off site for someone who wants to drop off (a search, with each site's straight-line distance); and seeing everything located, for statistics or grant reporting. Every current address can be located, drop-off sites and pickups first.
 - **Locations** are PostGIS points (the extension is created in a migration, as [AI Development Notes](05-ai-development-notes.md) describes), so the database finds the nearest drop-off site and nearby pickups.
 - **The map** uses Leaflet, bundled with npm, and OpenStreetMap's tile server, with its attribution, loading only the tiles in view. Tile requests show OpenStreetMap the area viewed, never addresses or names. It prints for planning a route. The map needs JavaScript, an exception for admin pages; every list works without it.
 - **Later:** self-hosted routing, such as OSRM, if planning routes by hand stops being enough.
@@ -175,9 +175,9 @@ Keeping track of the people who apply to give leaves and our conversations with 
 2. Contacts: contacts, their details, linking applications (including past ones), and contact pages. Done: the tables, linking new applications, `contacts:link` for past ones, the contact list and contact pages, adding and editing contacts by hand, the Needs Review list, settling an application's contact from its page, merging contacts, and links to contacts from applications, Error Logs, and their form errors.
 3. Locations, the timeline, and follow-up. Done: locations on addresses (PostGIS), drop-off sites as contacts, timeline entries and application status, the follow-up order, the timeline on contact pages, and logging activity.
 4. The follow-up list on Contacts and the dashboard's warning. Done.
-5. The Map page: pending applications and drop-off sites on a printable map, copying addresses, and pasting coordinates.
-6. Tags, then automatic tags.
-7. The pickup list and loads.
+5. The Map page: pending pickups and drop-off sites on a printable map, a search with the closest drop-off sites, everything located, copying addresses, and pasting coordinates. Done.
+6. The pickup list and trailer loads: choosing pickups for a load of about 70 to 80 bags from the Map page, before launch.
+7. Tags, then automatic tags.
 8. Email and SMS templates.
 9. Bans.
 10. Importing the past spreadsheets (an accounts sheet of names, addresses, phone numbers, and emails, and a ledger of pickups and drop-offs with bags, dates, and notes).
