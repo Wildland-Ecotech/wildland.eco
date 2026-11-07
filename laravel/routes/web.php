@@ -20,6 +20,7 @@ use App\Http\Controllers\LoginController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Middleware\AdminOnly;
 use App\Http\Middleware\RecordFormSubmission;
+use App\Http\Middleware\RecordLoginAttempt;
 use App\Models\FormSubmission;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -47,7 +48,9 @@ Route::view('/refunds', 'pages.refunds')->name('refunds');
 // Signing in and out. Only admins can sign in until donor accounts are built.
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
-    Route::post('/login', [LoginController::class, 'store'])->name('login.store');
+    Route::post('/login', [LoginController::class, 'store'])
+        ->middleware(RecordLoginAttempt::class)
+        ->name('login.store');
 });
 Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 
@@ -94,6 +97,16 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
     Route::post('/map/locations', [AdminMapController::class, 'locations'])->name('admin.map.locations');
     // Trailer loads of pickups, chosen and opened on the map
     Route::post('/map/loads', [AdminTrailerLoadController::class, 'store'])->name('admin.map.loads.store');
+    Route::post('/map/loads/{load}', [AdminTrailerLoadController::class, 'update'])
+        ->whereNumber('load')
+        ->name('admin.map.loads.update');
+    Route::post('/map/loads/{load}/stops/{application}/{direction}', [AdminTrailerLoadController::class, 'move'])
+        ->whereNumber(['load', 'application'])
+        ->whereIn('direction', ['up', 'down'])
+        ->name('admin.map.loads.move');
+    Route::post('/map/loads/{load}/cancel', [AdminTrailerLoadController::class, 'cancel'])
+        ->whereNumber('load')
+        ->name('admin.map.loads.cancel');
 
     Route::get('/donations', [AdminDonationController::class, 'index'])->name('admin.donations');
     Route::get('/donations/csv', [AdminDonationController::class, 'download'])->name('admin.donations.csv');

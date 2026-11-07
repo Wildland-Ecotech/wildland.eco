@@ -253,7 +253,7 @@ Trailer loads of leaf pickups, planned on the admin Map page (see [Admin Pages](
 | finished_by | Nullable foreign key to `users`; restricts deletes. The admin who marked it done or canceled it |
 | created_at, updated_at | |
 
-`$load->applications` are its stops' applications in route order, with `position` on the pivot, deleted ones included so a load always shows what was planned. `TrailerLoad::scheduledApplicationIds()` lists the applications in a planned load, which leave Needs scheduling and can't be added to another load. `progress($stops, $bags, $capacity)` gives the progress bar: green, yellow from 90% of the capacity (`NEARLY_FULL`), red over it, with words such as "3 stops · 70 of 80 bags · 10 bags of room". Loads aren't deleted; a canceled one is kept.
+`$load->applications` are its stops' applications in route order, with `position` on the pivot, deleted ones included so a load always shows what was planned. `TrailerLoad::scheduledApplicationIds()` lists the applications in a planned load, which leave Needs scheduling and can't be added to another load. `progress($stops, $bags, $capacity)` gives the progress bar: green, yellow from 90% of the capacity (`NEARLY_FULL`), red over it, with words such as "3 stops · 70 of 80 bags · 10 bags of room". Only a planned load (`isPlanned()`) can be changed. Loads aren't deleted; a canceled one is kept, with `finished_at` and `finished_by` saying when and by whom.
 
 ### trailer_load_stops
 
@@ -267,7 +267,22 @@ A trailer load's stops: its pickup applications, in the order of the admin's rou
 | contact_activity_id | Nullable foreign key to `contact_activities`; restricts deletes. The pickup logged for it when the load is marked done |
 | created_at, updated_at | |
 
-A pending pickup is in only one planned load at a time, which the app checks (`SaveTrailerLoadRequest`).
+A pending pickup is in only one planned load at a time, which the app checks (`SaveTrailerLoadRequest`). Editing a planned load deletes the stops taken out of it, like editing a draft; their applications are untouched and need scheduling again. Moving a stop numbers the load's positions from 1 again.
+
+### login_attempts
+
+Every attempt to sign in at `/login`, whether it worked or not, for spotting someone trying to get in (see [Signing In](03-routes-and-controllers.md#signing-in)). Model: `App\Models\LoginAttempt`, recorded by `RecordLoginAttempt`. The password is never recorded. Kept indefinitely. Holds email and IP addresses; never copy its rows into the repository, issues, or chat.
+
+| Column | Notes |
+|--------|-------|
+| email | Nullable, indexed; the email address as typed, trimmed and lowercased |
+| user_id | Nullable foreign key to `users`; restricts deletes. The admin account with that email address, when there is one |
+| ip_address | Up to 45 characters, indexed |
+| user_agent | Nullable, up to 500 characters; the browser |
+| outcome | String, indexed (`LoginAttempt::OUTCOMES`): `signed_in`; `failed` (a wrong password, or an address without an admin account); `rate_limited`; `unverified` (no proof of work); `incomplete` (no email address or password, or not an email address); `expired` (the page's session had expired); or `error` |
+| created_at, updated_at | `created_at` indexed |
+
+`label()` words the outcome for admins: a failure is "Wrong password" when the address belongs to an admin and "No admin account" otherwise, which the sign-in page itself never tells apart.
 
 ### form_submissions
 

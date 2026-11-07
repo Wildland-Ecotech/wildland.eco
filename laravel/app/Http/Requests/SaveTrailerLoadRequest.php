@@ -8,11 +8,11 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
 /**
- * Validates a trailer load chosen on the admin Map page: the day it's
- * planned for, the trailer's capacity in bags, and its stops, pending
- * pickup applications not already in a planned load, in route order. A
- * load can be over its capacity; the page warns in red. Only admins reach
- * it, through the admin routes' middleware.
+ * Validates a trailer load chosen on the admin Map page, new or edited: the
+ * day it's planned for, the trailer's capacity in bags, and its stops,
+ * pending pickup applications not already in another planned load, in
+ * route order. A load can be over its capacity; the page warns in red. Only
+ * admins reach it, through the admin routes' middleware.
  */
 class SaveTrailerLoadRequest extends FormRequest
 {
@@ -56,8 +56,8 @@ class SaveTrailerLoadRequest extends FormRequest
 
     /**
      * Check that every stop is a pending pickup, not deleted, and not in
-     * another planned load, in case something changed since the page was
-     * opened.
+     * another planned load (a load being edited can keep its own), in case
+     * something changed since the page was opened.
      *
      * @return array<int, callable>
      */
@@ -74,7 +74,7 @@ class SaveTrailerLoadRequest extends FormRequest
 
                 if ($pickups !== count($stops)) {
                     $validator->errors()->add('stops', 'A pickup you chose has been picked up or removed since the page opened. Check the pickups again.');
-                } elseif (array_intersect($stops, TrailerLoad::scheduledApplicationIds()) !== []) {
+                } elseif (array_intersect($stops, $this->scheduledElsewhere()) !== []) {
                     $validator->errors()->add('stops', 'A pickup you chose is already in another planned load. Check the pickups again.');
                 }
             },
@@ -98,6 +98,19 @@ class SaveTrailerLoadRequest extends FormRequest
             'stops' => 'Choose the pickups from the list.',
             'stops.*' => 'Choose the pickups from the list.',
         ];
+    }
+
+    /**
+     * The applications in a planned load other than the one being edited.
+     *
+     * @return list<int>
+     */
+    private function scheduledElsewhere(): array
+    {
+        $load = $this->route('load');
+        $own = $load instanceof TrailerLoad ? $load->applications()->pluck('leaf_applications.id')->map(fn ($id) => (int) $id)->all() : [];
+
+        return array_values(array_diff(TrailerLoad::scheduledApplicationIds(), $own));
     }
 
     /**

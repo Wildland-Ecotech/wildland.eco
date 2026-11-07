@@ -79,13 +79,18 @@ class MapReport
 
     /**
      * The pending pickups still to be put in a trailer load, as pickups()
-     * lists them, and how many more are already in a planned load.
+     * lists them, and how many more are already in a planned load. When
+     * editing a load, its own stops count as still to be scheduled, so they
+     * can stay in it.
      *
      * @return array{pickups: Collection<int, array{application: LeafApplication, contact: ?Contact, address: ?ContactDetail, kind: string, days: ?int}>, scheduled: int}
      */
-    public function toSchedule(): array
+    public function toSchedule(?TrailerLoad $editing = null): array
     {
-        $scheduled = array_flip(TrailerLoad::scheduledApplicationIds());
+        $scheduled = array_flip(array_diff(
+            TrailerLoad::scheduledApplicationIds(),
+            $editing?->applications()->pluck('leaf_applications.id')->map(fn ($id) => (int) $id)->all() ?? [],
+        ));
         [$inLoads, $pickups] = $this->pickups()->partition(fn (array $pickup) => isset($scheduled[$pickup['application']->id]));
 
         return ['pickups' => $pickups->values(), 'scheduled' => $inLoads->count()];

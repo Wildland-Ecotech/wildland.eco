@@ -189,7 +189,7 @@ Every public page must render and work without JavaScript. Pages are rendered on
 
 There are two agreed exceptions:
 
-- **Proof-of-work spam protection** on public forms, starting with the leaf application form: submitting requires JavaScript to solve the challenge. Such pages still render without JavaScript and show a `<noscript>` notice with another way to reach us (see [Frontend](04-frontend.md#apply-to-donate-leaves-leavesapply--pagesleaves-applybladephp)).
+- **Proof-of-work spam protection** on public forms, starting with the leaf application form, and on signing in: submitting requires JavaScript to solve the challenge. Such pages still render without JavaScript and show a `<noscript>` notice with another way to reach us (see [Frontend](04-frontend.md#apply-to-donate-leaves-leavesapply--pagesleaves-applybladephp)).
 - **Payment.** Stripe's payment pages and fields use JavaScript for fraud detection, and we don't control them, so completing a payment requires it and has no fallback. Our own pages, including the donate page, still render without JavaScript.
 
 Do not add a runtime Node.js process (for example, server-side rendering) to production. Node is only used to build assets.

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\RecordFormSubmission;
+use App\Http\Middleware\RecordLoginAttempt;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -22,9 +23,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // proxy on the same server can reach it.
         $middleware->trustProxies(at: '*');
 
-        // Forms record each submission as soon as the session starts, before
-        // the CSRF check, so a submission from an expired page is recorded too
+        // Forms record each submission, and sign-in each attempt, as soon as
+        // the session starts, before the CSRF check, so one from an expired
+        // page is recorded too
         $middleware->appendToPriorityList(StartSession::class, RecordFormSubmission::class);
+        $middleware->appendToPriorityList(StartSession::class, RecordLoginAttempt::class);
 
         // Someone already signed in who opens the sign-in page goes to the
         // admin page instead. Guests are sent to the `login` route.

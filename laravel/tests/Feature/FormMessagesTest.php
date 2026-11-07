@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Requests\AddContactDetailRequest;
+use App\Http\Requests\CancelTrailerLoadRequest;
 use App\Http\Requests\DeleteContactRequest;
 use App\Http\Requests\LinkApplicationContactRequest;
 use App\Http\Requests\LogContactActivityRequest;
@@ -36,6 +37,7 @@ class FormMessagesTest extends TestCase
             new LogContactActivityRequest,
             new SaveLocationsRequest,
             new SaveTrailerLoadRequest,
+            new CancelTrailerLoadRequest,
         ];
 
         foreach ($requests as $request) {

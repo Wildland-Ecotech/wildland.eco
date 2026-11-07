@@ -15,8 +15,10 @@ use Illuminate\Support\Facades\DB;
  * it's planned for, how many bags the trailer holds, and its stops, the
  * pickup applications in the order of the admin's route
  * (`trailer_load_stops`). A pending pickup is in only one planned load at a
- * time. Planned until it's marked done or canceled. Its stop list shows
- * names, addresses, phone numbers, and notes, to follow on a phone.
+ * time. Planned until it's marked done or canceled; only a planned load's
+ * stops can be changed, and a stop taken out is deleted from it, leaving
+ * its application as it was. Its stop list shows names, addresses, phone
+ * numbers, and notes, to follow on a phone.
  */
 #[Fillable([
     'planned_on',
@@ -119,6 +121,14 @@ class TrailerLoad extends Model
             ->pluck('trailer_load_stops.leaf_application_id')
             ->map(fn ($id) => (int) $id)
             ->all();
+    }
+
+    /**
+     * Whether it's still planned, so its stops can be changed.
+     */
+    public function isPlanned(): bool
+    {
+        return $this->status === self::STATUS_PLANNED;
     }
 
     /**

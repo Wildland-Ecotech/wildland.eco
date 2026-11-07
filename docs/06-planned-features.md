@@ -177,7 +177,7 @@ Keeping track of the people who apply to give leaves and our conversations with 
 3. Locations, the timeline, and follow-up. Done: locations on addresses (PostGIS), drop-off sites as contacts, timeline entries and application status, the follow-up order, the timeline on contact pages, and logging activity.
 4. The follow-up list on Contacts and the dashboard's warning. Done.
 5. The Map page: pending pickups and drop-off sites on a printable map, a search with the closest drop-off sites, everything located, copying addresses, and pasting coordinates. Done.
-6. The pickup list and trailer loads: choosing pickups for a load of about 70 to 80 bags from the Map page, before launch. Done: the tables, starting a load and choosing its pickups on the map with the progress bar, saving it, Needs scheduling leaving out scheduled pickups, the loads listed above the map, and opening a load to follow on a phone. Next: Edit Load, Move Up and Down, Cancel Load, and Mark Done.
+6. The pickup list and trailer loads: choosing pickups for a load of about 70 to 80 bags from the Map page, before launch. Done: the tables, starting a load and choosing its pickups on the map with the progress bar, saving it, Needs scheduling leaving out scheduled pickups, the loads listed above the map, opening a load to follow on a phone, Edit Load (new stops at the end, and stops taken out deleted from the load), Move Up and Down, and Cancel Load with a box to confirm. Next: Mark Done.
 7. Tags, then automatic tags.
 8. Email and SMS templates.
 9. Bans.
