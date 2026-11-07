@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\DonationTotalsController as AdminDonationTotalsCo
 use App\Http\Controllers\Admin\ErrorLogController as AdminErrorLogController;
 use App\Http\Controllers\Admin\LeafApplicationController as AdminLeafApplicationController;
 use App\Http\Controllers\Admin\MapController as AdminMapController;
+use App\Http\Controllers\Admin\SignInController as AdminSignInController;
 use App\Http\Controllers\Admin\TrailerLoadController as AdminTrailerLoadController;
 use App\Http\Controllers\DonationController;
 use App\Http\Controllers\DonationReceiptPreviewController;
@@ -139,6 +140,8 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
     Route::get('/errors/{reference}', [AdminErrorLogController::class, 'show'])
         ->where('reference', '[A-Za-z0-9]{6}')
         ->name('admin.errors.show');
+    // Opened from Error Logs, which the admin menu shows as current
+    Route::get('/sign-ins', [AdminSignInController::class, 'index'])->name('admin.sign-ins');
 });
 
 // Fresh CSRF token and proof-of-work challenge for a form that has been open
