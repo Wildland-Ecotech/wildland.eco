@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Requests\AddContactDetailRequest;
+use App\Http\Requests\DeleteContactRequest;
 use App\Http\Requests\LinkApplicationContactRequest;
 use App\Http\Requests\LogContactActivityRequest;
 use App\Http\Requests\SaveLocationsRequest;
@@ -29,6 +30,7 @@ class FormMessagesTest extends TestCase
             new LoginRequest,
             new SaveContactRequest,
             new AddContactDetailRequest,
+            new DeleteContactRequest,
             new LinkApplicationContactRequest,
             new LogContactActivityRequest,
             new SaveLocationsRequest,

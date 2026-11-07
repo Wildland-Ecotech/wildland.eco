@@ -1,3 +1,4 @@
+@use('App\Http\Requests\DeleteContactRequest')
 @use('App\Models\ContactDetail')
 
 <x-admin-page :title="$contact->name" current="admin.contacts">
@@ -92,6 +93,35 @@
             <p class="field-error" id="new-address-error">{{ $message }}</p>
         @enderror
     </form>
+
+    {{-- Deleting a contact added by mistake or as a test; one with applications is merged instead --}}
+    <h2 id="delete">Delete Contact</h2>
+
+    @if ($applicationCount > 0)
+        <p class="detail-hint">{{ DeleteContactRequest::hasApplications($contact, $applicationCount) }}</p>
+    @else
+        <form class="record-form" method="POST" action="{{ route('admin.contacts.destroy', $contact->id) }}">
+            @csrf
+
+            <fieldset class="field">
+                <legend>Confirm</legend>
+
+                <label class="checkbox">
+                    <input type="checkbox" name="confirm" value="1" aria-describedby="confirm-hint{{ $errors->has('confirm') ? ' confirm-error' : '' }}" @error('confirm') aria-invalid="true" @enderror>
+                    <span>Delete {{ $contact->name }}</span>
+                </label>
+                <p class="hint" id="confirm-hint">For contacts added by mistake or as a test. They disappear from Contacts, the map, and matching new applications, along with their timeline.</p>
+
+                @error('confirm')
+                    <p class="field-error" id="confirm-error">{{ $message }}</p>
+                @enderror
+            </fieldset>
+
+            <div class="form-actions">
+                <button type="submit" class="button dark small">Delete Contact</button>
+            </div>
+        </form>
+    @endif
 
     <a class="back" href="{{ route('admin.contacts.show', $contact->id) }}">← Back to {{ $contact->name }}</a>
 </x-admin-page>

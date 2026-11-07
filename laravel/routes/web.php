@@ -68,6 +68,9 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
     Route::post('/contacts/{contact}', [AdminContactController::class, 'update'])
         ->where('contact', '[0-9]+')
         ->name('admin.contacts.update');
+    Route::post('/contacts/{contact}/delete', [AdminContactController::class, 'destroy'])
+        ->where('contact', '[0-9]+')
+        ->name('admin.contacts.destroy');
     Route::post('/contacts/{contact}/merge/{other}', [AdminContactController::class, 'merge'])
         ->whereNumber(['contact', 'other'])
         ->name('admin.contacts.merge');

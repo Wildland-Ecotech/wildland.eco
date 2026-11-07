@@ -192,7 +192,7 @@ People we keep in touch with, starting with those who apply to donate leaves (se
 | name | The only thing a contact needs |
 | notes | Nullable text; standing information, such as "prefers texts after 5pm" |
 | created_at, updated_at | |
-| deleted_at | Nullable; soft deletes. Deleted contacts aren't matched by new applications |
+| deleted_at | Nullable; soft deletes. Set when an admin deletes a contact with no applications, such as one added as a test, or merges it into another. Deleted contacts are left out of every list and the map, and aren't matched by new applications |
 | merged_into_id | Nullable foreign key to `contacts`; restricts deletes. Set when the contact was merged into another and deleted (see [ContactMerger](02-services-and-commands.md#contactmerger-appservicescontactmergerphp)), so its page sends admins to that one (`$contact->mergedInto`) |
 | is_drop_off_site | Boolean, default false. One of our drop-off sites, kept as a contact so its name, address, and phone number are stored like anyone's. Their addresses stay private until an application is approved |
 

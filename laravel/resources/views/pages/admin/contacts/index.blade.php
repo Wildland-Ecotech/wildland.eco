@@ -1,6 +1,10 @@
 @use('App\Http\Controllers\Admin\ContactController')
 
 <x-admin-page title="Contacts" current="admin.contacts">
+    @if (session('status'))
+        <p class="status" role="status">{{ session('status') }}</p>
+    @endif
+
     {{-- A plain GET form, so a search is in the URL and works without JavaScript --}}
     <form class="filters" method="GET" action="{{ route('admin.contacts') }}">
         <div class="filter-group">
