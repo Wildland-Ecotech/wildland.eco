@@ -177,13 +177,13 @@ class MapReport
      * Current addresses, of contacts not deleted, without a location, to
      * copy for the geocoder: drop-off sites first, then those waiting for a
      * pickup, then those waiting to drop off, then everyone else, oldest
-     * first in each. Each line is the address's ID, a tab, and the address
-     * without a trailing ZIP code, which the geocoder matches better
-     * without.
+     * first in each. Each is the address's ID and the address without a
+     * trailing ZIP code, which the geocoder matches better without, for the
+     * JSON in LocationImport.
      *
-     * @return list<string>
+     * @return list<array{id: int, address: string}>
      */
-    public function unlocatedLines(): array
+    public function unlocated(): array
     {
         $pending = LeafApplication::pending()->whereNotNull('contact_id')->get(['contact_id', 'type']);
         $pickups = $pending->where('type', LeafApplication::TYPE_PICKUP)->pluck('contact_id')->flip();
@@ -203,7 +203,7 @@ class MapReport
                 $dropOffs->has($address->contact_id) => 2,
                 default => 3,
             })
-            ->map(fn (ContactDetail $address) => $address->id . "\t" . self::withoutZip($address->value))
+            ->map(fn (ContactDetail $address) => ['id' => $address->id, 'address' => self::withoutZip($address->value)])
             ->values()
             ->all();
     }

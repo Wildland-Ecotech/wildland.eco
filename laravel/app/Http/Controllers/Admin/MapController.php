@@ -20,9 +20,9 @@ use Illuminate\View\View;
  * bags are ready, soonest first with a running total of bags, and the
  * drop-off sites; with `show=everything`, every located contact; with a
  * search, the contacts it finds and how far each drop-off site is. Under
- * it, the addresses that still need a location, to copy for the local
- * geocoder (`addresses:geocode`), and a box to paste the locations back:
- * a preview first, with the locations it would save on the map, then
+ * it, the addresses that still need a location, as JSON to copy for the
+ * local geocoder (`addresses:geocode`), and a box to paste what it printed
+ * back: a preview first, with the locations it would save on the map, then
  * saving (MapReport, LocationImport).
  */
 class MapController extends Controller
@@ -74,22 +74,23 @@ class MapController extends Controller
     }
 
     /**
-     * Preview pasted locations on the page, with those that would be saved
-     * on the map, or, with `confirm`, save them and go back to the map.
+     * Preview what `addresses:geocode` printed on the page, with the
+     * locations that would be saved on the map, or, with `confirm`, save
+     * them and go back to the map.
      */
     public function locations(SaveLocationsRequest $request, MapReport $report, ContactReport $contacts, LocationImport $import): View|RedirectResponse
     {
-        $lines = $request->validated('lines');
+        $pasted = $request->validated('results');
 
         if ($request->boolean('confirm')) {
-            $saved = $import->save($lines, $request->user());
+            $saved = $import->save($pasted, $request->user());
 
             return redirect()->route('admin.map')->with('status', $saved === 0
                 ? 'No locations were saved.'
                 : 'Saved ' . $saved . ' ' . Str::plural('location', $saved) . '.');
         }
 
-        $preview = $import->preview($lines);
+        $preview = $import->preview($pasted);
 
         return $this->page($request, $report, $contacts, [
             'previewPoints' => array_values(array_map(
@@ -103,7 +104,7 @@ class MapController extends Controller
                 ],
                 array_filter($preview, fn (array $row) => in_array($row['result'], [LocationImport::SAVE, LocationImport::REPLACE], true)),
             )),
-            'pasted' => $lines,
+            'pasted' => $pasted,
             'previewRows' => array_map(fn (array $row) => $this->previewRow($row), $preview),
             'saveable' => count(array_filter($preview, fn (array $row) => in_array($row['result'], [LocationImport::SAVE, LocationImport::REPLACE], true))),
         ]);
@@ -120,7 +121,7 @@ class MapController extends Controller
         $search = $request->query('q');
         $search = is_string($search) ? Str::limit(trim($search), self::MAX_SEARCH_LENGTH, '') : '';
         $show = $request->query('show') === self::SHOW_EVERYTHING ? self::SHOW_EVERYTHING : self::SHOW_PICKUPS;
-        $unlocated = $report->unlocatedLines();
+        $unlocated = $report->unlocated();
 
         $page = match (true) {
             $search !== '' => $this->searchPage($report, $contacts, $search),
@@ -138,9 +139,9 @@ class MapController extends Controller
             'results' => [],
             ...$page,
             'legend' => collect($page['points'])->countBy('kind')->sortBy(fn (int $count, string $kind) => array_search($kind, array_keys(self::KIND_LABELS), true))->all(),
-            'unlocated' => implode("\n", $unlocated),
+            'unlocated' => LocationImport::encode([LocationImport::ADDRESSES => $unlocated]),
             'unlocatedCount' => count($unlocated),
-            'pasted' => $request->old('lines', ''),
+            'pasted' => $request->old('results', ''),
             'previewRows' => null,
             'saveable' => 0,
             ...$extra,
@@ -318,10 +319,10 @@ class MapController extends Controller
     }
 
     /**
-     * A previewed line: the number, the address it names, the location, and
-     * what it would do.
+     * A previewed entry: the number (or the entry, when it has none), the
+     * address it names, the location, and what it would do.
      *
-     * @param  array{line: string, id: ?int, latitude: ?float, longitude: ?float, address: ?ContactDetail, result: string}  $row
+     * @param  array{entry: string, id: ?int, latitude: ?float, longitude: ?float, address: ?ContactDetail, result: string}  $row
      * @return array<string, mixed>
      */
     private function previewRow(array $row): array
@@ -331,12 +332,12 @@ class MapController extends Controller
 
         return [
             'cells' => [
-                $row['id'] ?? $row['line'],
+                $row['id'] ?? $row['entry'],
                 $row['address']?->value ?? '',
                 $row['latitude'] !== null ? "{$row['latitude']}, {$row['longitude']}" : '',
                 ['text' => $result, 'status' => $saves ? 'success' : 'failure'],
             ],
-            'summary' => [(string) ($row['id'] ?? $row['line']), $result],
+            'summary' => [(string) ($row['id'] ?? $row['entry']), $result],
         ];
     }
 

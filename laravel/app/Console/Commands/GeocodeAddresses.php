@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Reports\MapReport;
+use App\Services\LocationImport;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
@@ -13,16 +14,17 @@ use Illuminate\Support\Facades\Http;
  * locations to paste back on the page. It runs only on an admin's computer,
  * so no address leaves it: the servers never call a geocoder.
  *
- * Run it and paste the lines, then press Enter and Ctrl+D, so the addresses
- * never go into a file; or give it a file, or pipe them in. Each line read is
- * an address's ID, a tab, and the address. For each, it
+ * Run it, paste the JSON from the page's Copy box, and press Enter: it
+ * reads a line at a time and starts as soon as the JSON is complete, so the
+ * addresses never go into a file. A file or a pipe works too. The JSON and
+ * what it prints are described in LocationImport. For each address, it
  * tries the address as typed, then, if that misses, its street, city, and
  * state as separate fields. ZIP codes are left out, since Nominatim matches
  * Fort Collins addresses better without them. Only a match at a house
- * (place_rank 30) is printed, as "42	40.5898512,-105.0819134"; matches at
- * only the street, and addresses it couldn't place, are listed after, to
- * look up by hand. Its output names nobody, but the addresses are personal:
- * never paste them into issues, chat, or the repository.
+ * (place_rank 30) is a location; matches at only the street, and addresses
+ * it couldn't place, are listed separately, for the Map page to show to
+ * look up by hand. It prints only IDs and coordinates, but they place
+ * people's homes: never paste them into issues, chat, or the repository.
  */
 class GeocodeAddresses extends Command
 {
@@ -30,7 +32,7 @@ class GeocodeAddresses extends Command
      * @var string
      */
     protected $signature = 'addresses:geocode
-        {file? : A file of lines copied from the Map page; without one, paste them and press Enter and Ctrl+D}
+        {file? : A file of the JSON copied from the Map page; without one, paste it and press Enter}
         {--url=http://geocoder:8080 : The local geocoder}';
 
     /**
@@ -55,40 +57,34 @@ class GeocodeAddresses extends Command
 
         $file = $this->argument('file');
         $errors = $this->output->getErrorStyle();
-        $typed = $file === null && stream_isatty(STDIN);
+        $stream = $file === null ? STDIN : @fopen($file, 'r');
 
-        if ($typed) {
-            $errors->writeln('Paste the lines from the Map page, then press Enter and Ctrl+D:');
-        }
-
-        $text = $file === null ? stream_get_contents(STDIN) : @file_get_contents($file);
-
-        if ($text === false) {
+        if ($stream === false) {
             $this->components->error("Can't read {$file}.");
 
             return self::FAILURE;
         }
 
-        $streetOnly = [];
-        $unplaced = [];
-
-        if ($typed) {
-            $errors->writeln(['', '# Copy everything from here to the end, and paste it on the Map page:']);
+        if ($file === null && stream_isatty(STDIN)) {
+            $errors->writeln('Paste the addresses copied from the Map page, then press Enter:');
         }
 
-        foreach (preg_split('/\R/', $text) as $line) {
-            if (trim($line) === '' || str_starts_with(trim($line), '#')) {
-                continue;
-            }
+        $addresses = $this->readAddresses($stream);
 
-            if (! preg_match('/^\s*(\d+)\s+(.+?)\s*$/', $line, $matches)) {
-                $unplaced[] = trim($line) . ' (not an address’s number and an address)';
+        if ($file !== null) {
+            fclose($stream);
+        }
 
-                continue;
-            }
+        if ($addresses === null) {
+            $this->components->error('Paste everything copied from the Map page, from the { at the start to the } at the end.');
 
-            [, $id, $address] = $matches;
-            $address = MapReport::withoutZip($address);
+            return self::FAILURE;
+        }
+
+        $found = [LocationImport::LOCATIONS => [], LocationImport::STREET_ONLY => [], LocationImport::NOT_FOUND => []];
+
+        foreach ($addresses as $entry) {
+            $address = MapReport::withoutZip($entry['address']);
 
             try {
                 $result = $this->lookUp($address);
@@ -98,26 +94,77 @@ class GeocodeAddresses extends Command
                 return self::FAILURE;
             }
 
-            if ($result !== null && $result['place_rank'] >= self::HOUSE_RANK) {
-                $this->line("{$id}\t{$result['lat']},{$result['lon']}");
-            } elseif ($result !== null && $result['place_rank'] >= self::STREET_RANK) {
-                $streetOnly[] = "{$id}\t{$address}\t(the street: {$result['lat']},{$result['lon']})";
-            } else {
-                $unplaced[] = "{$id}\t{$address}";
+            $list = match (true) {
+                $result !== null && $result['place_rank'] >= self::HOUSE_RANK => LocationImport::LOCATIONS,
+                $result !== null && $result['place_rank'] >= self::STREET_RANK => LocationImport::STREET_ONLY,
+                default => LocationImport::NOT_FOUND,
+            };
+
+            $found[$list][] = $list === LocationImport::NOT_FOUND
+                ? ['id' => $entry['id']]
+                : ['id' => $entry['id'], 'latitude' => (float) $result['lat'], 'longitude' => (float) $result['lon']];
+        }
+
+        // To standard error, so redirecting the output to a file keeps only the JSON
+        $errors->writeln(['', $this->summary(count($found[LocationImport::LOCATIONS]), count($addresses)), 'Copy everything below, from { to }, and paste it on the Map page:']);
+        $this->line(LocationImport::encode($found));
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * How many addresses were found at a house, such as "Found 3 of 5
+     * addresses at a house."
+     */
+    private function summary(int $houses, int $total): string
+    {
+        return match (true) {
+            $total === 0 => 'There were no addresses to look up.',
+            $houses === $total => $total === 1 ? 'Found the address at a house.' : "Found all {$total} addresses at a house.",
+            default => "Found {$houses} of {$total} " . ($total === 1 ? 'address' : 'addresses') . ' at a house. The Map page lists the rest to look up by hand.',
+        };
+    }
+
+    /**
+     * The addresses pasted, or read from a file or a pipe, a line at a
+     * time until the JSON is complete, so pressing Enter after pasting is
+     * enough. Null when what was read isn't the Map page's addresses, which
+     * shows at the first character that isn't a space.
+     *
+     * @param  resource  $stream
+     * @return list<array{id: int, address: string}>|null
+     */
+    private function readAddresses($stream): ?array
+    {
+        $text = '';
+
+        while (($line = fgets($stream)) !== false) {
+            $text .= $line;
+            $start = ltrim($text);
+
+            if ($start !== '' && $start[0] !== '{') {
+                return null;
+            }
+
+            if ($start !== '' && json_validate($text)) {
+                break;
             }
         }
 
-        // After the locations, and to standard error, so redirecting the
-        // output to a file keeps only lines to paste
-        if ($streetOnly !== []) {
-            $errors->writeln(['', '# Only the street was found for these, so they were left out. Check them on a map:', ...array_map(fn ($line) => "# {$line}", $streetOnly)]);
+        $data = json_decode($text, true);
+        $entries = is_array($data) ? ($data[LocationImport::ADDRESSES] ?? null) : null;
+
+        if (! is_array($entries) || ! array_is_list($entries)) {
+            return null;
         }
 
-        if ($unplaced !== []) {
-            $errors->writeln(['', '# Couldn’t place these. Check the address, or look them up by hand:', ...array_map(fn ($line) => "# {$line}", $unplaced)]);
+        foreach ($entries as $entry) {
+            if (! is_array($entry) || ! is_int($entry['id'] ?? null) || ! is_string($entry['address'] ?? null)) {
+                return null;
+            }
         }
 
-        return self::SUCCESS;
+        return $entries;
     }
 
     /**

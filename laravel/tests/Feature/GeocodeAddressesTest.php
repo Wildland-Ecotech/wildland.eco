@@ -2,13 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Services\LocationImport;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /**
- * addresses:geocode, which looks up addresses copied from the Map page in
- * the local geocoder, with the geocoder faked. Made-up addresses only.
+ * addresses:geocode, which looks up addresses copied from the Map page as
+ * JSON in the local geocoder, with the geocoder faked. Made-up addresses
+ * only.
  */
 class GeocodeAddressesTest extends TestCase
 {
@@ -30,6 +32,20 @@ class GeocodeAddressesTest extends TestCase
     }
 
     /**
+     * The JSON the Map page's Copy box holds, for these addresses by ID.
+     *
+     * @param  array<int, string>  $addresses
+     */
+    private function copied(array $addresses): string
+    {
+        return LocationImport::encode([LocationImport::ADDRESSES => array_map(
+            fn (int $id, string $address) => ['id' => $id, 'address' => $address],
+            array_keys($addresses),
+            $addresses,
+        )]);
+    }
+
+    /**
      * A result as Nominatim's jsonv2 format gives it, with the coordinates
      * as strings.
      *
@@ -42,13 +58,13 @@ class GeocodeAddressesTest extends TestCase
 
     public function test_prints_houses_and_lists_the_rest(): void
     {
-        file_put_contents($this->file, implode("\n", [
-            "41\t412 Sample Ave, Fort Collins, CO 80521",
-            "57\t9 Placeholder Rd, Fort Collins, CO",
-            "63\t1 Example Way, Loveland, CO",
-            "70\tNowhere",
-            '',
-        ]));
+        // Read only until the JSON is complete, as when it's pasted and Enter is pressed
+        file_put_contents($this->file, $this->copied([
+            41 => '412 Sample Ave, Fort Collins, CO 80521',
+            57 => '9 Placeholder Rd, Fort Collins, CO',
+            63 => '1 Example Way, Loveland, CO',
+            70 => 'Nowhere',
+        ]) . "\nNot read");
 
         Http::fake(function (Request $request) {
             return match (true) {
@@ -63,11 +79,20 @@ class GeocodeAddressesTest extends TestCase
         });
 
         $this->artisan('addresses:geocode', ['file' => $this->file])
-            ->expectsOutput("41\t40.5853,-105.0844")
-            ->expectsOutput("57\t40.5531,-105.1010")
-            ->expectsOutputToContain("# 63\t1 Example Way, Loveland, CO\t(the street: 40.3977,-105.0750)")
-            ->expectsOutputToContain("# 70\tNowhere")
-            ->doesntExpectOutputToContain('80521')
+            ->expectsOutputToContain('Found 2 of 4 addresses at a house. The Map page lists the rest to look up by hand.')
+            ->expectsOutput(implode("\n", [
+                '{"locations":[',
+                '{"id":41,"latitude":40.5853,"longitude":-105.0844},',
+                '{"id":57,"latitude":40.5531,"longitude":-105.101}',
+                '],"street_only":[',
+                '{"id":63,"latitude":40.3977,"longitude":-105.075}',
+                '],"not_found":[',
+                '{"id":70}',
+                ']}',
+            ]))
+            // Only IDs and coordinates, never an address
+            ->doesntExpectOutputToContain('Sample Ave')
+            ->doesntExpectOutputToContain('Nowhere')
             ->assertSuccessful();
 
         // Checked against every request, so a key one doesn't have is read with ??
@@ -84,9 +109,34 @@ class GeocodeAddressesTest extends TestCase
         Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '80521'));
     }
 
+    public function test_reads_json_laid_out_any_way(): void
+    {
+        file_put_contents($this->file, json_encode(['addresses' => [['id' => 41, 'address' => '412 Sample Ave, Fort Collins, CO']]], JSON_PRETTY_PRINT));
+        Http::fake(['*' => Http::response($this->nominatimResult('40.5853', '-105.0844', 30))]);
+
+        $this->artisan('addresses:geocode', ['file' => $this->file])
+            ->expectsOutputToContain('Found the address at a house.')
+            ->expectsOutput("{\"locations\":[\n{\"id\":41,\"latitude\":40.5853,\"longitude\":-105.0844}\n],\"street_only\":[],\"not_found\":[]}")
+            ->assertSuccessful();
+    }
+
+    public function test_says_what_to_paste_for_anything_else(): void
+    {
+        foreach (["41\t412 Sample Ave, Fort Collins, CO\n", '{"locations":[]}', '{"addresses":[{"id":"41"}]}', ''] as $text) {
+            file_put_contents($this->file, $text);
+
+            $this->artisan('addresses:geocode', ['file' => $this->file])
+                ->expectsOutputToContain('Paste everything copied from the Map page')
+                ->assertFailed()
+                ->run();
+        }
+
+        Http::assertNothingSent();
+    }
+
     public function test_says_when_the_geocoder_isnt_running(): void
     {
-        file_put_contents($this->file, "41\t412 Sample Ave, Fort Collins, CO\n");
+        file_put_contents($this->file, $this->copied([41 => '412 Sample Ave, Fort Collins, CO']));
         Http::fake(['*' => Http::failedConnection()]);
 
         $this->artisan('addresses:geocode', ['file' => $this->file])
@@ -96,7 +146,7 @@ class GeocodeAddressesTest extends TestCase
 
     public function test_runs_only_on_an_admins_computer(): void
     {
-        file_put_contents($this->file, "41\t412 Sample Ave, Fort Collins, CO\n");
+        file_put_contents($this->file, $this->copied([41 => '412 Sample Ave, Fort Collins, CO']));
         $this->app['env'] = 'production';
 
         $this->artisan('addresses:geocode', ['file' => $this->file])

@@ -6,6 +6,7 @@ use App\Models\Contact;
 use App\Models\ContactDetail;
 use App\Models\LeafApplication;
 use App\Models\User;
+use App\Services\LocationImport;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -13,7 +14,7 @@ use Tests\TestCase;
 /**
  * The admin Map page (/admin/map): pending pickups colored by when the bags
  * are ready, everything located, a search with the closest drop-off sites,
- * and copying addresses and pasting their locations back.
+ * and copying addresses as JSON and pasting their locations back.
  */
 class AdminMapTest extends TestCase
 {
@@ -97,11 +98,11 @@ class AdminMapTest extends TestCase
     public function test_only_signed_in_admins_can_see_it(): void
     {
         $this->get('/admin/map')->assertRedirect(route('login'));
-        $this->post('/admin/map/locations', ['lines' => '1 40.5,-105.1'])->assertRedirect(route('login'));
+        $this->post('/admin/map/locations', ['results' => '{"locations":[]}'])->assertRedirect(route('login'));
 
         $donor = User::factory()->withPassword()->create();
         $this->actingAs($donor)->get('/admin/map')->assertForbidden();
-        $this->actingAs($donor)->post('/admin/map/locations', ['lines' => '1 40.5,-105.1'])->assertForbidden();
+        $this->actingAs($donor)->post('/admin/map/locations', ['results' => '{"locations":[]}'])->assertForbidden();
     }
 
     public function test_the_map_follows_contacts_in_the_admin_links(): void
@@ -241,12 +242,14 @@ class AdminMapTest extends TestCase
         $this->actingAs($this->admin)
             ->get('/admin/map')
             ->assertSee('4 addresses need a location: drop-off sites first, then those waiting for a pickup.')
-            // Drop-off sites first, then pickups, then everyone else, without ZIP codes
+            // Drop-off sites first, then pickups, then everyone else, without ZIP codes, one per line
             ->assertSee(implode("\n", [
-                $this->address($site)->id . "\t1 Example Way, Loveland, CO",
-                $this->address($pickup)->id . "\t3 Example Blvd, Fort Collins, CO",
-                $this->address($other)->id . "\t2 Sample Ct, Fort Collins, CO",
-                $this->address($moved)->id . "\t10 New Rd, Fort Collins, CO",
+                '{"addresses":[',
+                '{"id":' . $this->address($site)->id . ',"address":"1 Example Way, Loveland, CO"},',
+                '{"id":' . $this->address($pickup)->id . ',"address":"3 Example Blvd, Fort Collins, CO"},',
+                '{"id":' . $this->address($other)->id . ',"address":"2 Sample Ct, Fort Collins, CO"},',
+                '{"id":' . $this->address($moved)->id . ',"address":"10 New Rd, Fort Collins, CO"}',
+                ']}',
             ]))
             ->assertDontSee('412 Sample Ave')
             ->assertDontSee('9 Old Rd');
@@ -270,34 +273,43 @@ class AdminMapTest extends TestCase
         $previous = $this->address($moved);
         $moved->moveTo('10 New Rd, Fort Collins, CO 80521');
         $far = $this->address($this->contact('Taylor Brooks', '2 Sample Ct, Fort Collins, CO 80525'));
+        $street = $this->address($this->contact('Morgan Ellis', '9 Placeholder Rd, Loveland, CO 80537'));
+        $missed = $this->address($this->contact('Avery Stone', '1 Nowhere Rd, Fort Collins, CO 80521'));
 
-        $lines = implode("\n", [
-            "{$new->id}\t40.1,-105.1",
-            "{$located->id}\t40.5854,-105.0845",
-            "{$previous->id}\t40.3,-105.3",
-            "999999\t40.4,-105.4",
-            "{$far->id}\t45.0,-100.0",
-            'hello',
-            '# A comment the geocoder printed',
-            "{$new->id}  40.58985, -105.08191",
+        $results = LocationImport::encode([
+            LocationImport::LOCATIONS => [
+                ['id' => $new->id, 'latitude' => 40.1, 'longitude' => -105.1],
+                ['id' => $located->id, 'latitude' => 40.5854, 'longitude' => -105.0845],
+                ['id' => $previous->id, 'latitude' => 40.3, 'longitude' => -105.3],
+                ['id' => 999999, 'latitude' => 40.4, 'longitude' => -105.4],
+                ['id' => $far->id, 'latitude' => 45.0, 'longitude' => -100.0],
+                ['id' => $new->id],
+                ['id' => $new->id, 'latitude' => 40.58985, 'longitude' => -105.08191],
+            ],
+            LocationImport::STREET_ONLY => [['id' => $street->id, 'latitude' => 40.3977, 'longitude' => -105.075]],
+            LocationImport::NOT_FOUND => [['id' => $missed->id]],
         ]);
 
-        $response = $this->actingAs($this->admin)->post('/admin/map/locations', ['lines' => $lines]);
+        $response = $this->actingAs($this->admin)->post('/admin/map/locations', ['results' => $results]);
 
         $response->assertOk()
-            ->assertSee('2 of 7 locations can be saved. The others are left out.')
+            ->assertSee('2 of 9 addresses can be saved. The others are left out.')
             ->assertSeeInOrder([
-                'A later line has this number',
+                'Listed again later',
                 'Will replace its location',
                 'Address changed since it was copied',
                 'No address with this number',
                 'Outside Colorado',
-                'Not a number and a location',
+                'Missing its number or location',
                 'Will be saved',
+                '9 Placeholder Rd, Loveland, CO 80537',
+                'Only the street was found',
+                '1 Nowhere Rd, Fort Collins, CO 80521',
+                'Not found by the geocoder',
             ])
             ->assertSee('<button type="submit" class="button dark small" name="confirm" value="1">Save 2 Locations</button>', false)
             // What was pasted stays, to save or fix
-            ->assertSee('# A comment the geocoder printed')
+            ->assertSee('"not_found":[')
             ->assertSee('Not saved yet (2)');
 
         // The locations it would save are on the map, in purple, before saving
@@ -311,7 +323,7 @@ class AdminMapTest extends TestCase
         $this->assertNull($new->fresh()->location);
 
         $this->actingAs($this->admin)
-            ->post('/admin/map/locations', ['lines' => $lines, 'confirm' => '1'])
+            ->post('/admin/map/locations', ['results' => $results, 'confirm' => '1'])
             ->assertRedirect(route('admin.map'))
             ->assertSessionHas('status', 'Saved 2 locations.');
 
@@ -322,16 +334,25 @@ class AdminMapTest extends TestCase
         $this->assertEqualsWithDelta(40.5854, $located->fresh()->location['latitude'], 1e-9);
         $this->assertNull($previous->fresh()->location);
         $this->assertNull($far->fresh()->location);
+        // Found only at the street, or not found, are never saved
+        $this->assertNull($street->fresh()->location);
+        $this->assertNull($missed->fresh()->location);
     }
 
-    public function test_pasting_nothing_says_what_to_paste(): void
+    public function test_pasting_anything_but_the_commands_json_says_what_to_paste(): void
     {
         $this->actingAs($this->admin)
-            ->post('/admin/map/locations', ['lines' => ''])
-            ->assertSessionHasErrors(['lines' => 'Paste the lines the geocoder printed.']);
+            ->post('/admin/map/locations', ['results' => ''])
+            ->assertSessionHasErrors(['results' => 'Paste what addresses:geocode printed.']);
+
+        foreach (["42\t40.58985,-105.08191", '{"addresses":[]}', '{"locations":"none"}'] as $pasted) {
+            $this->actingAs($this->admin)
+                ->post('/admin/map/locations', ['results' => $pasted, 'confirm' => '1'])
+                ->assertSessionHasErrors(['results' => 'Paste everything addresses:geocode printed, from the { at the start to the } at the end.']);
+        }
 
         $this->actingAs($this->admin)
-            ->post('/admin/map/locations', ['lines' => 'hello', 'confirm' => '1'])
+            ->post('/admin/map/locations', ['results' => '{"locations":[]}', 'confirm' => '1'])
             ->assertRedirect(route('admin.map'))
             ->assertSessionHas('status', 'No locations were saved.');
     }
