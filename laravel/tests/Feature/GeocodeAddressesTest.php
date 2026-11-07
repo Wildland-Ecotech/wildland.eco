@@ -112,6 +112,43 @@ class GeocodeAddressesTest extends TestCase
             && ! isset($request['postalcode']));
     }
 
+    public function test_tries_looser_searches_when_the_full_address_misses(): void
+    {
+        file_put_contents($this->file, $this->copied([
+            // Unincorporated, with a Fort Collins mailing address
+            77 => '77 Example Ct, Fort Collins, CO 80528',
+            // A house the data doesn't have, on a street it does
+            78 => '5 Sample Ln Apt 2, Fort Collins, CO 80528',
+        ]));
+
+        Http::fake(function (Request $request) {
+            return match ($request['q'] ?? null) {
+                '77 Example Ct, 80528' => Http::response($this->nominatimResult('40.4791', '-104.9862', 30)),
+                'Sample Ln, 80528' => Http::response($this->nominatimResult('40.4802', '-104.9871', 26)),
+                default => Http::response([]),
+            };
+        });
+
+        $this->artisan('addresses:geocode', ['file' => $this->file])
+            ->expectsOutputToContain('Found 1 of 2 addresses at a house.')
+            ->expectsOutput(implode("\n", [
+                '{"locations":[',
+                '{"id":77,"latitude":40.4791,"longitude":-104.9862}',
+                '],"street_only":[',
+                '{"id":78,"latitude":40.4802,"longitude":-104.9871}',
+                '],"not_found":[]}',
+            ]))
+            ->assertSuccessful();
+
+        // The structured search leaves out the unit
+        Http::assertSent(fn (Request $request) => ($request['street'] ?? null) === '5 Sample Ln'
+            && $request['city'] === 'Fort Collins'
+            && $request['postalcode'] === '80528');
+        Http::assertSent(fn (Request $request) => ($request['q'] ?? null) === '5 Sample Ln, 80528');
+        // The street alone only when not even the street was found
+        Http::assertNotSent(fn (Request $request) => ($request['q'] ?? null) === 'Example Ct, 80528');
+    }
+
     public function test_reads_json_laid_out_any_way(): void
     {
         file_put_contents($this->file, json_encode(['addresses' => [['id' => 41, 'address' => '412 Sample Ave, Fort Collins, CO']]], JSON_PRETTY_PRINT));

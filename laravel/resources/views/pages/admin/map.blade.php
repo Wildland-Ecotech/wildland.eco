@@ -91,53 +91,57 @@
             <p class="summary">{{ number_format($unlocatedCount) }} {{ Str::plural('address', $unlocatedCount) }} {{ $unlocatedCount === 1 ? 'needs' : 'need' }} a location: drop-off sites first, then those waiting for a pickup.</p>
         @endif
 
-        <form class="record-form" method="POST" action="{{ route('admin.map.locations') }}">
-            @csrf
+        {{-- Only while an address needs a location, or to show a preview or an error --}}
+        @if ($unlocatedCount > 0 || $previewRows !== null || $errors->has('results'))
+            <form class="record-form" method="POST" action="{{ route('admin.map.locations') }}">
+                @csrf
 
-            @if ($unlocatedCount > 0)
-                <div class="field">
-                    <label for="unlocated">1. Copy these addresses</label>
-                    <textarea id="unlocated" class="lines-box" rows="{{ min(10, $unlocatedCount + 2) }}" readonly aria-describedby="unlocated-hint">{{ $unlocated }}</textarea>
-                    <p class="hint" id="unlocated-hint">Each address with its number, one per line.</p>
-                </div>
-
-                <div class="field">
-                    <p class="field-label">2. Run these in your local setup, paste the addresses, then press Enter</p>
-                    <code class="command">docker compose --profile geocoder up -d geocoder
+                @if ($unlocatedCount > 0)
+                    {{-- The commands first, so copying the addresses is the last thing before pasting them --}}
+                    <div class="field">
+                        <p class="field-label">1. Run these in your local setup</p>
+                        <code class="command">docker compose --profile geocoder up -d geocoder
 docker compose exec app php artisan addresses:geocode</code>
-                    <p class="hint">It starts once everything is pasted, then prints the locations it found. Nothing is saved to a file.</p>
+                        <p class="hint">It asks for the addresses. Nothing is saved to a file.</p>
+                    </div>
+
+                    <div class="field">
+                        <label for="unlocated">2. Copy these addresses, paste them into the terminal, then press Enter</label>
+                        <textarea id="unlocated" class="lines-box" rows="{{ min(10, $unlocatedCount + 2) }}" readonly aria-describedby="unlocated-hint">{{ $unlocated }}</textarea>
+                        <p class="hint" id="unlocated-hint">Each address with its number, one per line. It starts once everything is pasted, then prints the locations it found.</p>
+                    </div>
+                @endif
+
+                <div class="field">
+                    <label for="results">{{ $unlocatedCount > 0 ? '3. Paste what it printed' : 'Paste what addresses:geocode printed' }}</label>
+                    <textarea id="results" name="results" class="lines-box" rows="5" maxlength="{{ SaveLocationsRequest::MAX_LENGTH }}" aria-describedby="results-hint{{ $errors->has('results') ? ' results-error' : '' }}" @error('results') aria-invalid="true" @enderror>{{ $pasted }}</textarea>
+                    <p class="hint" id="results-hint">Everything from the { to the }. Addresses it found only at the street, or not at all, are listed in the preview to look up by hand. Nothing is saved until you check the preview.</p>
+
+                    @error('results')
+                        <p class="field-error" id="results-error">{{ $message }}</p>
+                    @enderror
                 </div>
-            @endif
 
-            <div class="field">
-                <label for="results">{{ $unlocatedCount > 0 ? '3. Paste what it printed' : 'Paste what addresses:geocode printed' }}</label>
-                <textarea id="results" name="results" class="lines-box" rows="5" maxlength="{{ SaveLocationsRequest::MAX_LENGTH }}" aria-describedby="results-hint{{ $errors->has('results') ? ' results-error' : '' }}" @error('results') aria-invalid="true" @enderror>{{ $pasted }}</textarea>
-                <p class="hint" id="results-hint">Everything from the { to the }. Addresses it found only at the street, or not at all, are listed in the preview to look up by hand. Nothing is saved until you check the preview.</p>
+                @if ($previewRows !== null)
+                    <h3>Preview</h3>
+                    <p class="summary">{{ $saveable }} of {{ count($previewRows) }} {{ Str::plural('address', count($previewRows)) }} can be saved. The others are left out.</p>
 
-                @error('results')
-                    <p class="field-error" id="results-error">{{ $message }}</p>
-                @enderror
-            </div>
-
-            @if ($previewRows !== null)
-                <h3>Preview</h3>
-                <p class="summary">{{ $saveable }} of {{ count($previewRows) }} {{ Str::plural('address', count($previewRows)) }} can be saved. The others are left out.</p>
-
-                @if ($previewRows !== [])
-                    <x-admin-records
-                        :headers="MapController::PREVIEW_HEADERS"
-                        :rows="$previewRows"
-                        :summary-columns="MapController::PREVIEW_SUMMARY_COLUMNS"
-                    />
+                    @if ($previewRows !== [])
+                        <x-admin-records
+                            :headers="MapController::PREVIEW_HEADERS"
+                            :rows="$previewRows"
+                            :summary-columns="MapController::PREVIEW_SUMMARY_COLUMNS"
+                        />
+                    @endif
                 @endif
-            @endif
 
-            <div class="form-actions">
-                <button type="submit" class="button dark small">Preview</button>
-                @if ($saveable > 0)
-                    <button type="submit" class="button dark small" name="confirm" value="1">Save {{ $saveable }} {{ Str::plural('Location', $saveable) }}</button>
-                @endif
-            </div>
-        </form>
+                <div class="form-actions">
+                    <button type="submit" class="button dark small">Preview</button>
+                    @if ($saveable > 0)
+                        <button type="submit" class="button dark small" name="confirm" value="1">Save {{ $saveable }} {{ Str::plural('Location', $saveable) }}</button>
+                    @endif
+                </div>
+            </form>
+        @endif
     </section>
 </x-admin-page>

@@ -242,6 +242,8 @@ class AdminMapTest extends TestCase
         $this->actingAs($this->admin)
             ->get('/admin/map')
             ->assertSee('4 addresses need a location: drop-off sites first, then those waiting for a pickup.')
+            // The commands first, so copying the addresses comes right before pasting them
+            ->assertSeeInOrder(['1. Run these in your local setup', 'php artisan addresses:geocode', '2. Copy these addresses, paste them into the terminal, then press Enter', '{"addresses":[', '3. Paste what it printed'])
             // Drop-off sites first, then pickups, then everyone else, as entered, one per line
             ->assertSee(implode("\n", [
                 '{"addresses":[',
@@ -262,7 +264,11 @@ class AdminMapTest extends TestCase
         $this->actingAs($this->admin)
             ->get('/admin/map')
             ->assertSee('Every address has a location.')
-            ->assertDontSee('1. Copy these');
+            ->assertDontSee('1. Run these in your local setup')
+            ->assertDontSee('2. Copy these addresses')
+            // Nothing to paste, so no box or Preview button
+            ->assertDontSee('name="results"', false)
+            ->assertDontSee('action="' . route('admin.map.locations') . '"', false);
     }
 
     public function test_previews_pasted_locations_then_saves_those_it_can(): void
