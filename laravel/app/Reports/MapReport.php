@@ -5,12 +5,14 @@ namespace App\Reports;
 use App\Models\Contact;
 use App\Models\ContactDetail;
 use App\Models\LeafApplication;
+use App\Models\TrailerLoad;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
  * What the admin Map page shows: pending pickups, soonest first, colored by
- * when the bags are ready; the drop-off sites; every located contact; a
+ * when the bags are ready, leaving out those in a planned trailer load; the
+ * drop-off sites; trailer loads and their stops; every located contact; a
  * contact found by search with how far each drop-off site is; and the
  * addresses that still need a location, to copy for the local geocoder.
  * Locations are addresses' (ContactDetail::location); an application is on
@@ -66,28 +68,82 @@ class MapReport
             ->where('type', LeafApplication::TYPE_PICKUP)
             ->with(['contact.details' => fn ($query) => $query->current()->where('type', ContactDetail::TYPE_ADDRESS)])
             ->get()
-            ->map(function (LeafApplication $application) use ($today) {
-                $days = $application->ready_now
-                    ? null
-                    : (int) round($today->diffInDays(Carbon::createFromFormat('Y-m-d', $application->ready_date->toDateString(), self::TIMEZONE)->startOfDay(), false));
-                $contact = $application->contact && ! $application->contact->trashed() ? $application->contact : null;
-
-                return [
-                    'application' => $application,
-                    'contact' => $contact,
-                    'address' => $contact?->details->first(),
-                    'kind' => match (true) {
-                        $days === null || $days <= self::NOW_DAYS => self::KIND_NOW,
-                        $days <= self::SOON_DAYS => self::KIND_SOON,
-                        default => self::KIND_LATER,
-                    },
-                    'days' => $days,
-                ];
-            })
+            ->map(fn (LeafApplication $application) => $this->pickup($application, $today))
             ->sortBy([
                 fn (array $a, array $b) => $this->readyOn($a) <=> $this->readyOn($b),
                 fn (array $a, array $b) => $a['application']->created_at <=> $b['application']->created_at,
                 fn (array $a, array $b) => $a['application']->id <=> $b['application']->id,
+            ])
+            ->values();
+    }
+
+    /**
+     * The pending pickups still to be put in a trailer load, as pickups()
+     * lists them, and how many more are already in a planned load.
+     *
+     * @return array{pickups: Collection<int, array{application: LeafApplication, contact: ?Contact, address: ?ContactDetail, kind: string, days: ?int}>, scheduled: int}
+     */
+    public function toSchedule(): array
+    {
+        $scheduled = array_flip(TrailerLoad::scheduledApplicationIds());
+        [$inLoads, $pickups] = $this->pickups()->partition(fn (array $pickup) => isset($scheduled[$pickup['application']->id]));
+
+        return ['pickups' => $pickups->values(), 'scheduled' => $inLoads->count()];
+    }
+
+    /**
+     * Every trailer load: planned ones soonest first, then done and
+     * canceled ones, newest first, each with its stops' applications.
+     *
+     * @return Collection<int, TrailerLoad>
+     */
+    public function loads(): Collection
+    {
+        return TrailerLoad::query()
+            ->with('applications')
+            ->orderByRaw('status = ? DESC', [TrailerLoad::STATUS_PLANNED])
+            ->orderByRaw('CASE WHEN status = ? THEN planned_on END ASC', [TrailerLoad::STATUS_PLANNED])
+            ->orderByDesc('planned_on')
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    /**
+     * The stops of the planned loads, soonest load first, each in route
+     * order, as stops() gives them.
+     *
+     * @return Collection<int, array{application: LeafApplication, contact: ?Contact, address: ?ContactDetail, kind: string, days: ?int, position: int, load: TrailerLoad}>
+     */
+    public function scheduled(): Collection
+    {
+        return TrailerLoad::query()
+            ->planned()
+            ->orderBy('planned_on')
+            ->orderBy('id')
+            ->get()
+            ->flatMap(fn (TrailerLoad $load) => $this->stops($load))
+            ->values();
+    }
+
+    /**
+     * A load's stops in route order: each with its application, the
+     * application's contact (if linked and not deleted), the contact's
+     * current details (address first in `address`, all of them on the
+     * contact, main ones first), how urgent it is, its position, and the
+     * load.
+     *
+     * @return Collection<int, array{application: LeafApplication, contact: ?Contact, address: ?ContactDetail, kind: string, days: ?int, position: int, load: TrailerLoad}>
+     */
+    public function stops(TrailerLoad $load): Collection
+    {
+        $today = Carbon::today(self::TIMEZONE);
+        $load->load(['applications' => fn ($query) => $query->with(['contact.details' => fn ($query) => $query->current()->orderByDesc('is_primary')->orderBy('id')])]);
+
+        return $load->applications
+            ->map(fn (LeafApplication $application) => [
+                ...$this->pickup($application, $today),
+                'position' => (int) $application->pivot->position,
+                'load' => $load,
             ])
             ->values();
     }
@@ -229,6 +285,33 @@ class MapReport
      *
      * @param  array{application: LeafApplication}  $pickup
      */
+    /**
+     * A pickup application with its contact (if linked and not deleted),
+     * the contact's current address from the details loaded with it, how
+     * urgent it is, and how many days until the bags are ready.
+     *
+     * @return array{application: LeafApplication, contact: ?Contact, address: ?ContactDetail, kind: string, days: ?int}
+     */
+    private function pickup(LeafApplication $application, Carbon $today): array
+    {
+        $days = $application->ready_now
+            ? null
+            : (int) round($today->diffInDays(Carbon::createFromFormat('Y-m-d', $application->ready_date->toDateString(), self::TIMEZONE)->startOfDay(), false));
+        $contact = $application->contact && ! $application->contact->trashed() ? $application->contact : null;
+
+        return [
+            'application' => $application,
+            'contact' => $contact,
+            'address' => $contact?->details->firstWhere('type', ContactDetail::TYPE_ADDRESS),
+            'kind' => match (true) {
+                $days === null || $days <= self::NOW_DAYS => self::KIND_NOW,
+                $days <= self::SOON_DAYS => self::KIND_SOON,
+                default => self::KIND_LATER,
+            },
+            'days' => $days,
+        ];
+    }
+
     private function readyOn(array $pickup): string
     {
         $application = $pickup['application'];

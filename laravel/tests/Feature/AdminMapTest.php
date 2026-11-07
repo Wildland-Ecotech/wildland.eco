@@ -112,7 +112,7 @@ class AdminMapTest extends TestCase
             ->assertSeeInOrder(['>Contacts</a>', '>Map</a>', '>Leaf Applications</a>'], false);
     }
 
-    public function test_needs_pickup_lists_pickups_soonest_first_with_a_running_total(): void
+    public function test_needs_scheduling_lists_pickups_soonest_first_with_a_running_total(): void
     {
         $sam = $this->contact('Sam Lee', '412 Sample Ave, Fort Collins, CO 80521', 40.5853, -105.0844);
         $this->application($sam, attributes: ['estimated_bag_count' => 40]);
@@ -133,8 +133,8 @@ class AdminMapTest extends TestCase
         $response = $this->actingAs($this->admin)->get('/admin/map');
 
         $response->assertOk()
-            ->assertSee('<option value="pickups" selected>Needs pickup</option>', false)
-            ->assertSee('4 pickups waiting, 185 bags in all: 3 on the map, 1 still needs a location.')
+            ->assertSee('<option value="pickups" selected>Needs scheduling</option>', false)
+            ->assertSee('4 pickups need scheduling, 185 bags in all: 3 on the map, 1 still needs a location.')
             ->assertSeeInOrder([
                 '<summary>Sam Lee · Now · 40 bags <span class="badge urgent">Ready now</span></summary>',
                 '<summary>Chris Park · Nov 10 · 60 bags <span class="badge urgent">This week</span></summary>',
@@ -257,13 +257,15 @@ class AdminMapTest extends TestCase
             ->assertDontSee('9 Old Rd');
     }
 
-    public function test_says_when_every_address_has_a_location(): void
+    public function test_hides_locate_addresses_when_every_address_has_a_location(): void
     {
         $this->contact('Sam Lee', '412 Sample Ave, Fort Collins, CO 80521', 40.5853, -105.0844);
 
         $this->actingAs($this->admin)
             ->get('/admin/map')
-            ->assertSee('Every address has a location.')
+            // Nothing to locate, so no Locate Addresses at all
+            ->assertDontSee('Locate Addresses')
+            ->assertDontSee('Every address has a location.')
             ->assertDontSee('1. Run these in your local setup')
             ->assertDontSee('2. Copy these addresses')
             // Nothing to paste, so no box or Preview button

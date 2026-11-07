@@ -239,6 +239,36 @@ Entries on a contact's timeline, logged by admins: texts and calls, visits, note
 
 **A pickup or drop-off for an application marks it complete** (`status`), when it's saved with that type and application, so it leaves the map and the follow-up list. `reachedThem()` is true for a text or call from us, or a visit, which the follow-up list counts as reaching someone; notes are only for us. `$activity->contact`, `application`, and `loggedBy` are what they belong to, and `$application->activities` an application's entries. Merging contacts moves their entries (see [ContactMerger](02-services-and-commands.md#contactmerger-appservicescontactmergerphp)).
 
+### trailer_loads
+
+Trailer loads of leaf pickups, planned on the admin Map page (see [Admin Pages](03-routes-and-controllers.md#admin-pages)). Model: `App\Models\TrailerLoad`. Its stop list shows names, addresses, phone numbers, and notes to admins, who follow it on a phone; it isn't printed.
+
+| Column | Notes |
+|--------|-------|
+| planned_on | Date; the Fort Collins day it's planned for, indexed |
+| capacity | Integer; how many bags the trailer holds for this load, entered each time (80 to start). A load can be over it |
+| status | String, default `planned` (`planned`, `done`, `canceled`), indexed |
+| created_by | Nullable foreign key to `users`; restricts deletes. The admin who saved it |
+| finished_at | Nullable timestamp; when it was marked done or canceled |
+| finished_by | Nullable foreign key to `users`; restricts deletes. The admin who marked it done or canceled it |
+| created_at, updated_at | |
+
+`$load->applications` are its stops' applications in route order, with `position` on the pivot, deleted ones included so a load always shows what was planned. `TrailerLoad::scheduledApplicationIds()` lists the applications in a planned load, which leave Needs scheduling and can't be added to another load. `progress($stops, $bags, $capacity)` gives the progress bar: green, yellow from 90% of the capacity (`NEARLY_FULL`), red over it, with words such as "3 stops · 70 of 80 bags · 10 bags of room". Loads aren't deleted; a canceled one is kept.
+
+### trailer_load_stops
+
+A trailer load's stops: its pickup applications, in the order of the admin's route.
+
+| Column | Notes |
+|--------|-------|
+| trailer_load_id | Foreign key to `trailer_loads`; restricts deletes |
+| leaf_application_id | Foreign key to `leaf_applications`; restricts deletes. Unique with `trailer_load_id` |
+| position | Integer; its place in the route, from 1 |
+| contact_activity_id | Nullable foreign key to `contact_activities`; restricts deletes. The pickup logged for it when the load is marked done |
+| created_at, updated_at | |
+
+A pending pickup is in only one planned load at a time, which the app checks (`SaveTrailerLoadRequest`).
+
 ### form_submissions
 
 Every submission of the donate and leaf application forms, recorded the moment it arrives, before validation or anything else can fail, so a visitor who hits an error can still be reached. Model: `App\Models\FormSubmission`; recorded by the `RecordFormSubmission` middleware (see [Form Submissions](03-routes-and-controllers.md#form-submissions)). Holds visitors' names, emails, and form details, including from submissions that failed; never copy its rows into the repository, issues, or chat. Kept permanently.
