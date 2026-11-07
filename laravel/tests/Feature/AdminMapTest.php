@@ -242,13 +242,13 @@ class AdminMapTest extends TestCase
         $this->actingAs($this->admin)
             ->get('/admin/map')
             ->assertSee('4 addresses need a location: drop-off sites first, then those waiting for a pickup.')
-            // Drop-off sites first, then pickups, then everyone else, without ZIP codes, one per line
+            // Drop-off sites first, then pickups, then everyone else, as entered, one per line
             ->assertSee(implode("\n", [
                 '{"addresses":[',
-                '{"id":' . $this->address($site)->id . ',"address":"1 Example Way, Loveland, CO"},',
-                '{"id":' . $this->address($pickup)->id . ',"address":"3 Example Blvd, Fort Collins, CO"},',
-                '{"id":' . $this->address($other)->id . ',"address":"2 Sample Ct, Fort Collins, CO"},',
-                '{"id":' . $this->address($moved)->id . ',"address":"10 New Rd, Fort Collins, CO"}',
+                '{"id":' . $this->address($site)->id . ',"address":"1 Example Way, Loveland, CO 80537"},',
+                '{"id":' . $this->address($pickup)->id . ',"address":"3 Example Blvd, Fort Collins, CO 80525-1234"},',
+                '{"id":' . $this->address($other)->id . ',"address":"2 Sample Ct, Fort Collins, CO 80525"},',
+                '{"id":' . $this->address($moved)->id . ',"address":"10 New Rd, Fort Collins, CO 80521"}',
                 ']}',
             ]))
             ->assertDontSee('412 Sample Ave')

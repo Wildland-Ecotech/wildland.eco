@@ -98,7 +98,7 @@
                 <div class="field">
                     <label for="unlocated">1. Copy these addresses</label>
                     <textarea id="unlocated" class="lines-box" rows="{{ min(10, $unlocatedCount + 2) }}" readonly aria-describedby="unlocated-hint">{{ $unlocated }}</textarea>
-                    <p class="hint" id="unlocated-hint">Each address with its number, without its ZIP code, one per line.</p>
+                    <p class="hint" id="unlocated-hint">Each address with its number, one per line.</p>
                 </div>
 
                 <div class="field">

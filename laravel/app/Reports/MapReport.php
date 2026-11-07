@@ -177,8 +177,7 @@ class MapReport
      * Current addresses, of contacts not deleted, without a location, to
      * copy for the geocoder: drop-off sites first, then those waiting for a
      * pickup, then those waiting to drop off, then everyone else, oldest
-     * first in each. Each is the address's ID and the address without a
-     * trailing ZIP code, which the geocoder matches better without, for the
+     * first in each. Each is the address's ID and the full address, for the
      * JSON in LocationImport.
      *
      * @return list<array{id: int, address: string}>
@@ -203,21 +202,9 @@ class MapReport
                 $dropOffs->has($address->contact_id) => 2,
                 default => 3,
             })
-            ->map(fn (ContactDetail $address) => ['id' => $address->id, 'address' => self::withoutZip($address->value)])
+            ->map(fn (ContactDetail $address) => ['id' => $address->id, 'address' => $address->value])
             ->values()
             ->all();
-    }
-
-    /**
-     * An address without a trailing five-digit ZIP code or ZIP+4, such as
-     * "123 Example St, Fort Collins, CO" from "…, CO 80521-1234". Tabs and
-     * line breaks become spaces, so each address stays on one line.
-     */
-    public static function withoutZip(string $address): string
-    {
-        $address = trim(preg_replace('/\s+/', ' ', $address));
-
-        return trim(preg_replace('/[\s,]+\d{5}(?:-\d{4})?$/', '', $address));
     }
 
     /**
