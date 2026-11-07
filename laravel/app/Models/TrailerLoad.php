@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -17,7 +18,9 @@ use Illuminate\Support\Facades\DB;
  * (`trailer_load_stops`). A pending pickup is in only one planned load at a
  * time. Planned until it's marked done or canceled; only a planned load's
  * stops can be changed, and a stop taken out is deleted from it, leaving
- * its application as it was. Its stop list shows names, addresses, phone
+ * its application as it was. Marking it done logs a pickup for each stop
+ * picked up, kept on the stop (`contact_activity_id`); the others stay
+ * pending, to be scheduled again. Its stop list shows names, addresses, phone
  * numbers, and notes, to follow on a phone.
  */
 #[Fillable([
@@ -129,6 +132,22 @@ class TrailerLoad extends Model
     public function isPlanned(): bool
     {
         return $this->status === self::STATUS_PLANNED;
+    }
+
+    /**
+     * Its stops whose pickup can be logged when it's marked done, in route
+     * order: pending, not deleted, and linked to a contact that isn't
+     * deleted, since a pickup goes on the contact's timeline.
+     *
+     * @return Collection<int, LeafApplication>
+     */
+    public function loggableApplications(): Collection
+    {
+        return $this->applications()
+            ->where('leaf_applications.status', LeafApplication::STATUS_PENDING)
+            ->whereNull('leaf_applications.deleted_at')
+            ->whereHas('contact')
+            ->get();
     }
 
     /**

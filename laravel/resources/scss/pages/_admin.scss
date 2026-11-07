@@ -1231,6 +1231,53 @@ $control-height: 16px * $control-line-height + 16px + 4px;
         white-space: nowrap;
     }
 
+    // A done load's stop card says what was picked up
+    .stop-cards .stop-pickup {
+        font-weight: 700;
+    }
+
+    // Marking a trailer load done: each stop's box, its name and address,
+    // and its bags, in a table that stays a table on phones, since the
+    // three fit side by side
+    .done-table {
+        margin: 0.25em 0 0;
+
+        .done-stop {
+            display: inline;
+            margin: 0;
+            font-size: 16px;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .done-address {
+            display: block;
+            margin-top: 0.2em;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.6);
+
+            a {
+                color: $green;
+                text-decoration: underline;
+            }
+        }
+
+        // The bags column takes only the room its field needs
+        td:last-child {
+            width: 1%;
+        }
+
+        .done-bags {
+            width: 6.5em;
+        }
+
+        .hint {
+            display: block;
+            margin: 0.3em 0 0;
+            white-space: nowrap;
+        }
+    }
+
     // An opened trailer load's stops: the list's table on wider screens,
     // and on phones a card for each stop with everything shown, to follow
     // on the road
@@ -1487,6 +1534,11 @@ $control-height: 16px * $control-line-height + 16px + 4px;
         // An opened trailer load's stops as cards instead
         .stop-cards {
             display: block;
+        }
+
+        // Marking a load done keeps its table
+        .records-table.done-table {
+            display: table;
         }
     }
 }

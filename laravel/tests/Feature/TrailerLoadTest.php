@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Contact;
+use App\Models\ContactActivity;
 use App\Models\ContactDetail;
 use App\Models\LeafApplication;
 use App\Models\TrailerLoad;
@@ -15,8 +16,9 @@ use Tests\TestCase;
  * Trailer loads on the admin Map page: starting one and choosing pickups
  * (/admin/map?build=1), saving it, Needs scheduling leaving out pickups in
  * a planned load, the loads listed above the map, Everything ringing their
- * pickups, and opening a load to follow on a phone (/admin/map?load={id}).
- * Made-up people and addresses only.
+ * pickups, opening a load to follow on a phone (/admin/map?load={id}),
+ * editing and canceling it, and marking it done once it's been picked up
+ * (/admin/map/loads/{id}/done). Made-up people and addresses only.
  */
 class TrailerLoadTest extends TestCase
 {
@@ -368,11 +370,16 @@ class TrailerLoadTest extends TestCase
             "/admin/map/loads/{$load->id}",
             "/admin/map/loads/{$load->id}/stops/{$sam->id}/down",
             "/admin/map/loads/{$load->id}/cancel",
+            "/admin/map/loads/{$load->id}/done",
         ];
+
+        $this->get("/admin/map/loads/{$load->id}/done")->assertRedirect(route('login'));
 
         foreach ($requests as $url) {
             $this->post($url, ['confirm' => '1'])->assertRedirect(route('login'));
         }
+
+        $this->actingAs($donor)->get("/admin/map/loads/{$load->id}/done")->assertForbidden();
 
         foreach ($requests as $url) {
             $this->actingAs($donor)->post($url, ['confirm' => '1'])->assertForbidden();
@@ -548,6 +555,7 @@ class TrailerLoadTest extends TestCase
             ->get(route('admin.map', ['load' => $load->id, 'edit' => 1]))
             ->assertSee('Canceled · 2 stops')
             ->assertDontSee('Edit Load')
+            ->assertDontSee('Mark Done')
             ->assertDontSee('Move Dana Cruz')
             ->assertDontSee('Cancel This Load');
 
@@ -555,6 +563,7 @@ class TrailerLoadTest extends TestCase
             ["/admin/map/loads/{$load->id}", ['planned_on' => '2026-11-09', 'capacity' => '80', 'stops' => [(string) $jamie->id]]],
             ["/admin/map/loads/{$load->id}/stops/{$dana->id}/up", []],
             ["/admin/map/loads/{$load->id}/cancel", ['confirm' => '1']],
+            ["/admin/map/loads/{$load->id}/done", ['finished_at' => '2026-11-06T09:00', 'stops' => [(string) $jamie->id], 'bags' => [$jamie->id => '25']]],
         ] as [$url, $input]) {
             $this->actingAs($this->admin)
                 ->post($url, $input)
@@ -562,8 +571,183 @@ class TrailerLoadTest extends TestCase
                 ->assertSessionHas('status', 'This load is canceled, so it can’t be changed.');
         }
 
+        $this->actingAs($this->admin)
+            ->get("/admin/map/loads/{$load->id}/done")
+            ->assertRedirect(route('admin.map', ['load' => $load->id]))
+            ->assertSessionHas('status', 'This load is canceled, so it can’t be changed.');
+
         $load->refresh();
         $this->assertSame('2026-11-08', $load->planned_on->toDateString());
         $this->assertSame([$jamie->id, $dana->id], $load->applications->pluck('id')->all());
+        $this->assertSame(0, ContactActivity::count());
+        $this->assertSame(LeafApplication::STATUS_PENDING, $jamie->fresh()->status);
+    }
+
+    public function test_mark_done_lists_the_stops_to_log_checked(): void
+    {
+        $jamie = $this->application($this->contact('Jamie Rivera', '10 New Rd, Fort Collins, CO 80521'), 25);
+        $dana = $this->application($this->contact('Dana Cruz', '3 Example Blvd, Fort Collins, CO 80525'), 30);
+        // Not linked to a contact yet, and one picked up on its own
+        $morgan = $this->application($this->contact('Morgan Ellis', '88 Placeholder Ln, Fort Collins, CO 80526'), 40, ['contact_id' => null, 'name' => 'Morgan Ellis']);
+        $sam = $this->application($this->contact('Sam Lee', '412 Sample Ave, Fort Collins, CO 80521'), 20);
+        $load = $this->load('2026-11-08', [$jamie, $dana, $morgan, $sam]);
+        $sam->forceFill(['status' => LeafApplication::STATUS_COMPLETE])->save();
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.map', ['load' => $load->id]))
+            ->assertSee('<a class="button dark small" href="' . route('admin.map.loads.done', $load->id) . '">Mark Done</a>', false);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.map.loads.done', $load->id))
+            ->assertOk()
+            ->assertSee('<h1>Mark Load Done</h1>', false)
+            ->assertSee('<a href="' . route('admin.map') . '" aria-current="page">', false)
+            ->assertSee('Sun, Nov 8 load · 3 stops to log')
+            ->assertSee('action="' . route('admin.map.loads.finish', $load->id) . '"', false)
+            ->assertSee('name="finished_at" value="2026-11-06T12:00"', false)
+            ->assertSeeInOrder([
+                '<input type="checkbox" id="stop-' . $jamie->id . '" name="stops[]" value="' . $jamie->id . '" checked>',
+                '1. Jamie Rivera',
+                '10 New Rd, Fort Collins, CO 80521',
+                'name="bags[' . $jamie->id . ']" value="25"',
+                'estimated 25',
+                '<input type="checkbox" id="stop-' . $dana->id . '" name="stops[]" value="' . $dana->id . '" checked>',
+                '2. Dana Cruz',
+                'name="bags[' . $dana->id . ']" value="30"',
+                '3. Morgan Ellis',
+                'Not linked to a contact, so its pickup can’t be logged here.',
+            ], false)
+            ->assertDontSee('name="stops[]" value="' . $morgan->id . '"', false)
+            ->assertDontSee('Sam Lee')
+            ->assertSee('1 other stop was already picked up or deleted, so it isn’t listed.')
+            ->assertSee('Mark Done</button>', false)
+            ->assertSee('href="' . route('admin.map', ['load' => $load->id]) . '">Cancel</a>', false);
+    }
+
+    public function test_marking_a_load_done_logs_a_pickup_for_each_stop_checked(): void
+    {
+        $jamieContact = $this->contact('Jamie Rivera', '10 New Rd, Fort Collins, CO 80521');
+        $danaContact = $this->contact('Dana Cruz', '3 Example Blvd, Fort Collins, CO 80525');
+        $jamie = $this->application($jamieContact, 25);
+        $dana = $this->application($danaContact, 30);
+        $taylor = $this->application($this->contact('Taylor Brooks', '2 Sample Ct, Fort Collins, CO 80525'), 15);
+        $load = $this->load('2026-11-08', [$jamie, $dana, $taylor]);
+
+        $this->actingAs($this->admin)
+            ->post("/admin/map/loads/{$load->id}/done", [
+                'finished_at' => '2026-11-06T09:30',
+                'stops' => [(string) $jamie->id, (string) $dana->id],
+                // Typed by people; an unchecked stop's bags are ignored
+                'bags' => [$jamie->id => '28', $dana->id => ' 1,0 ', $taylor->id => 'none'],
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('admin.map', ['load' => $load->id]))
+            ->assertSessionHas('status', 'Logged 2 pickups, 38 bags, and marked the Sun, Nov 8 load done. 1 stop needs scheduling again.');
+
+        $load->refresh();
+        $this->assertSame(TrailerLoad::STATUS_DONE, $load->status);
+        $this->assertSame($this->admin->id, $load->finished_by);
+        $this->assertNotNull($load->finished_at);
+
+        // A pickup on each contact's timeline, which completes the application
+        $pickup = $jamieContact->activities()->sole();
+        $this->assertSame(ContactActivity::TYPE_PICKUP, $pickup->type);
+        $this->assertSame(28, $pickup->bag_count);
+        $this->assertSame($jamie->id, $pickup->leaf_application_id);
+        $this->assertSame($this->admin->id, $pickup->logged_by);
+        $this->assertSame('2026-11-06 16:30', $pickup->happened_at->utc()->format('Y-m-d H:i'));
+        $this->assertSame(10, $danaContact->activities()->sole()->bag_count);
+        $this->assertSame(LeafApplication::STATUS_COMPLETE, $jamie->fresh()->status);
+        $this->assertSame(LeafApplication::STATUS_COMPLETE, $dana->fresh()->status);
+        $this->assertSame(LeafApplication::STATUS_PENDING, $taylor->fresh()->status);
+
+        // Kept on each stop picked up
+        $this->assertSame(
+            [$jamie->id => $pickup->id, $dana->id => $danaContact->activities()->sole()->id, $taylor->id => null],
+            $load->applications->mapWithKeys(fn (LeafApplication $application) => [$application->id => $application->pivot->contact_activity_id === null ? null : (int) $application->pivot->contact_activity_id])->all(),
+        );
+
+        // The load says what was picked up, and can't be changed
+        $this->actingAs($this->admin)
+            ->get(route('admin.map', ['load' => $load->id]))
+            ->assertSee('Done · 3 stops')
+            ->assertSee('<th scope="col">Pickup</th>', false)
+            ->assertSeeInOrder(['<p class="stop-pickup">Picked up 28 bags</p>', '<p class="stop-pickup">Picked up 10 bags</p>', '<p class="stop-pickup">Not picked up</p>'], false)
+            ->assertDontSee('Mark Done')
+            ->assertDontSee('Edit Load');
+
+        // Taylor needs scheduling again
+        $this->actingAs($this->admin)
+            ->get('/admin/map')
+            ->assertSee('1 pickup needs scheduling, 15 bags in all');
+    }
+
+    public function test_mark_done_says_what_to_fix_and_keeps_the_form(): void
+    {
+        $jamie = $this->application($this->contact('Jamie Rivera', '10 New Rd, Fort Collins, CO 80521'), 25);
+        $dana = $this->application($this->contact('Dana Cruz', '3 Example Blvd, Fort Collins, CO 80525'), 30);
+        $load = $this->load('2026-11-08', [$jamie, $dana]);
+        $input = [
+            'finished_at' => '2026-11-07T09:30',
+            'stops' => [(string) $jamie->id],
+            'bags' => [$jamie->id => '', $dana->id => '31'],
+        ];
+
+        $this->actingAs($this->admin)
+            ->post("/admin/map/loads/{$load->id}/done", $input)
+            ->assertRedirect(route('admin.map.loads.done', $load->id))
+            ->assertSessionHasErrors([
+                'finished_at' => 'Enter a time that has already happened.',
+                "bags.{$jamie->id}" => 'Enter how many bags were picked up.',
+            ]);
+
+        // The form as it was: Dana unchecked, with her bags as typed
+        $this->actingAs($this->admin)
+            ->from(route('admin.map.loads.done', $load->id))
+            ->followingRedirects()
+            ->post("/admin/map/loads/{$load->id}/done", $input)
+            ->assertSee('name="finished_at" value="2026-11-07T09:30"', false)
+            ->assertSee('<input type="checkbox" id="stop-' . $jamie->id . '" name="stops[]" value="' . $jamie->id . '" checked>', false)
+            ->assertSee('<input type="checkbox" id="stop-' . $dana->id . '" name="stops[]" value="' . $dana->id . '">', false)
+            ->assertSee('name="bags[' . $dana->id . ']" value="31"', false)
+            ->assertSee('Enter how many bags were picked up.');
+
+        $this->assertTrue($load->fresh()->isPlanned());
+        $this->assertSame(0, ContactActivity::count());
+    }
+
+    public function test_only_the_loads_stops_still_to_log_can_be_logged(): void
+    {
+        $jamie = $this->application($this->contact('Jamie Rivera', '10 New Rd, Fort Collins, CO 80521'), 25);
+        $morgan = $this->application($this->contact('Morgan Ellis', '88 Placeholder Ln, Fort Collins, CO 80526'), 40, ['contact_id' => null]);
+        $other = $this->application($this->contact('Sam Lee', '412 Sample Ave, Fort Collins, CO 80521'), 20);
+        $load = $this->load('2026-11-08', [$jamie, $morgan]);
+
+        foreach ([$morgan, $other] as $application) {
+            $this->actingAs($this->admin)
+                ->post("/admin/map/loads/{$load->id}/done", [
+                    'finished_at' => '2026-11-06T09:30',
+                    'stops' => [(string) $jamie->id, (string) $application->id],
+                    'bags' => [$jamie->id => '25', $application->id => '20'],
+                ])
+                ->assertSessionHasErrors(['stops' => 'A stop changed since this page opened. Check the list, then try again.']);
+        }
+
+        $this->assertTrue($load->fresh()->isPlanned());
+        $this->assertSame(0, ContactActivity::count());
+    }
+
+    public function test_a_load_can_be_marked_done_without_pickups(): void
+    {
+        $jamie = $this->application($this->contact('Jamie Rivera', '10 New Rd, Fort Collins, CO 80521'), 25);
+        $load = $this->load('2026-11-08', [$jamie]);
+
+        $this->actingAs($this->admin)
+            ->post("/admin/map/loads/{$load->id}/done", ['finished_at' => '2026-11-06T09:30', 'bags' => [$jamie->id => '25']])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('status', 'Marked the Sun, Nov 8 load done without logging any pickups. 1 stop needs scheduling again.');
+
+        $this->assertSame(TrailerLoad::STATUS_DONE, $load->fresh()->status);
+        $this->assertSame(LeafApplication::STATUS_PENDING, $jamie->fresh()->status);
     }
 }

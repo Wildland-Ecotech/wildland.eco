@@ -108,6 +108,12 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
     Route::post('/map/loads/{load}/cancel', [AdminTrailerLoadController::class, 'cancel'])
         ->whereNumber('load')
         ->name('admin.map.loads.cancel');
+    Route::get('/map/loads/{load}/done', [AdminTrailerLoadController::class, 'done'])
+        ->whereNumber('load')
+        ->name('admin.map.loads.done');
+    Route::post('/map/loads/{load}/done', [AdminTrailerLoadController::class, 'finish'])
+        ->whereNumber('load')
+        ->name('admin.map.loads.finish');
 
     Route::get('/donations', [AdminDonationController::class, 'index'])->name('admin.donations');
     Route::get('/donations/csv', [AdminDonationController::class, 'download'])->name('admin.donations.csv');

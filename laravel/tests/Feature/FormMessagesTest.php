@@ -7,6 +7,7 @@ use App\Http\Requests\CancelTrailerLoadRequest;
 use App\Http\Requests\DeleteContactRequest;
 use App\Http\Requests\LinkApplicationContactRequest;
 use App\Http\Requests\LogContactActivityRequest;
+use App\Http\Requests\MarkTrailerLoadDoneRequest;
 use App\Http\Requests\SaveLocationsRequest;
 use App\Http\Requests\SaveTrailerLoadRequest;
 use App\Http\Requests\LoginRequest;
@@ -38,6 +39,7 @@ class FormMessagesTest extends TestCase
             new SaveLocationsRequest,
             new SaveTrailerLoadRequest,
             new CancelTrailerLoadRequest,
+            new MarkTrailerLoadDoneRequest,
         ];
 
         foreach ($requests as $request) {
