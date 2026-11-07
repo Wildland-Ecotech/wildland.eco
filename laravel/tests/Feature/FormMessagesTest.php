@@ -7,6 +7,7 @@ use App\Http\Requests\DeleteContactRequest;
 use App\Http\Requests\LinkApplicationContactRequest;
 use App\Http\Requests\LogContactActivityRequest;
 use App\Http\Requests\SaveLocationsRequest;
+use App\Http\Requests\SaveTrailerLoadRequest;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\SaveContactRequest;
 use App\Http\Requests\StartDonationRequest;
@@ -34,6 +35,7 @@ class FormMessagesTest extends TestCase
             new LinkApplicationContactRequest,
             new LogContactActivityRequest,
             new SaveLocationsRequest,
+            new SaveTrailerLoadRequest,
         ];
 
         foreach ($requests as $request) {

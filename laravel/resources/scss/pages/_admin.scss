@@ -694,8 +694,10 @@ $control-height: 16px * $control-line-height + 16px + 4px;
         font-size: 16px;
     }
 
-    // Clear of a list above it, such as a contact's applications
-    .admin-records + .back {
+    // Clear of a list above it, such as a contact's applications or a
+    // trailer load's stops
+    .admin-records + .back,
+    .load-stops + .back {
         display: inline-block;
         margin-top: 1.5em;
     }
@@ -1010,6 +1012,231 @@ $control-height: 16px * $control-line-height + 16px + 4px;
                 font-weight: 700;
             }
         }
+
+        .leaflet-tooltip {
+            font-family: satoshi;
+            font-size: 14px;
+        }
+
+        // A dot in its kind's color, like .map-legend's swatches (Leaflet
+        // sizes .map-marker). Ringed in black for a pickup in a planned load,
+        // larger with a number for a stop or a chosen pickup.
+        .map-marker {
+            cursor: pointer;
+        }
+
+        .map-dot {
+            display: grid;
+            place-items: center;
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+            color: #111;
+            font-family: satoshi;
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1;
+            // Browsers leave out backgrounds when printing unless told
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+
+            &.now {
+                background: $error;
+            }
+
+            &.soon {
+                background: $caution;
+            }
+
+            &.later {
+                background: $green;
+            }
+
+            &.other {
+                background: #5AA9E6;
+            }
+
+            &.preview {
+                background: #B388FF;
+            }
+
+            &.site {
+                background: #9AA0A6;
+                border-color: #000;
+            }
+
+            &.marked {
+                border: 3px solid #111;
+            }
+        }
+    }
+
+    // A new trailer load on the Map page: the date, capacity, and progress
+    // bar, then Save Load and Cancel
+    .load-builder {
+        margin: 0 0 2em;
+        padding: 1em 1.25em 1.25em;
+        border: 2px solid rgba(46, 207, 158, 0.5);
+        border-radius: 12px;
+        background: rgba(0, 0, 0, 0.35);
+        text-align: left;
+
+        h3 {
+            margin: 0 0 0.4em;
+        }
+
+        .detail-hint {
+            margin: 0 0 1em;
+        }
+
+        .field {
+            margin: 0;
+        }
+
+        .form-actions {
+            margin-top: 1.25em;
+        }
+    }
+
+    .load-builder-fields {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 1em 1.5em;
+
+        input[type="date"] {
+            max-width: 11em;
+        }
+
+        input[type="number"] {
+            max-width: 7em;
+        }
+
+        .load-bar {
+            flex: 1 1 18em;
+            margin: 0;
+        }
+    }
+
+    // How full a trailer load is: green, yellow once nearly full, and red
+    // over its capacity (TrailerLoad::progress()), with the words beside it
+    // saying so, since color alone doesn't carry meaning
+    .load-bar {
+        max-width: 640px;
+        margin: 0 0 2em;
+
+        &.good {
+            --tone: #{$green};
+        }
+
+        &.full {
+            --tone: #{$caution};
+        }
+
+        &.over {
+            --tone: #{$error};
+        }
+    }
+
+    .load-bar-track {
+        height: 18px;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.12);
+        overflow: hidden;
+    }
+
+    .load-bar-fill {
+        width: var(--fill, 0%);
+        height: 100%;
+        border-radius: 7px;
+        background: var(--tone, #{$green});
+        transition: width 0.2s, background-color 0.2s;
+    }
+
+    .load-bar-label {
+        margin: 0.35em 0 0;
+        font-size: 15px;
+        color: rgba(255, 255, 255, 0.85);
+    }
+
+    // Done and canceled trailer loads, folded under the planned ones above
+    // the map
+    .past-loads {
+        margin: 0.75em 0 2em;
+
+        > summary {
+            cursor: pointer;
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        > .admin-records {
+            margin-top: 0.75em;
+        }
+    }
+
+    // An opened trailer load's stops: the list's table on wider screens,
+    // and on phones a card for each stop with everything shown, to follow
+    // on the road
+    .stop-cards {
+        display: none;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+
+        li {
+            margin: 0;
+            padding: 0.9em 0.25em;
+            border-bottom: 1px solid $line;
+        }
+
+        p {
+            margin: 0.2em 0 0;
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        a {
+            color: $green;
+            text-decoration: underline;
+        }
+
+        .stop-card-name {
+            display: flex;
+            align-items: center;
+            gap: 0.5em;
+            margin: 0 0 0.35em;
+            font-size: 18px;
+            color: #fff;
+        }
+
+        .stop-number {
+            display: inline-grid;
+            place-items: center;
+            flex: none;
+            width: 1.6em;
+            height: 1.6em;
+            border-radius: 50%;
+            background: #fff;
+            color: #111;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .stop-bags {
+            margin-left: auto;
+            white-space: nowrap;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        // Notes keep their line breaks
+        .stop-notes {
+            white-space: pre-line;
+        }
     }
 
     .map-legend {
@@ -1202,6 +1429,15 @@ $control-height: 16px * $control-line-height + 16px + 4px;
         }
 
         .records-list {
+            display: block;
+        }
+
+        // An opened trailer load's stops as cards instead
+        .load-stops .records-list {
+            display: none;
+        }
+
+        .stop-cards {
             display: block;
         }
     }

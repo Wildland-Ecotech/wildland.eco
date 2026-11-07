@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\DonationTotalsController as AdminDonationTotalsCo
 use App\Http\Controllers\Admin\ErrorLogController as AdminErrorLogController;
 use App\Http\Controllers\Admin\LeafApplicationController as AdminLeafApplicationController;
 use App\Http\Controllers\Admin\MapController as AdminMapController;
+use App\Http\Controllers\Admin\TrailerLoadController as AdminTrailerLoadController;
 use App\Http\Controllers\DonationController;
 use App\Http\Controllers\DonationReceiptPreviewController;
 use App\Http\Controllers\FormTokenController;
@@ -91,6 +92,8 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
     // The map of pickups and drop-off sites, and locating addresses
     Route::get('/map', [AdminMapController::class, 'index'])->name('admin.map');
     Route::post('/map/locations', [AdminMapController::class, 'locations'])->name('admin.map.locations');
+    // Trailer loads of pickups, chosen and opened on the map
+    Route::post('/map/loads', [AdminTrailerLoadController::class, 'store'])->name('admin.map.loads.store');
 
     Route::get('/donations', [AdminDonationController::class, 'index'])->name('admin.donations');
     Route::get('/donations/csv', [AdminDonationController::class, 'download'])->name('admin.donations.csv');

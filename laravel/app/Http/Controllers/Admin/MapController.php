@@ -6,20 +6,28 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\SaveLocationsRequest;
 use App\Models\ContactDetail;
 use App\Models\LeafApplication;
+use App\Models\TrailerLoad;
 use App\Reports\ContactReport;
 use App\Reports\MapReport;
 use App\Services\LocationImport;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
  * The admin Map page (/admin/map), for planning pickups and finding the
- * closest drop-off site: by default, pending pickups colored by when the
- * bags are ready, soonest first with a running total of bags, and the
- * drop-off sites; with `show=everything`, every located contact; with a
- * search, the contacts it finds and how far each drop-off site is. Under
+ * closest drop-off site: by default, pending pickups not yet in a trailer
+ * load (Needs scheduling), colored by when the bags are ready, soonest first
+ * with a running total of bags, and the drop-off sites; with `build=1`, a
+ * new trailer load, chosen by clicking pickups on the map or checking them
+ * in the list (TrailerLoadController saves it); with `load={id}`, one
+ * load's stops in route order, to follow on a phone; with
+ * `show=everything`, every located contact, those in a planned load ringed;
+ * with a search, the contacts it finds and how far each drop-off site is.
+ * Every view but an opened load lists the trailer loads above the map.
+ * Under
  * it, the addresses that still need a location, as JSON to copy for the
  * local geocoder (`addresses:geocode`), and a box to paste what it printed
  * back: a preview first, with the locations it would save on the map, then
@@ -32,7 +40,7 @@ class MapController extends Controller
     public const SHOW_EVERYTHING = 'everything';
 
     public const SHOW_CHOICES = [
-        self::SHOW_PICKUPS => 'Needs pickup',
+        self::SHOW_PICKUPS => 'Needs scheduling',
         self::SHOW_EVERYTHING => 'Everything',
     ];
 
@@ -59,6 +67,33 @@ class MapController extends Controller
     public const PICKUP_SUMMARY_COLUMNS = [0, 1, 2];
 
     public const PICKUP_NUMBER_COLUMNS = [2, 3];
+
+    /**
+     * The planned trailer loads, listed above the map, the ones on a
+     * phone's line (date and bags), and those lined up on the right.
+     */
+    public const LOAD_HEADERS = ['Date', 'Stops', 'Bags'];
+
+    public const LOAD_SUMMARY_COLUMNS = [0, 2];
+
+    public const LOAD_NUMBER_COLUMNS = [1, 2];
+
+    /**
+     * The done and canceled loads, folded under the planned ones.
+     */
+    public const PAST_LOAD_HEADERS = ['Date', 'Status', 'Stops', 'Bags'];
+
+    public const PAST_LOAD_SUMMARY_COLUMNS = [0, 1, 3];
+
+    public const PAST_LOAD_NUMBER_COLUMNS = [2, 3];
+
+    /**
+     * An opened load's stops on wider screens, and those lined up on the
+     * right. Phones show each stop as a card instead.
+     */
+    public const STOP_HEADERS = ['Stop', 'Name', 'Bags', 'Address', 'Phone', 'Notes'];
+
+    public const STOP_NUMBER_COLUMNS = [2];
 
     /**
      * The preview's columns, and the ones on a phone's line (number and
@@ -121,21 +156,33 @@ class MapController extends Controller
         $search = $request->query('q');
         $search = is_string($search) ? Str::limit(trim($search), self::MAX_SEARCH_LENGTH, '') : '';
         $show = $request->query('show') === self::SHOW_EVERYTHING ? self::SHOW_EVERYTHING : self::SHOW_PICKUPS;
+        $loadId = $request->query('load');
+        $load = is_string($loadId) && ctype_digit($loadId) ? TrailerLoad::find((int) $loadId) : null;
+        abort_if($loadId !== null && $load === null, 404);
+        $building = $show === self::SHOW_PICKUPS && $search === '' && $load === null && $request->boolean('build');
         $unlocated = $report->unlocated();
 
         $page = match (true) {
+            $load !== null => $this->loadPage($report, $load),
             $search !== '' => $this->searchPage($report, $contacts, $search),
             $show === self::SHOW_EVERYTHING => $this->everythingPage($report),
-            default => $this->pickupsPage($report),
+            default => $this->pickupsPage($report, $building ? $this->chosenStops($request) : null),
         };
         // A preview's locations, on the map with the rest until they're saved
         $page['points'] = [...$page['points'], ...($extra['previewPoints'] ?? [])];
         unset($extra['previewPoints']);
 
         return view('pages.admin.map', [
+            'title' => 'Map',
             'search' => $search,
             'show' => $show,
+            'load' => null,
+            'building' => $building,
             'pickupRows' => [],
+            // Above the map on every view but an opened load
+            ...($load === null ? $this->loadLists($report) : ['plannedLoadRows' => [], 'pastLoadRows' => []]),
+            'stops' => [],
+            'stopRows' => [],
             'results' => [],
             ...$page,
             'legend' => collect($page['points'])->countBy('kind')->sortBy(fn (int $count, string $kind) => array_search($kind, array_keys(self::KIND_LABELS), true))->all(),
@@ -149,47 +196,154 @@ class MapController extends Controller
     }
 
     /**
-     * Pending pickups and the drop-off sites, with the pickups listed
-     * soonest first and a running total of bags.
+     * Pending pickups not yet in a planned trailer load, and the drop-off
+     * sites, with the pickups listed soonest first and a running total of
+     * bags. When building a load, $chosen holds the applications chosen so
+     * far (from a form sent back with errors), and each pickup gets a box
+     * to add it, with its ID on its dot.
      *
+     * @param  list<int>|null  $chosen
      * @return array<string, mixed>
      */
-    private function pickupsPage(MapReport $report): array
+    private function pickupsPage(MapReport $report, ?array $chosen): array
     {
-        $pickups = $report->pickups();
+        ['pickups' => $pickups, 'scheduled' => $scheduled] = $report->toSchedule();
         $located = $pickups->filter(fn (array $pickup) => $pickup['address']?->location !== null);
         $bags = $pickups->sum(fn (array $pickup) => $pickup['application']->estimated_bag_count);
         $total = 0;
+        $needs = $pickups->count() === 1 ? 'needs' : 'need';
 
         $summary = match (true) {
+            $pickups->isEmpty() && $scheduled > 0 => 'Every pickup is in a planned trailer load.',
             $pickups->isEmpty() => 'Nobody is waiting for a pickup.',
-            $located->count() === $pickups->count() => "{$this->count($pickups->count(), 'pickup')} waiting, " . number_format($bags) . ' bags in all, all on the map.',
-            default => "{$this->count($pickups->count(), 'pickup')} waiting, " . number_format($bags) . " bags in all: {$located->count()} on the map, " . ($pickups->count() - $located->count()) . ' still ' . ($pickups->count() - $located->count() === 1 ? 'needs' : 'need') . ' a location.',
+            $located->count() === $pickups->count() => "{$this->count($pickups->count(), 'pickup')} {$needs} scheduling, " . number_format($bags) . ' bags in all, all on the map.',
+            default => "{$this->count($pickups->count(), 'pickup')} {$needs} scheduling, " . number_format($bags) . " bags in all: {$located->count()} on the map, " . ($pickups->count() - $located->count()) . ' still ' . ($pickups->count() - $located->count() === 1 ? 'needs' : 'need') . ' a location.',
         };
 
-        return [
+        if ($scheduled > 0 && $pickups->isNotEmpty()) {
+            $summary .= ' ' . $scheduled . ' more ' . ($scheduled === 1 ? 'is' : 'are') . ' in a planned load.';
+        }
+
+        $page = [
             'summary' => $summary,
             'points' => [
-                ...$located->map(fn (array $pickup) => $this->point($pickup['address'], $pickup['contact']->name, $pickup['kind'], $this->readyNote($pickup), $pickup['contact']->id))->values()->all(),
+                ...$located->map(fn (array $pickup) => $this->point($pickup['address'], $pickup['contact']->name, $pickup['kind'], $this->readyNote($pickup), $pickup['contact']->id, ['id' => $pickup['application']->id]))->values()->all(),
                 ...$this->sitePoints($report),
             ],
-            'pickupRows' => $pickups->map(function (array $pickup) use (&$total) {
+            'pickupRows' => $pickups->map(function (array $pickup) use (&$total, $chosen) {
                 $application = $pickup['application'];
                 $total += $application->estimated_bag_count;
 
-                return $this->pickupRow($pickup, $total);
+                return [
+                    ...$this->pickupRow($pickup, $total),
+                    'value' => $application->id,
+                    'checked' => in_array($application->id, $chosen ?? [], true),
+                ];
             })->all(),
+        ];
+
+        if ($chosen === null) {
+            return $page;
+        }
+
+        // A new load: what each pickup weighs, for the progress bar, and how full the chosen ones make it
+        $bagsById = $pickups->mapWithKeys(fn (array $pickup) => [$pickup['application']->id => $pickup['application']->estimated_bag_count])->all();
+        $chosenBags = array_sum(array_intersect_key($bagsById, array_flip($chosen)));
+        // The capacity as it was typed, such as "1,500", without the commas
+        // and spaces SaveTrailerLoadRequest takes out, since the flashed input
+        // is what was sent
+        $capacity = preg_replace('/[\s,]/', '', (string) old('capacity', (string) TrailerLoad::DEFAULT_CAPACITY));
+
+        return [
+            ...$page,
+            'loadBags' => $bagsById,
+            'progress' => TrailerLoad::progress(count(array_intersect($chosen, array_keys($bagsById))), $chosenBags, (int) $capacity),
+            'plannedOn' => old('planned_on', Carbon::today(MapReport::TIMEZONE)->toDateString()),
+            'capacity' => $capacity,
         ];
     }
 
     /**
-     * Every located contact, with counts for reporting.
+     * The trailer loads for the list above the map: the planned ones,
+     * soonest first, and the done and canceled ones, newest first, each
+     * opening the load.
+     *
+     * @return array{plannedLoadRows: list<array<string, mixed>>, pastLoadRows: list<array<string, mixed>>}
+     */
+    private function loadLists(MapReport $report): array
+    {
+        [$planned, $past] = $report->loads()->partition(fn (TrailerLoad $load) => $load->status === TrailerLoad::STATUS_PLANNED);
+
+        $row = function (TrailerLoad $load, bool $withStatus) {
+            $status = TrailerLoad::STATUS_LABELS[$load->status];
+            $bags = number_format($load->applications->sum('estimated_bag_count')) . ' of ' . number_format($load->capacity);
+
+            return [
+                'cells' => [
+                    $load->label(),
+                    ...($withStatus ? [['badge' => $status, 'tone' => 'muted', 'text' => '']] : []),
+                    $load->applications->count(),
+                    $bags,
+                ],
+                'summary' => [$load->label(), ...($withStatus ? [$status] : []), $bags . ' bags'],
+                'url' => route('admin.map', ['load' => $load->id]),
+            ];
+        };
+
+        return [
+            'plannedLoadRows' => $planned->map(fn (TrailerLoad $load) => $row($load, false))->values()->all(),
+            'pastLoadRows' => $past->map(fn (TrailerLoad $load) => $row($load, true))->values()->all(),
+        ];
+    }
+
+    /**
+     * One trailer load: its stops on the map, numbered in route order, with
+     * the drop-off sites, and listed with what's needed on the road, to
+     * follow on a phone.
+     *
+     * @return array<string, mixed>
+     */
+    private function loadPage(MapReport $report, TrailerLoad $load): array
+    {
+        $stops = $report->stops($load);
+        $located = $stops->filter(fn (array $stop) => $stop['address']?->location !== null);
+        $bags = $stops->sum(fn (array $stop) => $stop['application']->estimated_bag_count);
+        $count = $this->count($stops->count(), 'stop');
+        $cards = $stops->map(fn (array $stop) => $this->stop($stop))->all();
+
+        return [
+            'title' => "Trailer Load: {$load->label()}",
+            'load' => $load,
+            'summary' => TrailerLoad::STATUS_LABELS[$load->status] . " · {$count}" . ($located->count() === $stops->count() ? '' : ' · ' . ($stops->count() - $located->count()) . ' not on the map yet'),
+            'progress' => TrailerLoad::progress($stops->count(), $bags, $load->capacity),
+            'points' => [
+                ...$located->map(fn (array $stop) => $this->point(
+                    $stop['address'],
+                    $stop['contact']->name,
+                    $stop['kind'],
+                    "Stop {$stop['position']} · {$stop['application']->estimated_bag_count} " . Str::plural('bag', $stop['application']->estimated_bag_count),
+                    $stop['contact']->id,
+                    ['number' => $stop['position']],
+                ))->values()->all(),
+                ...$this->sitePoints($report),
+            ],
+            'stops' => $cards,
+            'stopRows' => array_map(fn (array $stop) => $this->stopRow($stop), $cards),
+        ];
+    }
+
+    /**
+     * Every located contact, with counts for reporting, the pickups in a
+     * planned trailer load ringed.
      *
      * @return array<string, mixed>
      */
     private function everythingPage(MapReport $report): array
     {
         $everyone = $report->everything();
+        $scheduled = $report->scheduled()
+            ->filter(fn (array $stop) => $stop['contact'] !== null)
+            ->keyBy(fn (array $stop) => $stop['contact']->id);
         $sites = $everyone->where('kind', MapReport::KIND_SITE)->count();
         $pickups = $everyone->whereIn('kind', [MapReport::KIND_NOW, MapReport::KIND_SOON, MapReport::KIND_LATER])->count();
         $others = $everyone->count() - $sites - $pickups;
@@ -198,7 +352,13 @@ class MapController extends Controller
             'summary' => $everyone->isEmpty()
                 ? 'Nothing has a location yet.'
                 : $this->count($everyone->count(), 'place') . " on the map: {$this->count($pickups, 'pickup')} waiting, {$this->count($others, 'other contact')}, and {$this->count($sites, 'drop-off site')}.",
-            'points' => $everyone->map(fn (array $place) => $this->point($place['address'], $place['contact']->name, $place['kind'], $place['address']->value, $place['contact']->id))->all(),
+            'points' => $everyone->map(function (array $place) use ($scheduled) {
+                $stop = $scheduled->get($place['contact']->id);
+
+                return $stop === null
+                    ? $this->point($place['address'], $place['contact']->name, $place['kind'], $place['address']->value, $place['contact']->id)
+                    : $this->point($place['address'], $place['contact']->name, $place['kind'], "In the {$stop['load']->label()} load · stop {$stop['position']}", $place['contact']->id, ['ringed' => true]);
+            })->all(),
         ];
     }
 
@@ -262,9 +422,14 @@ class MapController extends Controller
      * A dot on the map, for resources/js/admin-map.js: where, its kind, and
      * what its popup says.
      *
-     * @return array{lat: float, lng: float, kind: string, name: string, note: string, url: string}
+     * $extra adds what the script needs for trailer loads: a pickup's
+     * application `id` while building a load, `ringed` for a pickup in a
+     * planned load, or a stop's `number`.
+     *
+     * @param  array<string, mixed>  $extra
+     * @return array<string, mixed>
      */
-    private function point(ContactDetail $address, string $name, string $kind, string $note, int $contactId): array
+    private function point(ContactDetail $address, string $name, string $kind, string $note, int $contactId, array $extra = []): array
     {
         return [
             'lat' => $address->location['latitude'],
@@ -273,6 +438,7 @@ class MapController extends Controller
             'name' => $name,
             'note' => $note,
             'url' => route('admin.contacts.show', $contactId),
+            ...$extra,
         ];
     }
 
@@ -339,6 +505,70 @@ class MapController extends Controller
             ],
             'summary' => [(string) ($row['id'] ?? $row['entry']), $result],
         ];
+    }
+
+    /**
+     * A load's stop, for its list on wider screens and its card on phones:
+     * the stop number, the name, linking to the contact (or the application
+     * before it's linked to one), bags, the address (noting when it isn't on
+     * the map yet), the main phone number with a link that dials it, and the
+     * contact's notes, which can hold things like a gate code.
+     *
+     * @param  array{application: LeafApplication, contact: ?\App\Models\Contact, address: ?ContactDetail, position: int}  $stop
+     * @return array{position: int, name: string, url: string, bags: int, address: string, phone: ?string, tel: ?string, notes: string}
+     */
+    private function stop(array $stop): array
+    {
+        $application = $stop['application'];
+        $contact = $stop['contact'];
+        $address = $stop['address']?->value ?? $application->address;
+        $phone = $contact?->details->firstWhere('type', ContactDetail::TYPE_PHONE)?->value ?? $application->phone;
+        $digits = $phone !== null ? ContactDetail::normalize(ContactDetail::TYPE_PHONE, $phone) : null;
+
+        return [
+            'position' => $stop['position'],
+            'name' => $contact?->name ?? $application->name,
+            'url' => $contact ? route('admin.contacts.show', $contact->id) : route('admin.leaves.show', $application->id),
+            'bags' => $application->estimated_bag_count,
+            'address' => $stop['address']?->location !== null ? $address : "{$address} (not on the map yet)",
+            'phone' => $phone,
+            'tel' => $digits !== null ? "tel:+1{$digits}" : null,
+            'notes' => trim((string) $contact?->notes),
+        ];
+    }
+
+    /**
+     * A stop as a row of the list on wider screens.
+     *
+     * @param  array{position: int, name: string, url: string, bags: int, address: string, phone: ?string, tel: ?string, notes: string}  $stop
+     * @return array<string, mixed>
+     */
+    private function stopRow(array $stop): array
+    {
+        return [
+            'cells' => [
+                $stop['position'],
+                ['text' => $stop['name'], 'url' => $stop['url']],
+                $stop['bags'],
+                $stop['address'],
+                $stop['tel'] !== null ? ['text' => $stop['phone'], 'url' => $stop['tel']] : (string) $stop['phone'],
+                $stop['notes'],
+            ],
+            'summary' => [$stop['position'] . '. ' . $stop['name'], $stop['bags'] . ' ' . Str::plural('bag', $stop['bags'])],
+        ];
+    }
+
+    /**
+     * The applications chosen for a new load in a form sent back with
+     * errors, in order.
+     *
+     * @return list<int>
+     */
+    private function chosenStops(Request $request): array
+    {
+        $old = $request->old('stops', []);
+
+        return is_array($old) ? array_values(array_unique(array_map('intval', array_filter($old, fn ($id) => is_scalar($id) && ctype_digit((string) $id))))) : [];
     }
 
     /**
