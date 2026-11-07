@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SaveLocationsRequest;
+use App\Models\ContactActivity;
 use App\Models\ContactDetail;
 use App\Models\LeafApplication;
 use App\Models\TrailerLoad;
@@ -197,6 +198,7 @@ class MapController extends Controller
             // Above the map on every view but an opened load
             ...($load === null ? $this->loadLists($report) : ['plannedLoadRows' => [], 'pastLoadRows' => []]),
             'stops' => [],
+            'showPickups' => false,
             'results' => [],
             ...$page,
             'legend' => collect($page['points'])->countBy('kind')->sortBy(fn (int $count, string $kind) => array_search($kind, array_keys(self::KIND_LABELS), true))->all(),
@@ -351,7 +353,15 @@ class MapController extends Controller
         $located = $stops->filter(fn (array $stop) => $stop['address']?->location !== null);
         $bags = $stops->sum(fn (array $stop) => $stop['application']->estimated_bag_count);
         $count = $this->count($stops->count(), 'stop');
-        $cards = $stops->map(fn (array $stop) => $this->stop($stop))->all();
+        // A done load says what was picked up at each stop
+        $done = $load->status === TrailerLoad::STATUS_DONE;
+        $logged = $done
+            ? ContactActivity::whereIn('id', $stops->map(fn (array $stop) => $stop['application']->pivot->contact_activity_id)->filter()->all())->pluck('bag_count', 'id')
+            : collect();
+        $cards = $stops->map(fn (array $stop) => [
+            ...$this->stop($stop),
+            'pickup' => $done ? $this->pickupResult($stop, $logged->all()) : null,
+        ])->all();
 
         return [
             'title' => "Trailer Load: {$load->label()}",
@@ -370,8 +380,28 @@ class MapController extends Controller
                 ...$this->sitePoints($report),
             ],
             'stops' => $cards,
+            'showPickups' => $done,
             'canEdit' => $load->isPlanned(),
         ];
+    }
+
+    /**
+     * What happened at a done load's stop: the pickup logged when the load
+     * was marked done, such as "Picked up 28 bags", "Picked up separately"
+     * for one whose pickup was logged on its own, or "Not picked up".
+     *
+     * @param  array{application: LeafApplication}  $stop
+     * @param  array<int, int>  $logged  bags by the ID of the pickup logged
+     */
+    private function pickupResult(array $stop, array $logged): string
+    {
+        $activityId = $stop['application']->pivot->contact_activity_id;
+
+        return match (true) {
+            $activityId !== null && isset($logged[$activityId]) => 'Picked up ' . number_format($logged[$activityId]) . ' ' . Str::plural('bag', $logged[$activityId]),
+            $stop['application']->status === LeafApplication::STATUS_COMPLETE => 'Picked up separately',
+            default => 'Not picked up',
+        };
     }
 
     /**

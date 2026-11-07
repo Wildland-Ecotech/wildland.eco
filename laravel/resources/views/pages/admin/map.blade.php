@@ -170,6 +170,7 @@
         @if ($canEdit)
             <div class="load-actions">
                 <a class="button dark small" href="{{ route('admin.map', ['load' => $load->id, 'edit' => 1]) }}">Edit Load</a>
+                <a class="button dark small" href="{{ route('admin.map.loads.done', $load->id) }}">Mark Done</a>
             </div>
         @endif
 
@@ -193,6 +194,9 @@
                             <th scope="col">Address</th>
                             <th scope="col">Phone</th>
                             <th scope="col">Notes</th>
+                            @if ($showPickups)
+                                <th scope="col">Pickup</th>
+                            @endif
                             @if ($canEdit)
                                 <th scope="col"><span class="visually-hidden">Move</span></th>
                             @endif
@@ -207,6 +211,9 @@
                                 <td>{{ $stop['address'] }}</td>
                                 <td class="stop-phone">@if ($stop['tel'] !== null)<a href="{{ $stop['tel'] }}">{{ $stop['phone'] }}</a>@else{{ $stop['phone'] ?? '—' }}@endif</td>
                                 <td class="stop-notes">{{ $stop['notes'] !== '' ? $stop['notes'] : '—' }}</td>
+                                @if ($showPickups)
+                                    <td>{{ $stop['pickup'] }}</td>
+                                @endif
                                 @if ($canEdit)
                                     <td>
                                         <div class="stop-moves">
@@ -242,6 +249,9 @@
                             @endif
                             @if ($stop['notes'] !== '')
                                 <p class="stop-notes">{{ $stop['notes'] }}</p>
+                            @endif
+                            @if ($showPickups)
+                                <p class="stop-pickup">{{ $stop['pickup'] }}</p>
                             @endif
                             @if ($canEdit && count($stops) > 1)
                                 <div class="stop-moves">
