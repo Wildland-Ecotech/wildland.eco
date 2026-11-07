@@ -185,11 +185,15 @@ $control-height: 16px * $control-line-height + 16px + 4px;
         margin: 0.4em 0 0;
     }
 
-    // Sign In spans the form
+    // Sign In spans the form, as tall as the fields above it: their text
+    // size and padding, with a small button's border
     .sign-in-form .button {
         display: block;
         width: 100%;
         margin: 0;
+        font-size: 17px;
+        line-height: normal;
+        padding: 0.7em 1.25em;
     }
 
     .help {

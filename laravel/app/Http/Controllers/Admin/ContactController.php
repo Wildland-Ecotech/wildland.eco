@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Admin\Traits\ShowsFollowUps;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\DeleteContactRequest;
 use App\Http\Requests\SaveContactRequest;
 use App\Models\Contact;
 use App\Models\ContactActivity;
@@ -32,7 +33,8 @@ use Illuminate\View\View;
  * search by name, phone number, or email; one contact with their details, timeline, applications, and form
  * errors; adding a contact by hand, such as someone reached by text before
  * they applied, or a drop-off site; editing a contact's name, notes, and
- * whether they're a drop-off site; merging another contact into one; and the
+ * whether they're a drop-off site; deleting a contact with no applications,
+ * such as one added as a test; merging another contact into one; and the
  * applications whose contact needs an admin to look (Needs Review). Their
  * phone numbers, emails, and address are edited through
  * ContactDetailController, and timeline entries logged through
@@ -321,8 +323,9 @@ class ContactController extends Controller
     }
 
     /**
-     * The form for editing a contact: their name and notes, and their phone
-     * numbers, emails, and address, each with its own buttons.
+     * The form for editing a contact: their name and notes, their phone
+     * numbers, emails, and address, each with its own buttons, and deleting
+     * them when no application belongs to them, even a deleted one.
      */
     public function edit(Contact $contact): View
     {
@@ -333,6 +336,7 @@ class ContactController extends Controller
             'phones' => $details->where('type', ContactDetail::TYPE_PHONE)->values(),
             'emails' => $details->where('type', ContactDetail::TYPE_EMAIL)->values(),
             'address' => $details->firstWhere('type', ContactDetail::TYPE_ADDRESS),
+            'applicationCount' => $contact->applications()->withTrashed()->count(),
         ]);
     }
 
@@ -348,6 +352,18 @@ class ContactController extends Controller
         ]);
 
         return redirect()->route('admin.contacts.edit', $contact->id)->with('status', 'Saved the name and notes.');
+    }
+
+    /**
+     * Delete a contact with no applications, such as one added as a test,
+     * and go back to Contacts. Like a merged contact, it's only soft-deleted,
+     * and left out of every list, the map, and matching new applications.
+     */
+    public function destroy(DeleteContactRequest $request, Contact $contact): RedirectResponse
+    {
+        $contact->delete();
+
+        return redirect()->route('admin.contacts')->with('status', "Deleted {$contact->name}.");
     }
 
     /**

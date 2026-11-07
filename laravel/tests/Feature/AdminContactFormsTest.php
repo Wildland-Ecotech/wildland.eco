@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Contact;
 use App\Models\ContactDetail;
+use App\Models\LeafApplication;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -11,8 +12,9 @@ use Tests\TestCase;
 
 /**
  * Adding contacts by hand (/admin/contacts/new) and editing them
- * (/admin/contacts/{id}/edit): name, notes, and drop-off sites, and adding,
- * making main, and removing phone numbers, emails, and the address.
+ * (/admin/contacts/{id}/edit): name, notes, and drop-off sites; adding,
+ * making main, and removing phone numbers, emails, and the address; and
+ * deleting a contact with no applications.
  */
 class AdminContactFormsTest extends TestCase
 {
@@ -45,6 +47,27 @@ class AdminContactFormsTest extends TestCase
     }
 
     /**
+     * A pickup application belonging to the contact.
+     */
+    private function application(Contact $contact): LeafApplication
+    {
+        $application = new LeafApplication;
+        $application->forceFill([
+            'type' => LeafApplication::TYPE_PICKUP,
+            'name' => $contact->name,
+            'email' => 'jamie@example.com',
+            'phone' => '(970) 555-0123',
+            'address' => '123 Example St, Fort Collins, CO 80521',
+            'estimated_bag_count' => 30,
+            'ready_now' => true,
+            'terms_accepted_at' => now(),
+            'contact_id' => $contact->id,
+        ])->save();
+
+        return $application;
+    }
+
+    /**
      * The contact's current details of a type, as [value, primary] pairs.
      *
      * @return list<array{string, bool}>
@@ -69,6 +92,7 @@ class AdminContactFormsTest extends TestCase
             ['post', "/admin/contacts/{$contact->id}/details"],
             ['post', "/admin/contacts/{$contact->id}/details/{$detail->id}/primary"],
             ['post', "/admin/contacts/{$contact->id}/details/{$detail->id}/remove"],
+            ['post', "/admin/contacts/{$contact->id}/delete"],
         ];
 
         // Every request as a guest first, since signing in lasts for the rest of the test
@@ -409,5 +433,90 @@ class AdminContactFormsTest extends TestCase
         $contact->removeDetail($old);
 
         $this->actingAs($this->admin)->post("/admin/contacts/{$contact->id}/details/{$old->id}/primary")->assertNotFound();
+    }
+
+    public function test_deletes_a_contact_without_applications(): void
+    {
+        $contact = $this->contact('Test Contact');
+        $contact->moveTo('123 Example St, Fort Collins, CO 80521');
+
+        $this->actingAs($this->admin)
+            ->get("/admin/contacts/{$contact->id}/edit")
+            ->assertSeeInOrder(['Address', '<h2 id="delete">Delete Contact</h2>', 'action="' . route('admin.contacts.destroy', $contact->id) . '"', 'Delete Test Contact', 'For contacts added by mistake or as a test.', 'Delete Contact</button>', '← Back to Test Contact'], false)
+            ->assertSee('<input type="checkbox" name="confirm" value="1" aria-describedby="confirm-hint"', false);
+
+        $this->actingAs($this->admin)
+            ->post("/admin/contacts/{$contact->id}/delete", ['confirm' => '1'])
+            ->assertRedirect(route('admin.contacts'))
+            ->assertSessionHas('status', 'Deleted Test Contact.');
+
+        // Only soft-deleted, with their details kept
+        $this->assertSoftDeleted($contact);
+        $this->assertSame(3, $contact->details()->count());
+
+        $this->actingAs($this->admin)->get('/admin/contacts')->assertSee('<p class="status" role="status">Deleted Test Contact.</p>', false);
+        $this->actingAs($this->admin)->get('/admin/contacts?show=all')->assertDontSee('Test Contact');
+        $this->actingAs($this->admin)->get("/admin/contacts/{$contact->id}")->assertNotFound();
+        $this->actingAs($this->admin)->get("/admin/contacts/{$contact->id}/edit")->assertNotFound();
+        $this->actingAs($this->admin)->post("/admin/contacts/{$contact->id}/delete", ['confirm' => '1'])->assertNotFound();
+    }
+
+    public function test_deleting_needs_the_box_checked(): void
+    {
+        $contact = $this->contact();
+
+        $this->actingAs($this->admin)
+            ->from("/admin/contacts/{$contact->id}/edit")
+            ->post("/admin/contacts/{$contact->id}/delete")
+            ->assertRedirect(route('admin.contacts.edit', $contact->id) . '#delete')
+            ->assertSessionHasErrors(['confirm' => 'Check the box to confirm, then press Delete Contact.']);
+
+        $this->assertNotSoftDeleted($contact);
+
+        // On a request of its own, since asserting session errors leaves none for the next one
+        $response = $this->actingAs($this->admin)
+            ->from("/admin/contacts/{$contact->id}/edit")
+            ->followingRedirects()
+            ->post("/admin/contacts/{$contact->id}/delete")
+            ->assertSee('<p class="field-error" id="confirm-error">Check the box to confirm, then press Delete Contact.</p>', false);
+
+        // Blade keeps the spaces on both sides of @error, so allow any spacing
+        $this->assertMatchesRegularExpression('/<input type="checkbox" name="confirm" value="1" aria-describedby="confirm-hint confirm-error"\s+aria-invalid="true"\s*>/', $response->getContent());
+    }
+
+    public function test_a_contact_with_applications_cannot_be_deleted(): void
+    {
+        $contact = $this->contact();
+        $this->application($contact);
+
+        $this->actingAs($this->admin)
+            ->get("/admin/contacts/{$contact->id}/edit")
+            ->assertSeeInOrder(['<h2 id="delete">Delete Contact</h2>', 'Jamie Rivera has an application, so they can’t be deleted. If this is a duplicate, merge it into the other contact from Shares Details With.'], false)
+            ->assertDontSee('action="' . route('admin.contacts.destroy', $contact->id) . '"', false);
+
+        // Even when the page was opened before the application was linked
+        $this->actingAs($this->admin)
+            ->post("/admin/contacts/{$contact->id}/delete", ['confirm' => '1'])
+            ->assertRedirect(route('admin.contacts.edit', $contact->id) . '#delete')
+            ->assertSessionHasErrors(['confirm' => 'Jamie Rivera has an application, so they can’t be deleted. If this is a duplicate, merge it into the other contact from Shares Details With.']);
+
+        $this->assertNotSoftDeleted($contact);
+    }
+
+    public function test_deleted_applications_still_keep_a_contact(): void
+    {
+        $contact = $this->contact();
+        $this->application($contact);
+        $this->application($contact)->delete();
+
+        $this->actingAs($this->admin)
+            ->get("/admin/contacts/{$contact->id}/edit")
+            ->assertSee('Jamie Rivera has 2 applications, so they can’t be deleted.');
+
+        $this->actingAs($this->admin)
+            ->post("/admin/contacts/{$contact->id}/delete", ['confirm' => '1'])
+            ->assertSessionHasErrors('confirm');
+
+        $this->assertNotSoftDeleted($contact);
     }
 }
