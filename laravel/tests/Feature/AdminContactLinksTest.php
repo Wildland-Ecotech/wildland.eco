@@ -140,17 +140,19 @@ class AdminContactLinksTest extends TestCase
     {
         $jamie = $this->apply()->contact;
         $jamie->addDetail(ContactDetail::TYPE_EMAIL, 'jr@example.com');
-        // By an email, by the phone number written another way, and one
-        // closed as resolved; then one that went through, and someone else's
+        // By an email, by the phone number written another way, by it with an
+        // extension, and one closed as resolved; then one that went through,
+        // and someone else's
         $this->submission('BYMAIL', FormSubmission::OUTCOME_REJECTED, ['email' => 'jr@example.com', 'data' => []], minutesAgo: 30);
         $this->submission('BYFONE', FormSubmission::OUTCOME_EXPIRED, ['email' => 'other@example.com', 'data' => ['phone' => '970.555.0123']], minutesAgo: 90);
+        $this->submission('BYEXTN', FormSubmission::OUTCOME_REJECTED, ['email' => 'other@example.com', 'data' => ['phone' => '970-555-0123 ext. 4']], minutesAgo: 100);
         $this->submission('CLOSED', FormSubmission::OUTCOME_REJECTED, minutesAgo: 120)->close($this->admin, FormSubmission::RESOLUTION_RESOLVED);
         $this->submission('SAVED1', FormSubmission::OUTCOME_SAVED, minutesAgo: 10);
         $this->submission('NOBODY', FormSubmission::OUTCOME_REJECTED, ['name' => 'Sam Lee', 'email' => 'sam@example.com', 'data' => ['phone' => '970-555-0144']]);
 
         $this->actingAs($this->admin)
             ->get("/admin/contacts/{$jamie->id}")
-            ->assertSeeInOrder(['Applications', 'Form Errors', 'BYMAIL', 'BYFONE', 'CLOSED'])
+            ->assertSeeInOrder(['Applications', 'Form Errors', 'BYMAIL', 'BYFONE', 'BYEXTN', 'CLOSED'])
             ->assertSee('href="' . route('admin.errors.show', 'BYMAIL') . '"', false)
             ->assertSee('Resolved by')
             ->assertSee('<summary><span class="status-icon failure" aria-hidden="true">✕</span><span class="visually-hidden">No record: </span>Nov 5 · Leaf application · ', false)

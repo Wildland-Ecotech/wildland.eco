@@ -39,6 +39,22 @@ class ContactDetail extends Model
     public const TYPES = [self::TYPE_EMAIL, self::TYPE_PHONE, self::TYPE_ADDRESS];
 
     /**
+     * A phone number as every form takes it, the leaf application form and
+     * the admin contact forms alike: a US number's 10 digits, with or
+     * without a leading country code 1 or +1, typed with any spaces, dots,
+     * dashes, or parentheses, and optionally an extension after it
+     * ("extension", "ext", "ext.", or "x", then up to 6 digits). Such as
+     * "(970) 555-0123", "+1 970.555.0123", or "970-555-0123 ext. 4".
+     */
+    public const PHONE_PATTERN = '/^(?:\+?1[\s.-]*)?(?:\(\s*\d{3}\s*\)|\d{3})[\s.-]*\d{3}[\s.-]*\d{4}(?:\s*(?:extension|ext\.?|x)\s*\d{1,6})?$/i';
+
+    /**
+     * An extension at the end of a phone number, as PHONE_PATTERN takes it,
+     * with its digits.
+     */
+    private const PHONE_EXTENSION = '/\s*(?:extension|ext\.?|x)\s*(\d{1,6})$/i';
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -66,8 +82,10 @@ class ContactDetail extends Model
      * nothing to match on:
      *
      * - email: trimmed and lowercase
-     * - phone: a US number's 10 digits, without a leading country code 1;
-     *   null without all 10, such as a number without an area code
+     * - phone: a US number's 10 digits, without a leading country code 1
+     *   or any extension, so a number matches with or without one; null
+     *   without all 10, such as a number without an area code saved before
+     *   the forms required one
      * - address: lowercase, with commas and periods as spaces and spacing
      *   collapsed, so "123 Example St., Fort Collins" matches
      *   "123 example st fort collins"
@@ -86,11 +104,20 @@ class ContactDetail extends Model
     }
 
     /**
-     * A US phone number's 10 digits, or null.
+     * A phone number without the extension at its end, if it has one, as
+     * typed otherwise, such as "970-555-0123" for "970-555-0123 ext. 4".
+     */
+    public static function withoutPhoneExtension(string $value): string
+    {
+        return preg_replace(self::PHONE_EXTENSION, '', trim($value));
+    }
+
+    /**
+     * A US phone number's 10 digits, leaving out any extension, or null.
      */
     private static function phoneDigits(string $value): ?string
     {
-        $digits = preg_replace('/\D/', '', $value);
+        $digits = preg_replace('/\D/', '', self::withoutPhoneExtension($value));
 
         if (strlen($digits) === 11 && str_starts_with($digits, '1')) {
             $digits = substr($digits, 1);

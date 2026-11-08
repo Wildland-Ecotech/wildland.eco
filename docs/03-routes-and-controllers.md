@@ -120,6 +120,7 @@ Stripe sends events to `POST /webhooks/stripe`: from each server's registered we
 1. `GET /leaves/apply` shows the form. The controller passes `earliestReadyDate` (tomorrow in Fort Collins) for the date field's `min`, and a new proof-of-work challenge (see [ProofOfWork](02-services-and-commands.md#proofofwork-appservicesproofofworkphp)).
 2. `POST /leaves/apply` is validated by `StoreLeafApplicationRequest`:
    - The bag count is cleaned first (spaces and commas removed), so `1,200` is accepted.
+   - `phone` must be a US number with its area code: 10 digits, or 11 starting with a country code 1 or +1, typed with any spaces, dots, dashes, or parentheses, and optionally an extension after it ("x", "ext", "ext.", or "extension", then up to 6 digits), such as `(970) 555-0123` or `970-555-0123 x12` (`ContactDetail::PHONE_PATTERN`). The admin contact forms take phone numbers by the same rule, with the same message: "Enter a phone number with its area code, such as (970) 555-0123, and any extension after it, such as x12." Numbers saved before the rule, such as one without an area code, are kept as they were.
    - `ready_date` is required only when `ready_now` is `0`, and must be after today in `America/Denver` (`StoreLeafApplicationRequest::TIMEZONE`), not the server's UTC date.
    - `terms` must be accepted.
    - `pow_challenge` and `pow_nonce` must be a solved, unexpired, unused proof of work, checked in the request's `after()` hook. A checked challenge is used up even when other fields fail, and the redisplayed form issues a new one.

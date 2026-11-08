@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\ContactDetail;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -12,10 +13,10 @@ use Illuminate\Foundation\Http\FormRequest;
 class SaveContactRequest extends FormRequest
 {
     /**
-     * A phone number as typed: digits, with spaces, dots, dashes,
-     * parentheses, and a leading +, like the leaf application form's.
+     * A US phone number with its area code and any extension, as the leaf
+     * application form takes it (ContactDetail::PHONE_PATTERN).
      */
-    public const PHONE_RULE = 'regex:/^\+?[0-9\s().-]{7,}$/';
+    public const PHONE_RULE = 'regex:' . ContactDetail::PHONE_PATTERN;
 
     public const NOTES_MAX_LENGTH = 2000;
 
@@ -57,7 +58,7 @@ class SaveContactRequest extends FormRequest
             'name.max' => 'Enter a name of 255 characters or fewer.',
             'name' => 'Enter the contact’s name as text.',
             'phone.max' => 'Enter a phone number of 50 characters or fewer.',
-            'phone' => 'Enter a phone number using digits, such as (970) 555-0123.',
+            'phone' => 'Enter a phone number with its area code, such as (970) 555-0123, and any extension after it, such as x12.',
             'email.max' => 'Enter an email address of 255 characters or fewer.',
             'email' => 'Enter a valid email address, such as name@example.com.',
             'address' => 'Enter an address of 500 characters or fewer.',
