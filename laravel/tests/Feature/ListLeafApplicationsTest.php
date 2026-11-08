@@ -171,7 +171,8 @@ class ListLeafApplicationsTest extends TestCase
         $row = $this->csvRows()[1];
 
         $this->assertSame("'=HYPERLINK(\"https://example.com\")", $row[3]);
-        $this->assertSame("'+1 970 555 0123", $row[5]);
+        // Formatted, so it no longer starts with +
+        $this->assertSame('970-555-0123', $row[5]);
         $this->assertSame("'@SUM(A1:A2)", $row[10]);
     }
 }

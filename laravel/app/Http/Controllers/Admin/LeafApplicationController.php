@@ -144,7 +144,7 @@ class LeafApplicationController extends Controller
             'contactOptions' => [
                 ...$candidates->map(fn (array $candidate) => [
                     'value' => (string) $candidate['contact']->id,
-                    'label' => $candidate['contact']->name . ' · ' . ($candidate['types'][0] === ContactDetail::TYPE_EMAIL ? $record->email : $record->phone),
+                    'label' => $candidate['contact']->name . ' · ' . ($candidate['types'][0] === ContactDetail::TYPE_EMAIL ? $record->email : ContactDetail::formatPhone($record->phone)),
                 ])->all(),
                 ['value' => LinkApplicationContactRequest::NEW_CONTACT, 'label' => 'A new contact'],
             ],

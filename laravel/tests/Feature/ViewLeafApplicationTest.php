@@ -51,7 +51,7 @@ class ViewLeafApplicationTest extends TestCase
             ->expectsOutputToContain('Type: Pickup')
             ->expectsOutputToContain('Name: Test Donor')
             ->expectsOutputToContain('Email: donor@example.com')
-            ->expectsOutputToContain('Phone: (970) 555-0123')
+            ->expectsOutputToContain('Phone: 970-555-0123')
             ->expectsOutputToContain('Address: 123 Example St, Fort Collins, CO 80521')
             ->expectsOutputToContain('Estimated bags: 40')
             ->expectsOutputToContain('Bags ready: Tue, Oct 27, 2026')
