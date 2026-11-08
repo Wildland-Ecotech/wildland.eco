@@ -2,6 +2,7 @@
 
 namespace App\Reports\Traits;
 
+use App\Models\ContactDetail;
 use App\Models\LeafApplication;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
@@ -96,7 +97,8 @@ trait DescribesLeafApplications
     }
 
     /**
-     * An application's fields, keyed by LEAF_APPLICATION_LABELS.
+     * An application's fields, keyed by LEAF_APPLICATION_LABELS, with the
+     * phone number formatted (ContactDetail::formatPhone()).
      *
      * @return array<string, string>
      */
@@ -106,7 +108,7 @@ trait DescribesLeafApplications
             $this->leafApplicationType($application),
             $application->name,
             $application->email,
-            $application->phone,
+            ContactDetail::formatPhone($application->phone),
             $application->address,
             (string) $application->estimated_bag_count,
             $this->bagsReady($application),

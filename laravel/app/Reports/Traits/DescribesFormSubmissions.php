@@ -3,6 +3,7 @@
 namespace App\Reports\Traits;
 
 use App\Models\Checkout;
+use App\Models\ContactDetail;
 use App\Models\FormSubmission;
 use App\Models\LeafApplication;
 use App\Reports\FormSubmissionReport;
@@ -195,7 +196,7 @@ trait DescribesFormSubmissions
                 default => null,
             },
             isset($data['estimated_bag_count']) ? "{$data['estimated_bag_count']} bags" : null,
-            $data['phone'] ?? null,
+            ContactDetail::formatPhone($data['phone'] ?? null),
             $data['address'] ?? null,
         ])->filter()->implode(', ');
     }

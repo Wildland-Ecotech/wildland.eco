@@ -223,6 +223,11 @@ class AdminErrorLogsTest extends TestCase
         $response->assertSee('Submitted 1 day later');
         // Only REJ444, in both the table and its phone line
         $this->assertSame(2, substr_count($response->getContent(), '✕</span>No record</span>'));
+
+        // The phone number in a submission's details is formatted
+        $this->actingAs($this->admin)
+            ->get('/admin/errors/SAV333')
+            ->assertSee('Pickup, 970-555-0123');
     }
 
     public function test_a_donor_who_paid_later_links_to_their_donation(): void

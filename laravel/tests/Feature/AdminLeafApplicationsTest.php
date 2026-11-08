@@ -222,7 +222,7 @@ class AdminLeafApplicationsTest extends TestCase
         $this->assertCount(2, $rows);
         // Kept from running as a formula in a spreadsheet
         $this->assertSame('\'=HYPERLINK("https://example.com")', $rows[1][3]);
-        $this->assertSame('(970) 555-0123', $rows[1][5]);
+        $this->assertSame('970-555-0123', $rows[1][5]);
     }
 
     public function test_shows_one_application_in_full(): void
@@ -235,7 +235,7 @@ class AdminLeafApplicationsTest extends TestCase
             ->assertSee("Application {$application->id}")
             ->assertSee('Sun, Oct 18, 2026 7:30 PM MDT')
             ->assertSee('jamie@example.com')
-            ->assertSee('(970) 555-0123')
+            ->assertSee('970-555-0123')
             ->assertSee('123 Example St, Fort Collins, CO 80521')
             ->assertSee('Now')
             ->assertSee('A flyer')

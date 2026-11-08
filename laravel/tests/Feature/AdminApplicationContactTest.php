@@ -102,7 +102,7 @@ class AdminApplicationContactTest extends TestCase
             ->assertSee('Phone number also on another contact: <a href="' . route('admin.contacts.show', $jamie->id) . '">Jamie Rivera</a>.', false)
             ->assertSee('Mark it reviewed if nothing needs to change, or move it to the right contact below.')
             ->assertSee('Mark Reviewed')
-            ->assertSee('<option value="' . $jamie->id . '" >Jamie Rivera · (970) 555-0123</option>', false);
+            ->assertSee('<option value="' . $jamie->id . '" >Jamie Rivera · 970-555-0123</option>', false);
     }
 
     public function test_marks_an_application_reviewed(): void

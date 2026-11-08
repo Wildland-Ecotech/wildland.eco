@@ -465,7 +465,7 @@ class MapController extends Controller
                 'url' => route('admin.contacts.show', $result['contact']->id),
                 'details' => implode(' · ', array_filter([
                     $result['address']?->value,
-                    $result['contact']->details->firstWhere('type', ContactDetail::TYPE_PHONE)?->value,
+                    $result['contact']->details->firstWhere('type', ContactDetail::TYPE_PHONE)?->displayValue(),
                 ])),
                 'located' => $result['address']?->location !== null,
                 'sites' => $result['sites']->map(fn (array $site) => [
@@ -528,7 +528,7 @@ class MapController extends Controller
         $application = $pickup['application'];
         $contact = $pickup['contact'];
         $address = $pickup['address']?->value ?? $application->address;
-        $phone = $contact?->details()->current()->where('type', ContactDetail::TYPE_PHONE)->orderByDesc('is_primary')->value('value') ?? $application->phone;
+        $phone = ContactDetail::formatPhone($contact?->details()->current()->where('type', ContactDetail::TYPE_PHONE)->orderByDesc('is_primary')->value('value') ?? $application->phone);
         $ready = $this->ready($pickup);
 
         return [
@@ -604,7 +604,7 @@ class MapController extends Controller
             'url' => $contact ? route('admin.contacts.show', $contact->id) : route('admin.leaves.show', $application->id),
             'bags' => $application->estimated_bag_count,
             'address' => $stop['address']?->location !== null ? $address : "{$address} (not on the map yet)",
-            'phone' => $phone,
+            'phone' => ContactDetail::formatPhone($phone),
             'tel' => $digits !== null ? "tel:+1{$digits}" : null,
             'notes' => trim((string) $contact?->notes),
         ];

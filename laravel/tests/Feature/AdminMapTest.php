@@ -202,7 +202,7 @@ class AdminMapTest extends TestCase
         $response->assertSee('1 contact matching “rivera”.', false)
             ->assertSeeInOrder([
                 '<h2>Jamie Rivera</h2>',
-                '123 Example St, Fort Collins, CO 80521 · (970) 555-0123',
+                '123 Example St, Fort Collins, CO 80521 · 970-555-0123',
                 'View contact',
                 'Closest drop-off site', 'North Drop-off Site · 0.7 mi',
                 'Next closest', 'South Drop-off Site · 3.5 mi',

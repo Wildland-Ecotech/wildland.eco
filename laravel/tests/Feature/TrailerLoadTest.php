@@ -332,15 +332,15 @@ class TrailerLoadTest extends TestCase
             ->assertSeeInOrder([
                 '<span class="stop-number">1</span> <a href="' . route('admin.contacts.show', $jamie->id) . '">Jamie Rivera</a> <span class="stop-bags">25 bags</span>',
                 '<p>10 New Rd, Fort Collins, CO 80521</p>',
-                '<p><a href="tel:+19705550102">(970) 555-0102</a></p>',
+                '<p><a href="tel:+19705550102">970-555-0102</a></p>',
                 '<p class="stop-notes">Gate code 2468. Bags by the garage.</p>',
                 '<span class="stop-number">2</span> <a href="' . route('admin.contacts.show', $dana->id) . '">Dana Cruz</a> <span class="stop-bags">30 bags</span>',
                 '<p>3 Example Blvd, Fort Collins, CO 80525 (not on the map yet)</p>',
                 // The application's number, before the contact has one
-                '<p><a href="tel:+19705550100">(970) 555-0100</a></p>',
+                '<p><a href="tel:+19705550100">970-555-0100</a></p>',
             ], false)
             // The same in the table on wider screens
-            ->assertSee('<td class="stop-phone"><a href="tel:+19705550102">(970) 555-0102</a></td>', false)
+            ->assertSee('<td class="stop-phone"><a href="tel:+19705550102">970-555-0102</a></td>', false)
             ->assertDontSee('>Print</button>', false)
             ->assertSee('href="' . route('admin.map') . '">← Back to Map</a>', false)
             // Nothing else from the Map page
