@@ -89,7 +89,7 @@ class ContactMergeTest extends TestCase
 
         $this->actingAs($this->admin)
             ->get("/admin/contacts/{$jamie->id}")
-            ->assertSeeInOrder(['Shares Details With', 'Alex Rivera', '· (970) 555-0123', 'Merge Into Jamie Rivera', 'Applications'], false)
+            ->assertSeeInOrder(['Shares Details With', 'Alex Rivera', '· 970-555-0123', 'Merge Into Jamie Rivera', 'Applications'], false)
             ->assertSee('action="' . route('admin.contacts.merge', [$jamie->id, $alex->id]) . '"', false)
             ->assertDontSee('Sam Lee');
     }
@@ -105,7 +105,7 @@ class ContactMergeTest extends TestCase
 
         $this->actingAs($this->admin)
             ->get("/admin/contacts/{$jamie->id}")
-            ->assertSeeInOrder(['Previous phone number', '(970) 555-0123'])
+            ->assertSeeInOrder(['Previous phone number', '970-555-0123'])
             ->assertDontSee('Shares Details With');
 
         // Nor does a number the other contact stopped using

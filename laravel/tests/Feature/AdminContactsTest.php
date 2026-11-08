@@ -372,7 +372,7 @@ class AdminContactsTest extends TestCase
             ->assertSee('<h1>Jamie Rivera</h1>', false)
             ->assertSee('aria-current="page">Contacts</a>', false)
             // One of each, so neither is marked as the main one
-            ->assertSee('<dd>(970) 555-0123</dd>', false)
+            ->assertSee('<dd>970-555-0123</dd>', false)
             ->assertSee('<dd>jamie@example.com</dd>', false)
             ->assertSee('<dd>123 Example St, Fort Collins, CO 80521</dd>', false)
             ->assertSeeInOrder(['Previous address', '456 Sample Ave, Fort Collins, CO 80524'])
@@ -390,7 +390,7 @@ class AdminContactsTest extends TestCase
 
         $this->actingAs($this->admin)
             ->get("/admin/contacts/{$contact->id}")
-            ->assertSee("<dd>(970) 555-0188 (main)\n(970) 555-0123</dd>", false);
+            ->assertSee("<dd>970-555-0188 (main)\n970-555-0123</dd>", false);
     }
 
     public function test_a_contact_without_applications_says_so(): void

@@ -206,7 +206,7 @@ A contact's emails, phone numbers, and address, several per contact. Model: `App
 |--------|-------|
 | contact_id | Foreign key; restricts deletes |
 | type | String, up to 20 characters: `email`, `phone`, or `address` (`ContactDetail::TYPES`) |
-| value | Up to 500 characters, as entered, trimmed |
+| value | Up to 500 characters, as entered, trimmed. Admins see a phone number with a US number's 10 digits as `970-555-0123`, however it was entered, with any extension as `970-555-0123 ext. 4`, and any other, saved before the forms required an area code, as entered (`ContactDetail::formatPhone()`; `$detail->displayValue()` formats phone numbers only) |
 | normalized | Nullable, up to 500 characters; set from the value on every save (`ContactDetail::normalize()`), for matching: an email trimmed and lowercase; a US phone number's 10 digits, without a leading country code 1 or any extension (so a number matches with or without one); an address lowercase, with commas and periods as spaces and spacing collapsed. Null when there's nothing to match on, such as a phone number without an area code, which is kept but never matched. Indexed together with `type` |
 | label | Nullable, up to 50 characters, such as "mobile" |
 | is_primary | Boolean, default false. The one to use for each type |

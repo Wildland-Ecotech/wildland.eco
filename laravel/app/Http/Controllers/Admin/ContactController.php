@@ -344,8 +344,9 @@ class ContactController extends Controller
 
     /**
      * Other contacts, not deleted, with this phone number or email, current
-     * or previous: each with the value as entered, what it is, whose it is,
-     * whether it's a previous one of theirs, and a link to them.
+     * or previous: each with the value as entered (a phone number
+     * formatted), what it is, whose it is, whether it's a previous one of
+     * theirs, and a link to them.
      *
      * @return list<array{value: string, kind: string, name: string, previous: bool, url: string}>
      */
@@ -368,9 +369,9 @@ class ContactController extends Controller
                 ->orderByRaw('removed_at IS NOT NULL')
                 ->get()
                 ->unique('contact_id')
-                ->each(function (ContactDetail $detail) use (&$duplicates, $value, $kind) {
+                ->each(function (ContactDetail $detail) use (&$duplicates, $type, $value, $kind) {
                     $duplicates[] = [
-                        'value' => trim($value),
+                        'value' => $type === ContactDetail::TYPE_PHONE ? ContactDetail::formatPhone($value) : trim($value),
                         'kind' => $kind,
                         'name' => $detail->contact->name,
                         'previous' => $detail->isRemoved(),
@@ -471,7 +472,7 @@ class ContactController extends Controller
             $previous = $removed->where('type', $type);
 
             if ($previous->isNotEmpty()) {
-                $fields['Previous ' . Str::plural($name, $previous->count())] = $previous->pluck('value')->implode("\n");
+                $fields['Previous ' . Str::plural($name, $previous->count())] = $previous->map(fn (ContactDetail $detail) => $detail->displayValue())->implode("\n");
             }
         }
 
@@ -579,7 +580,7 @@ class ContactController extends Controller
         return $details->map(function (ContactDetail $detail) use ($several) {
             $notes = array_filter([$detail->label, $several && $detail->is_primary ? 'main' : null]);
 
-            return $detail->value . ($notes === [] ? '' : ' (' . implode(', ', $notes) . ')');
+            return $detail->displayValue() . ($notes === [] ? '' : ' (' . implode(', ', $notes) . ')');
         })->implode("\n");
     }
 }

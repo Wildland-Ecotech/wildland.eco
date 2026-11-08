@@ -106,7 +106,7 @@ class AdminContactActivityTest extends TestCase
             ->get("/admin/contacts/{$this->contact->id}/activities/new")
             ->assertOk()
             ->assertSee('<h1>Log Activity</h1>', false)
-            ->assertSee('Jamie Rivera · (970) 555-0123')
+            ->assertSee('Jamie Rivera · 970-555-0123')
             ->assertSee('action="' . route('admin.contacts.activities.store', $this->contact->id) . '"', false)
             ->assertSee('value="text" checked>', false)
             ->assertSee('value="outgoing" checked>', false)
