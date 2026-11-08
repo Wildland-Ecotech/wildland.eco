@@ -12,8 +12,8 @@ use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /**
- * The admin contact pages: the list of contacts with a search
- * (/admin/contacts), opening on those who need follow-up, and one contact
+ * The admin contact pages: the list of every contact with a search
+ * (/admin/contacts), those who need follow-up first, and one contact
  * (/admin/contacts/{id}).
  */
 class AdminContactsTest extends TestCase
@@ -104,7 +104,42 @@ class AdminContactsTest extends TestCase
             ->assertSee('aria-current="page">Contacts</a>', false);
     }
 
-    public function test_lists_the_most_recent_applicant_first_and_contacts_without_one_last(): void
+    public function test_lists_every_contact_with_those_who_need_follow_up_first(): void
+    {
+        $ready = $this->contact('Jamie Rivera', '(970) 555-0123');
+        $this->application($ready, daysAgo: 1);
+        $waiting = $this->contact('Sam Lee', '(970) 555-0144');
+        $this->application($waiting, daysAgo: 9);
+        // Nothing pending, or no applications at all: after those who need follow-up
+        $done = $this->contact('Alex Moreno', '(970) 555-0199');
+        // The status isn't fillable, as only a logged pickup or drop-off sets it
+        $this->application($done, daysAgo: 3)->forceFill(['status' => LeafApplication::STATUS_COMPLETE])->save();
+        $this->contact('Taylor Brooks', '(970) 555-0177');
+
+        $this->actingAs($this->admin)
+            ->get('/admin/contacts')
+            ->assertOk()
+            // Applied as soon as it changes, with JavaScript
+            ->assertSee('<select id="sort" name="sort" data-auto-submit>', false)
+            ->assertSee('<option value="follow-up" selected>Needs follow-up first</option>', false)
+            ->assertSee('4 contacts. The 2 waiting for a pickup or drop-off are first, who needs to hear from us first at the top.')
+            ->assertSeeInOrder(['>Name</th>', '>Applied for</th>', '>Follow-up</th>', '>Bags pending</th>', '>Bags donated</th>', '>Applications</th>', '>Latest application</th>'], false)
+            ->assertSeeInOrder([
+                // Red for those waiting on us, yellow for bags ready
+                'Sam Lee</a> <span class="badge urgent">Waiting on us</span>', 'Pickup', 'No word from us in 9 days', '40',
+                // Before daylight saving time ended, so an hour later on the clock
+                'Oct 27, 8:30 PM',
+                'Jamie Rivera</a> <span class="badge soon">Ready</span>', 'Bags ready now',
+                // Then everyone else, the most recent applicant first
+                'Alex Moreno</a>', 'Taylor Brooks</a>',
+            ], false)
+            ->assertSee('<summary>Sam Lee · No word from us in 9 days <span class="badge urgent">Waiting on us</span></summary>', false)
+            ->assertSee('<summary>Nov 2 · Alex Moreno</summary>', false)
+            // Without an application, the line is the name alone
+            ->assertSee('<summary>Taylor Brooks</summary>', false);
+    }
+
+    public function test_sorts_by_the_most_recent_applicant_with_contacts_without_one_last(): void
     {
         $older = $this->contact('Sam Lee', '(970) 555-0144', 'sam@example.com');
         $this->application($older, daysAgo: 6);
@@ -114,28 +149,54 @@ class AdminContactsTest extends TestCase
         $this->contact('Taylor Brooks', '(970) 555-0177');
 
         $this->actingAs($this->admin)
-            ->get('/admin/contacts?show=all')
+            ->get('/admin/contacts?sort=recent')
             ->assertOk()
-            ->assertSee('<option value="all" selected>All contacts</option>', false)
+            ->assertSee('<option value="recent" selected>Most recent application</option>', false)
             ->assertSee('3 contacts, most recent application first.')
-            ->assertSeeInOrder(['Jamie Rivera', 'Sam Lee', 'Taylor Brooks'])
+            // Both need follow-up, and keep their labels, but Sam Lee isn't
+            // first. Jamie Rivera's older application, still pending after
+            // 20 days, puts them in Waiting on us.
+            ->assertSeeInOrder(['Jamie Rivera</a> <span class="badge urgent">Waiting on us</span>', 'Sam Lee</a> <span class="badge soon">Ready</span>', 'Taylor Brooks'], false)
             ->assertSee('<td class="numeric">2</td>', false)
             ->assertSee('Nov 3, 7:30 PM')
-            ->assertSee('href="' . route('admin.contacts.show', $recent->id) . '"', false)
-            ->assertSee('<summary>Nov 3 · Jamie Rivera · (970) 555-0123</summary>', false)
-            // Without an application, the line starts with the name
-            ->assertSee('<summary>Taylor Brooks · (970) 555-0177</summary>', false);
+            ->assertSee('href="' . route('admin.contacts.show', $recent->id) . '"', false);
     }
 
-    public function test_the_list_shows_the_main_phone_number_and_email(): void
+    public function test_the_list_leaves_out_phone_numbers_and_emails(): void
     {
-        $contact = $this->contact('Jamie Rivera', '(970) 555-0123', 'old@example.com');
-        $contact->usePrimary(ContactDetail::TYPE_EMAIL, 'jamie@example.com');
+        $this->contact('Jamie Rivera', '(970) 555-0123', 'jamie@example.com');
 
         $this->actingAs($this->admin)
-            ->get('/admin/contacts?show=all')
-            ->assertSee('jamie@example.com')
-            ->assertDontSee('old@example.com');
+            ->get('/admin/contacts')
+            ->assertSee('Jamie Rivera')
+            ->assertDontSee('555-0123')
+            ->assertDontSee('jamie@example.com')
+            ->assertDontSee('>Phone</th>', false)
+            ->assertDontSee('>Email</th>', false);
+    }
+
+    public function test_shows_the_latest_application_type_and_bags(): void
+    {
+        $contact = $this->contact('Jamie Rivera');
+        // Done: its bags were donated, and aren't pending
+        $done = $this->application($contact, daysAgo: 20, attributes: ['estimated_bag_count' => 30]);
+        $contact->activities()->create(['type' => ContactActivity::TYPE_PICKUP, 'happened_at' => now()->subDays(15), 'bag_count' => 28, 'leaf_application_id' => $done->id]);
+        $contact->activities()->create(['type' => ContactActivity::TYPE_DROP_OFF, 'happened_at' => now()->subDays(10), 'bag_count' => 5]);
+        // A deleted entry isn't counted
+        $contact->activities()->create(['type' => ContactActivity::TYPE_PICKUP, 'happened_at' => now()->subDays(9), 'bag_count' => 100])->delete();
+        $this->application($contact, daysAgo: 4, attributes: ['estimated_bag_count' => 15]);
+        $this->application($contact, daysAgo: 2, attributes: ['type' => LeafApplication::TYPE_DROP_OFF, 'estimated_bag_count' => 12]);
+        $this->contact('Taylor Brooks');
+
+        $this->actingAs($this->admin)
+            ->get('/admin/contacts')
+            ->assertSeeInOrder([
+                // The latest is a drop-off, with 15 and 12 bags pending and 28
+                // and 5 donated. Cells without a class get an empty one from @class.
+                'Jamie Rivera</a>', '<td class="">Drop-off</td>', '<td class="numeric">27</td>', '<td class="numeric">33</td>', '<td class="numeric">3</td>',
+                // No applications, and nothing donated
+                'Taylor Brooks</a>', '<td class="">—</td>', '<td class="">—</td>', '<td class="numeric">—</td>', '<td class="numeric">—</td>', '<td class="numeric">0</td>',
+            ], false);
     }
 
     public function test_searches_names_emails_and_phone_numbers(): void
@@ -156,7 +217,7 @@ class AdminContactsTest extends TestCase
             $other = $name === 'Jamie Rivera' ? 'Alex Moreno' : 'Jamie Rivera';
 
             $this->actingAs($this->admin)
-                ->get('/admin/contacts?show=all&q=' . urlencode($search))
+                ->get('/admin/contacts?q=' . urlencode($search))
                 ->assertSee("1 contact matching “{$search}”", false)
                 ->assertSee($name)
                 ->assertDontSee($other);
@@ -169,7 +230,7 @@ class AdminContactsTest extends TestCase
         $contact->findDetail(ContactDetail::TYPE_PHONE, '9705550123')->forceFill(['is_primary' => false, 'removed_at' => now()])->save();
 
         $this->actingAs($this->admin)
-            ->get('/admin/contacts?show=all&q=555-0123')
+            ->get('/admin/contacts?q=555-0123')
             ->assertSee('Jamie Rivera');
     }
 
@@ -178,7 +239,7 @@ class AdminContactsTest extends TestCase
         $this->contact('Jamie Rivera', '(970) 555-0123', 'jamie@example.com');
 
         $this->actingAs($this->admin)
-            ->get('/admin/contacts?show=all&q=%25')
+            ->get('/admin/contacts?q=%25')
             ->assertSee('No contacts match “%”.', false)
             ->assertSee('value="%"', false);
     }
@@ -186,7 +247,7 @@ class AdminContactsTest extends TestCase
     public function test_says_when_there_are_no_contacts(): void
     {
         $this->actingAs($this->admin)
-            ->get('/admin/contacts?show=all')
+            ->get('/admin/contacts')
             ->assertOk()
             ->assertSee('No contacts yet.')
             ->assertDontSee('<table', false);
@@ -199,42 +260,10 @@ class AdminContactsTest extends TestCase
         $this->contact('Taylor Brooks', '(970) 555-0177');
 
         $this->actingAs($this->admin)
-            ->get('/admin/contacts?show=all')
-            ->assertSee('<a class="record-link" href="' . route('admin.contacts.show', $site->id) . '">North Drop-off Site</a> <span class="badge">Drop-off site</span>', false)
-            ->assertSee('<summary>North Drop-off Site · (970) 555-0100 <span class="badge">Drop-off site</span></summary>', false)
-            ->assertSee('<summary>Taylor Brooks · (970) 555-0177</summary>', false);
-    }
-
-    public function test_opens_on_those_who_need_follow_up_first(): void
-    {
-        $ready = $this->contact('Jamie Rivera', '(970) 555-0123');
-        $this->application($ready, daysAgo: 1);
-        $waiting = $this->contact('Sam Lee', '(970) 555-0144');
-        $this->application($waiting, daysAgo: 9);
-        // Left out: nothing pending, or no applications at all
-        $done = $this->contact('Alex Moreno', '(970) 555-0199');
-        // The status isn't fillable, as only a logged pickup or drop-off sets it
-        $this->application($done, daysAgo: 20)->forceFill(['status' => LeafApplication::STATUS_COMPLETE])->save();
-        $this->contact('Taylor Brooks', '(970) 555-0177');
-        Contact::create(['name' => 'North Drop-off Site', 'is_drop_off_site' => true]);
-
-        $this->actingAs($this->admin)
             ->get('/admin/contacts')
-            ->assertOk()
-            ->assertSee('<option value="follow-up" selected>Needs follow-up</option>', false)
-            ->assertSee('2 contacts waiting for a pickup or drop-off, who needs to hear from us first at the top.')
-            ->assertSeeInOrder(['>Name</th>', '>Phone</th>', '>Follow-up</th>', '>Bags</th>', '>Ready</th>', '>Last reached</th>', '>Applied</th>'], false)
-            ->assertSeeInOrder([
-                // Red for those waiting on us, yellow for bags ready
-                'Sam Lee</a> <span class="badge urgent">Waiting on us</span>', 'No word from us in 9 days', '40', 'Now', 'Never',
-                // Before daylight saving time ended, so an hour later on the clock
-                'Oct 27, 8:30 PM',
-                'Jamie Rivera</a> <span class="badge soon">Ready</span>', 'Bags ready now',
-            ], false)
-            ->assertSee('<summary>Sam Lee · No word from us in 9 days <span class="badge urgent">Waiting on us</span></summary>', false)
-            ->assertDontSee('Alex Moreno')
-            ->assertDontSee('Taylor Brooks')
-            ->assertDontSee('North Drop-off Site');
+            ->assertSee('<a class="record-link" href="' . route('admin.contacts.show', $site->id) . '">North Drop-off Site</a> <span class="badge">Drop-off site</span>', false)
+            ->assertSee('<summary>North Drop-off Site <span class="badge">Drop-off site</span></summary>', false)
+            ->assertSee('<summary>Taylor Brooks</summary>', false);
     }
 
     public function test_a_contact_is_listed_once_by_their_first_application_in_order(): void
@@ -245,10 +274,11 @@ class AdminContactsTest extends TestCase
 
         $this->actingAs($this->admin)
             ->get('/admin/contacts')
-            ->assertSee('1 contact waiting for a pickup or drop-off')
+            ->assertSee('1 contact. The one waiting for a pickup or drop-off is first.')
             ->assertSee('No word from us in 10 days')
-            ->assertSee('<td class="numeric">60</td>', false)
-            ->assertDontSee('<td class="numeric">15</td>', false);
+            ->assertDontSee('Bags ready now')
+            // Both applications' bags are pending
+            ->assertSee('<td class="numeric">75</td>', false);
     }
 
     public function test_says_why_each_contact_needs_follow_up(): void
@@ -284,22 +314,23 @@ class AdminContactsTest extends TestCase
         }
     }
 
-    public function test_search_looks_within_those_who_need_follow_up(): void
+    public function test_search_keeps_those_who_need_follow_up_first(): void
     {
         $this->application($this->contact('Jamie Rivera', '(970) 555-0123'), daysAgo: 1);
-        $this->application($this->contact('Sam Lee', '(970) 555-0144'), daysAgo: 1);
-        $this->contact('Taylor Brooks', '(970) 555-0177');
+        $this->application($this->contact('Sam Rivera', '(970) 555-0144'), daysAgo: 1);
+        $this->contact('Alex Rivera', '(970) 555-0177');
+        $this->contact('Taylor Brooks', '(970) 555-0188');
 
         $this->actingAs($this->admin)
             ->get('/admin/contacts?q=rivera')
-            ->assertSee('1 contact waiting for a pickup or drop-off matching “rivera”, who needs to hear from us first at the top.', false)
-            ->assertSee('Jamie Rivera')
-            ->assertDontSee('Sam Lee');
+            ->assertSee('3 contacts matching “rivera”. The 2 waiting for a pickup or drop-off are first, who needs to hear from us first at the top.', false)
+            ->assertSeeInOrder(['Jamie Rivera', 'Sam Rivera', 'Alex Rivera'])
+            ->assertDontSee('Taylor Brooks');
 
         $this->actingAs($this->admin)
             ->get('/admin/contacts?q=taylor')
-            ->assertSee('Nobody waiting for a pickup or drop-off matches “taylor”. Show all contacts to search everyone.', false)
-            ->assertDontSee('<table', false);
+            ->assertSee('1 contact matching “taylor”, most recent application first. Nobody is waiting for a pickup or drop-off.', false)
+            ->assertSee('Taylor Brooks');
     }
 
     public function test_says_when_nobody_needs_follow_up(): void
@@ -308,8 +339,8 @@ class AdminContactsTest extends TestCase
 
         $this->actingAs($this->admin)
             ->get('/admin/contacts')
-            ->assertSee('Nobody is waiting for a pickup or drop-off.')
-            ->assertDontSee('<table', false);
+            ->assertSee('1 contact, most recent application first. Nobody is waiting for a pickup or drop-off.')
+            ->assertSee('Taylor Brooks');
     }
 
     public function test_a_contact_page_says_why_they_need_follow_up(): void

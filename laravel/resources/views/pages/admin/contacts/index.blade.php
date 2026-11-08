@@ -5,14 +5,14 @@
         <p class="status" role="status">{{ session('status') }}</p>
     @endif
 
-    {{-- A plain GET form, so a search is in the URL and works without JavaScript --}}
+    {{-- A plain GET form, so a search is in the URL and works without JavaScript; with it, changing the sort applies it right away --}}
     <form class="filters" method="GET" action="{{ route('admin.contacts') }}">
         <div class="filter-group">
             <div class="filter">
-                <label for="show">Show</label>
-                <select id="show" name="show">
-                    @foreach (ContactController::SHOW_CHOICES as $value => $label)
-                        <option value="{{ $value }}" @selected($show === $value)>{{ $label }}</option>
+                <label for="sort">Sort</label>
+                <select id="sort" name="sort" data-auto-submit>
+                    @foreach (ContactController::SORT_CHOICES as $value => $label)
+                        <option value="{{ $value }}" @selected($sort === $value)>{{ $label }}</option>
                     @endforeach
                 </select>
             </div>

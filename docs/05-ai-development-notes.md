@@ -185,12 +185,13 @@ Test traits are created by hand, since `make:trait` only writes inside `app/`.
 
 ## Progressive Enhancement
 
-Every public page must render and work without JavaScript. Pages are rendered on the server with Blade, and JavaScript only enhances them (animations, live labels, overlays). Forms are real HTML forms that submit to the server and are validated there. Features that cannot work without JavaScript, such as the canvas border animation, need a CSS fallback.
+Avoid JavaScript as a necessity, not JavaScript itself. Every page, public and admin, must render and work without JavaScript: pages are rendered on the server with Blade, and forms are real HTML forms that submit to the server and are validated there. Then use JavaScript wherever it improves the experience, such as animations, live labels, overlays, or a menu that applies as soon as it changes, as long as the page still works without it. Features that cannot work without JavaScript, such as the canvas border animation, need a CSS fallback.
 
-There are two agreed exceptions:
+There are three agreed exceptions:
 
 - **Proof-of-work spam protection** on public forms, starting with the leaf application form, and on signing in: submitting requires JavaScript to solve the challenge. Such pages still render without JavaScript and show a `<noscript>` notice with another way to reach us (see [Frontend](04-frontend.md#apply-to-donate-leaves-leavesapply--pagesleaves-applybladephp)).
 - **Payment.** Stripe's payment pages and fields use JavaScript for fraud detection, and we don't control them, so completing a payment requires it and has no fallback. Our own pages, including the donate page, still render without JavaScript.
+- **The admin Map page's map** (Leaflet) needs JavaScript; without it the page says so, and every list on the page still works.
 
 Do not add a runtime Node.js process (for example, server-side rendering) to production. Node is only used to build assets.
 

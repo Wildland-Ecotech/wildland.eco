@@ -6,7 +6,7 @@
         Signed in as <strong>{{ $admin->name ?: $admin->email }}</strong> ({{ $admin->email }}).
     </p>
 
-    {{-- People waiting to hear from us, or with bags ready; Follow Up opens Contacts on Needs follow-up --}}
+    {{-- People waiting to hear from us, or with bags ready; Follow Up opens Contacts, which lists them first --}}
     @if ($followUpNotice)
         <div class="notice warning" role="status">
             <p>{{ $followUpNotice }}</p>

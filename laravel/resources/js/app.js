@@ -11,6 +11,7 @@ import { initModals } from './modal';
 import { initBlobs } from './blob';
 import { initRainbowBorders } from './rainbow-border';
 import { initProofOfWork } from './proof-of-work';
+import { initAutoSubmit } from './auto-submit';
 
 initMenu();
 initDisappearingContent();
@@ -20,6 +21,7 @@ initModals();
 initBlobs();
 initRainbowBorders();
 initProofOfWork();
+initAutoSubmit();
 
 // The admin Map page's map, loaded only there, since Leaflet is large
 const mapElement = document.querySelector('[data-map]');

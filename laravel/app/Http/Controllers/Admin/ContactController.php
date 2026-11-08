@@ -27,57 +27,47 @@ use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
- * The admin contact pages (/admin/contacts): the list of contacts, opening
- * on those who need follow-up, who needs to hear from us first at the top,
- * or all of them, with the person who applied most recently first, and a
- * search by name, phone number, or email; one contact with their details, timeline, applications, and form
- * errors; adding a contact by hand, such as someone reached by text before
- * they applied, or a drop-off site; editing a contact's name, notes, and
- * whether they're a drop-off site; deleting a contact with no applications,
- * such as one added as a test; merging another contact into one; and the
- * applications whose contact needs an admin to look (Needs Review). Their
- * phone numbers, emails, and address are edited through
- * ContactDetailController, and timeline entries logged through
- * ContactActivityController.
+ * The admin contact pages (/admin/contacts): the list of every contact,
+ * with those who need follow-up first, who needs to hear from us first at
+ * the top, or sorted by the person who applied most recently, and a search
+ * by name, phone number, or email; one contact with their details,
+ * timeline, applications, and form errors; adding a contact by hand, such
+ * as someone reached by text before they applied, or a drop-off site;
+ * editing a contact's name, notes, and whether they're a drop-off site;
+ * deleting a contact with no applications, such as one added as a test;
+ * merging another contact into one; and the applications whose contact
+ * needs an admin to look (Needs Review). Their phone numbers, emails, and
+ * address are edited through ContactDetailController, and timeline entries
+ * logged through ContactActivityController.
  */
 class ContactController extends Controller
 {
     use DescribesFollowUps, DescribesFormSubmissions, DescribesLeafApplications, ShowsFollowUps;
 
     /**
-     * What the list shows: those who need follow-up (by default), or every
-     * contact.
+     * How the list is sorted: those who need follow-up first, in the
+     * follow-up order, then everyone else with the person who applied most
+     * recently first (by default), or everyone that way.
      */
-    public const SHOW_FOLLOW_UP = 'follow-up';
+    public const SORT_FOLLOW_UP = 'follow-up';
 
-    public const SHOW_ALL = 'all';
+    public const SORT_RECENT = 'recent';
 
-    public const SHOW_CHOICES = [
-        self::SHOW_FOLLOW_UP => 'Needs follow-up',
-        self::SHOW_ALL => 'All contacts',
+    public const SORT_CHOICES = [
+        self::SORT_FOLLOW_UP => 'Needs follow-up first',
+        self::SORT_RECENT => 'Most recent application',
     ];
 
     /**
-     * The columns of every contact, the ones that make up a contact's line
-     * on a phone after the date they last applied (name and phone), and the
-     * column lined up on the right (applications).
+     * The list's columns, the ones that make up a contact's line on a phone
+     * (name, and why when they need follow-up), and the columns lined up
+     * on the right (bags and applications).
      */
-    public const HEADERS = ['Name', 'Phone', 'Email', 'Applications', 'Latest application'];
+    public const HEADERS = ['Name', 'Applied for', 'Follow-up', 'Bags pending', 'Bags donated', 'Applications', 'Latest application'];
 
-    public const SUMMARY_COLUMNS = [0, 1];
+    public const SUMMARY_COLUMNS = [0, 2];
 
-    public const NUMBER_COLUMNS = [3];
-
-    /**
-     * The columns of those who need follow-up, the ones that make up a
-     * contact's line on a phone (name and why), and the column lined up on
-     * the right (bags).
-     */
-    public const FOLLOW_UP_HEADERS = ['Name', 'Phone', 'Follow-up', 'Bags', 'Ready', 'Last reached', 'Applied'];
-
-    public const FOLLOW_UP_SUMMARY_COLUMNS = [0, 2];
-
-    public const FOLLOW_UP_NUMBER_COLUMNS = [3];
+    public const NUMBER_COLUMNS = [3, 4, 5];
 
     /**
      * The columns of a contact's applications, the ones that make up an
@@ -115,66 +105,36 @@ class ContactController extends Controller
     public const MAX_SEARCH_LENGTH = 100;
 
     /**
-     * The list of contacts, matching the search in the query string: those
-     * who need follow-up, each with their group and why, in the follow-up
-     * order, or with `show=all`, every contact.
+     * Every contact matching the search in the query string, with whether
+     * their latest application is for a pickup or drop-off, their group and
+     * why when they need follow-up, and their bags and applications: those
+     * who need follow-up first, in the follow-up order, then everyone else,
+     * or with `sort=recent`, everyone by their latest application.
      */
     public function index(Request $request, ContactReport $report, FollowUpReport $followUpReport): View
     {
         $search = $request->query('q');
         $search = is_string($search) ? Str::limit(trim($search), self::MAX_SEARCH_LENGTH, '') : '';
-        $show = $request->query('show') === self::SHOW_ALL ? self::SHOW_ALL : self::SHOW_FOLLOW_UP;
+        $sort = $request->query('sort') === self::SORT_RECENT ? self::SORT_RECENT : self::SORT_FOLLOW_UP;
 
         $contacts = $report->list($search);
+        $byId = $contacts->keyBy('id');
+        // Only the contacts the search matched, and none deleted
+        $followUps = $this->followUpsByContact($followUpReport)->filter(fn (array $item, int $id) => $byId->has($id));
 
-        $page = [
-            'search' => $search,
-            'show' => $show,
-            'reviewCount' => LeafApplication::needingContactReview()->count(),
-        ];
-
-        if ($show === self::SHOW_FOLLOW_UP) {
-            $byId = $contacts->keyBy('id');
-            // Only the contacts the search matched, and none deleted
-            $followUps = $this->followUpsByContact($followUpReport)->filter(fn (array $item, int $id) => $byId->has($id));
-
-            return view('pages.admin.contacts.index', [
-                ...$page,
-                'summary' => $this->followUpSummary($followUps->count(), $search),
-                'headers' => self::FOLLOW_UP_HEADERS,
-                'summaryColumns' => self::FOLLOW_UP_SUMMARY_COLUMNS,
-                'numeric' => self::FOLLOW_UP_NUMBER_COLUMNS,
-                'rows' => $followUps->map(fn (array $item, int $id) => $this->followUpRow($byId[$id], $item))->values()->all(),
-            ]);
-        }
+        $ordered = $sort === self::SORT_FOLLOW_UP
+            ? $followUps->keys()->map(fn (int $id) => $byId[$id])->concat($contacts->reject(fn (Contact $contact) => $followUps->has($contact->id)))
+            : $contacts;
 
         return view('pages.admin.contacts.index', [
-            ...$page,
-            'summary' => $this->summary($contacts->count(), $search),
+            'search' => $search,
+            'sort' => $sort,
+            'reviewCount' => LeafApplication::needingContactReview()->count(),
+            'summary' => $this->summary($contacts->count(), $followUps->count(), $search, $sort),
             'headers' => self::HEADERS,
             'summaryColumns' => self::SUMMARY_COLUMNS,
             'numeric' => self::NUMBER_COLUMNS,
-            'rows' => $contacts->map(function (Contact $contact) {
-                $phone = $this->primaryValue($contact->details, ContactDetail::TYPE_PHONE);
-                $appliedAt = $contact->applications_max_created_at;
-
-                return [
-                    'cells' => [
-                        $contact->name,
-                        $phone,
-                        $this->primaryValue($contact->details, ContactDetail::TYPE_EMAIL),
-                        $contact->applications_count,
-                        $appliedAt ? $this->listTime($appliedAt) : '',
-                    ],
-                    'summary' => array_values(array_filter([
-                        $appliedAt ? $this->shortDate($appliedAt) : '',
-                        $contact->name,
-                        $phone,
-                    ])),
-                    'badge' => $contact->is_drop_off_site ? 'Drop-off site' : null,
-                    'url' => route('admin.contacts.show', $contact->id),
-                ];
-            })->all(),
+            'rows' => $ordered->map(fn (Contact $contact) => $this->row($contact, $followUps->get($contact->id)))->values()->all(),
         ]);
     }
 
@@ -423,68 +383,67 @@ class ContactController extends Controller
     }
 
     /**
-     * The line saying what the list shows.
+     * The line saying what the list shows: how many contacts, and with
+     * those who need follow-up first, how many of them there are.
      */
-    private function summary(int $count, string $search): string
+    private function summary(int $count, int $followUpCount, string $search, string $sort): string
     {
-        if ($search !== '') {
-            return $count === 0
-                ? "No contacts match “{$search}”."
-                : "{$count} " . Str::plural('contact', $count) . " matching “{$search}”, most recent application first.";
+        if ($count === 0) {
+            return $search === '' ? 'No contacts yet.' : "No contacts match “{$search}”.";
         }
 
-        return $count === 0
-            ? 'No contacts yet.'
-            : "{$count} " . Str::plural('contact', $count) . ', most recent application first.';
+        $contacts = "{$count} " . Str::plural('contact', $count) . ($search === '' ? '' : " matching “{$search}”");
+
+        return match (true) {
+            $sort === self::SORT_RECENT => "{$contacts}, most recent application first.",
+            $followUpCount === 0 => "{$contacts}, most recent application first. Nobody is waiting for a pickup or drop-off.",
+            $followUpCount === 1 => "{$contacts}. The one waiting for a pickup or drop-off is first.",
+            default => "{$contacts}. The {$followUpCount} waiting for a pickup or drop-off are first, who needs to hear from us first at the top.",
+        };
     }
 
     /**
-     * A contact who needs follow-up, for the list: their name, with their
-     * group beside it, main phone number, why, and their first application
-     * in the follow-up order's bags, when they're ready, and when they
-     * applied, with when we last reached them.
+     * A contact, for the list: their name, with their follow-up group
+     * beside it when they need follow-up (or "Drop-off site" for one of
+     * ours), whether their latest application is for a pickup or drop-off,
+     * why they need follow-up, the bags on their pending applications and
+     * the bags they've given, their number of applications, and when they
+     * last applied.
      *
-     * @param  array{application: LeafApplication, tier: string, reason: string, last_reached_at: ?\Carbon\CarbonInterface}  $item
+     * @param  array{application: LeafApplication, tier: string, reason: string, last_reached_at: ?\Carbon\CarbonInterface}|null  $followUp
      * @return array<string, mixed>
      */
-    private function followUpRow(Contact $contact, array $item): array
+    private function row(Contact $contact, ?array $followUp): array
     {
-        $application = $item['application'];
-        $why = $this->followUpReason($item);
+        $appliedAt = $contact->applications_max_created_at;
+        $why = $followUp !== null ? $this->followUpReason($followUp) : '';
 
         return [
             'cells' => [
                 $contact->name,
-                $this->primaryValue($contact->details, ContactDetail::TYPE_PHONE),
+                match ($contact->latest_application_type) {
+                    LeafApplication::TYPE_PICKUP => 'Pickup',
+                    LeafApplication::TYPE_DROP_OFF => 'Drop-off',
+                    default => '',
+                },
                 $why,
-                $application->estimated_bag_count,
-                $application->ready_now ? 'Now' : $application->ready_date->format('M j'),
-                $item['last_reached_at'] ? $this->shortDate($item['last_reached_at']) : 'Never',
-                $this->listTime($application->created_at),
+                $contact->bags_pending ?? '',
+                $contact->bags_donated ?? '',
+                $contact->applications_count,
+                $appliedAt ? $this->listTime($appliedAt) : '',
             ],
-            'summary' => [$contact->name, $why],
-            'badge' => self::FOLLOW_UP_GROUP_LABELS[$item['tier']],
-            'badgeTone' => self::FOLLOW_UP_GROUP_TONES[$item['tier']],
+            // Name and why for those who need follow-up, or when they last applied and name
+            'summary' => $followUp !== null
+                ? [$contact->name, $why]
+                : array_values(array_filter([$appliedAt ? $this->shortDate($appliedAt) : '', $contact->name])),
+            'badge' => match (true) {
+                $followUp !== null => self::FOLLOW_UP_GROUP_LABELS[$followUp['tier']],
+                $contact->is_drop_off_site => 'Drop-off site',
+                default => null,
+            },
+            'badgeTone' => $followUp !== null ? self::FOLLOW_UP_GROUP_TONES[$followUp['tier']] : null,
             'url' => route('admin.contacts.show', $contact->id),
         ];
-    }
-
-    /**
-     * The line saying who needs follow-up.
-     */
-    private function followUpSummary(int $count, string $search): string
-    {
-        $contacts = $count . ' ' . Str::plural('contact', $count) . ' waiting for a pickup or drop-off';
-
-        if ($search !== '') {
-            return $count === 0
-                ? "Nobody waiting for a pickup or drop-off matches “{$search}”. Show all contacts to search everyone."
-                : "{$contacts} matching “{$search}”, who needs to hear from us first at the top.";
-        }
-
-        return $count === 0
-            ? 'Nobody is waiting for a pickup or drop-off.'
-            : "{$contacts}, who needs to hear from us first at the top.";
     }
 
     /**
@@ -622,16 +581,5 @@ class ContactController extends Controller
 
             return $detail->value . ($notes === [] ? '' : ' (' . implode(', ', $notes) . ')');
         })->implode("\n");
-    }
-
-    /**
-     * The value of a contact's primary detail of a type, or their first
-     * current one, or an empty string. Details come primary first.
-     *
-     * @param  Collection<int, ContactDetail>  $details
-     */
-    private function primaryValue(Collection $details, string $type): string
-    {
-        return (string) $details->firstWhere('type', $type)?->value;
     }
 }

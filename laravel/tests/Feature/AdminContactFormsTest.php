@@ -455,7 +455,7 @@ class AdminContactFormsTest extends TestCase
         $this->assertSame(3, $contact->details()->count());
 
         $this->actingAs($this->admin)->get('/admin/contacts')->assertSee('<p class="status" role="status">Deleted Test Contact.</p>', false);
-        $this->actingAs($this->admin)->get('/admin/contacts?show=all')->assertDontSee('Test Contact');
+        $this->actingAs($this->admin)->get('/admin/contacts')->assertDontSee('Test Contact');
         $this->actingAs($this->admin)->get("/admin/contacts/{$contact->id}")->assertNotFound();
         $this->actingAs($this->admin)->get("/admin/contacts/{$contact->id}/edit")->assertNotFound();
         $this->actingAs($this->admin)->post("/admin/contacts/{$contact->id}/delete", ['confirm' => '1'])->assertNotFound();

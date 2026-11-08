@@ -6,9 +6,9 @@ use App\Reports\Traits\DescribesFollowUps;
 
 /**
  * The dashboard's warning while contacts are waiting to hear from us or have
- * bags ready and haven't heard from us yet, counted as Contacts' Needs
- * follow-up lists them. Its Follow Up button opens that list, so the other
- * pages don't repeat it.
+ * bags ready and haven't heard from us yet, counted as Contacts labels them.
+ * Its Follow Up button opens Contacts, which lists those who need follow-up
+ * first, so the other pages don't repeat it.
  */
 class FollowUpNotice
 {
