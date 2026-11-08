@@ -77,9 +77,10 @@ class ContactReport
     /**
      * Other contacts, not deleted, with one of the contact's current emails
      * or phone numbers as a current one of theirs, oldest first: each with
-     * the shared values as the contact has them. A previous detail on either
-     * side doesn't count, so changing a number settles it. The contact's
-     * details must be loaded, as find() does.
+     * the shared values as the contact has them, phone numbers formatted
+     * (ContactDetail::displayValue()). A previous detail on either side
+     * doesn't count, so changing a number settles it. The contact's details
+     * must be loaded, as find() does.
      *
      * @return BaseCollection<int, array{contact: Contact, values: list<string>}>
      */
@@ -109,7 +110,7 @@ class ContactReport
             ->groupBy('contact_id')
             ->map(fn (BaseCollection $details) => [
                 'contact' => $details->first()->contact,
-                'values' => $details->map(fn (ContactDetail $detail) => $mine["{$detail->type}:{$detail->normalized}"]->value)->unique()->values()->all(),
+                'values' => $details->map(fn (ContactDetail $detail) => $mine["{$detail->type}:{$detail->normalized}"]->displayValue())->unique()->values()->all(),
             ])
             ->values();
     }

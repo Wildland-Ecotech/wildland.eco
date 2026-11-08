@@ -192,7 +192,8 @@ class AdminContactFormsTest extends TestCase
         $this->actingAs($this->admin)
             ->from('/admin/contacts/new')
             ->followingRedirects()
-            ->post('/admin/contacts', ['name' => 'Pat Morgan', 'phone' => '970-555-0123'])
+            ->post('/admin/contacts', ['name' => 'Pat Morgan', 'phone' => '+1 (970) 555 0123'])
+            // Formatted, however it was typed
             ->assertSee('970-555-0123 is already Jamie Rivera’s phone number.')
             ->assertSee('<a href="' . route('admin.contacts.show', $jamie->id) . '">Open Jamie Rivera</a>', false)
             ->assertSee('Add as a separate contact anyway')
@@ -248,7 +249,7 @@ class AdminContactFormsTest extends TestCase
             ->assertOk()
             ->assertSee('<h1>Jamie Rivera</h1>', false)
             ->assertSee('value="Jamie Rivera"', false)
-            ->assertSeeInOrder(['Phone Numbers', '(970) 555-0123', '· Main', '(970) 555-0188', 'Make Main', 'Add a phone number'], false)
+            ->assertSeeInOrder(['Phone Numbers', '970-555-0123', '· Main', '970-555-0188', 'Make Main', 'Add a phone number'], false)
             ->assertSee('action="' . route('admin.contacts.details.primary', [$contact->id, $second->id]) . '"', false)
             // The main one has no Make Main button
             ->assertDontSee('action="' . route('admin.contacts.details.primary', [$contact->id, $contact->primary(ContactDetail::TYPE_PHONE)->id]) . '"', false)
@@ -310,7 +311,7 @@ class AdminContactFormsTest extends TestCase
         $this->actingAs($this->admin)
             ->post("/admin/contacts/{$contact->id}/details", ['type' => 'phone', 'phone' => '(970) 555-0188'])
             ->assertRedirect(route('admin.contacts.edit', $contact->id))
-            ->assertSessionHas('status', 'Added (970) 555-0188.');
+            ->assertSessionHas('status', 'Added 970-555-0188.');
 
         $this->assertSame([['(970) 555-0123', true], ['(970) 555-0188', false]], $this->current($contact, ContactDetail::TYPE_PHONE));
     }
@@ -355,7 +356,7 @@ class AdminContactFormsTest extends TestCase
 
         $this->actingAs($this->admin)
             ->post("/admin/contacts/{$contact->id}/details", ['type' => 'phone', 'phone' => '970.555.0123'])
-            ->assertSessionHas('status', '(970) 555-0123 is already on this contact.');
+            ->assertSessionHas('status', '970-555-0123 is already on this contact.');
 
         $this->assertSame(2, $contact->details()->count());
     }
@@ -406,7 +407,7 @@ class AdminContactFormsTest extends TestCase
 
         $this->actingAs($this->admin)
             ->post("/admin/contacts/{$contact->id}/details/{$second->id}/primary")
-            ->assertSessionHas('status', '(970) 555-0188 is now the main phone number.');
+            ->assertSessionHas('status', '970-555-0188 is now the main phone number.');
 
         $this->assertSame([['(970) 555-0123', false], ['(970) 555-0188', true]], $this->current($contact, ContactDetail::TYPE_PHONE));
     }
@@ -419,14 +420,14 @@ class AdminContactFormsTest extends TestCase
 
         $this->actingAs($this->admin)
             ->post("/admin/contacts/{$contact->id}/details/{$main->id}/remove")
-            ->assertSessionHas('status', 'Removed (970) 555-0123. It’s kept as a previous phone number, so applications still match it.');
+            ->assertSessionHas('status', 'Removed 970-555-0123. It’s kept as a previous phone number, so applications still match it.');
 
         $this->assertSame([['(970) 555-0188', true]], $this->current($contact, ContactDetail::TYPE_PHONE));
         $this->assertTrue($main->fresh()->isRemoved());
 
         $this->actingAs($this->admin)
             ->get("/admin/contacts/{$contact->id}")
-            ->assertSeeInOrder(['Previous phone number', '(970) 555-0123']);
+            ->assertSeeInOrder(['Previous phone number', '970-555-0123']);
     }
 
     public function test_removes_the_address(): void

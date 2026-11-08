@@ -39,7 +39,7 @@ class ContactDetailController extends Controller
         if ($existing !== null && ! $existing->isRemoved()) {
             return $this->back($contact, $type === ContactDetail::TYPE_ADDRESS
                 ? 'That’s already the address.'
-                : "{$existing->value} is already on this contact.");
+                : "{$existing->displayValue()} is already on this contact.");
         }
 
         if ($type === ContactDetail::TYPE_ADDRESS) {
@@ -51,7 +51,7 @@ class ContactDetailController extends Controller
 
         $detail = $contact->addDetail($type, $value);
 
-        return $this->back($contact, "Added {$detail->value}.");
+        return $this->back($contact, "Added {$detail->displayValue()}.");
     }
 
     /**
@@ -63,7 +63,7 @@ class ContactDetailController extends Controller
 
         $contact->usePrimary($detail->type, $detail->value);
 
-        return $this->back($contact, "{$detail->value} is now the main " . self::KINDS[$detail->type] . '.');
+        return $this->back($contact, "{$detail->displayValue()} is now the main " . self::KINDS[$detail->type] . '.');
     }
 
     /**
@@ -76,7 +76,7 @@ class ContactDetailController extends Controller
             $contact->removeDetail($detail);
         }
 
-        return $this->back($contact, "Removed {$detail->value}. It’s kept as a previous " . self::KINDS[$detail->type] . ', so applications still match it.');
+        return $this->back($contact, "Removed {$detail->displayValue()}. It’s kept as a previous " . self::KINDS[$detail->type] . ', so applications still match it.');
     }
 
     /**

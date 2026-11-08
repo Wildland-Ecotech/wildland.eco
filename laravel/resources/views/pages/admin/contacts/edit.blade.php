@@ -24,7 +24,7 @@
             <ul class="detail-list">
                 @foreach ($details as $detail)
                     <li>
-                        <span class="detail-value">{{ $detail->value }}@if ($detail->label) <span class="detail-note">· {{ $detail->label }}</span>@endif @if ($detail->is_primary)<span class="detail-note">· Main</span>@endif</span>
+                        <span class="detail-value">{{ $detail->displayValue() }}@if ($detail->label) <span class="detail-note">· {{ $detail->label }}</span>@endif @if ($detail->is_primary)<span class="detail-note">· Main</span>@endif</span>
 
                         @unless ($detail->is_primary)
                             <form method="POST" action="{{ route('admin.contacts.details.primary', [$contact->id, $detail->id]) }}">

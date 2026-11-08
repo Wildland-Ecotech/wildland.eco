@@ -104,6 +104,40 @@ class ContactDetail extends Model
     }
 
     /**
+     * A phone number as admins see it: a US number's 10 digits as
+     * 970-555-0123, however it was typed, with any extension after it as
+     * "ext. 4", or the number as typed, trimmed, when it doesn't have all
+     * 10, such as one saved before the forms required an area code. Null
+     * stays null. Only for display: the value is stored as typed, and
+     * matching uses `normalized`.
+     */
+    public static function formatPhone(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $digits = self::phoneDigits($value);
+
+        if ($digits === null) {
+            return trim($value);
+        }
+
+        $formatted = substr($digits, 0, 3) . '-' . substr($digits, 3, 3) . '-' . substr($digits, 6);
+
+        return preg_match(self::PHONE_EXTENSION, trim($value), $extension) ? "{$formatted} ext. {$extension[1]}" : $formatted;
+    }
+
+    /**
+     * The value as admins see it: a phone number as formatPhone() shows it,
+     * or an email or address as it is.
+     */
+    public function displayValue(): string
+    {
+        return $this->type === self::TYPE_PHONE ? self::formatPhone($this->value) : $this->value;
+    }
+
+    /**
      * A phone number without the extension at its end, if it has one, as
      * typed otherwise, such as "970-555-0123" for "970-555-0123 ext. 4".
      */

@@ -52,7 +52,7 @@ class ContactActivityController extends Controller
 
         return view('pages.admin.contacts.log', [
             'contact' => $contact,
-            'phone' => $contact->primary(ContactDetail::TYPE_PHONE)?->value,
+            'phone' => $contact->primary(ContactDetail::TYPE_PHONE)?->displayValue(),
             'applications' => $applications->mapWithKeys(fn (LeafApplication $application) => [
                 $application->id => "{$application->id} · {$this->leafApplicationType($application)} · applied {$application->created_at->copy()->setTimezone(config('organization.timezone'))->format('M j')}",
             ])->all(),

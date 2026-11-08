@@ -13,7 +13,7 @@ use Tests\TestCase;
 
 /**
  * Contacts' emails, phone numbers, and addresses: how they're normalized for
- * matching, the rules the database keeps (one current address, one primary
+ * matching and shown to admins, the rules the database keeps (one current address, one primary
  * detail of each type), and addresses' map locations.
  */
 class ContactDetailTest extends TestCase
@@ -49,6 +49,37 @@ class ContactDetailTest extends TestCase
         foreach (['21451436735', '555-0123', '+44 20 7946 0958', '970-555-01234', '970-555-0123 ext', '970-555-0123 x1234567', '970-555-0123 #4', 'call me'] as $phone) {
             $this->assertDoesNotMatchRegularExpression(ContactDetail::PHONE_PATTERN, $phone);
         }
+    }
+
+    public function test_phone_numbers_are_formatted_for_admins(): void
+    {
+        foreach (['(970) 555-0123', '970.555.0123', '+1 970 555 0123', '19705550123', ' 9705550123 '] as $typed) {
+            $this->assertSame('970-555-0123', ContactDetail::formatPhone($typed), $typed);
+        }
+
+        // An extension, however it was typed
+        foreach (['970-555-0123 ext. 4', '(970) 555-0123 x4', '9705550123 Extension 4'] as $typed) {
+            $this->assertSame('970-555-0123 ext. 4', ContactDetail::formatPhone($typed), $typed);
+        }
+
+        // Saved before the forms required an area code: as typed
+        $this->assertSame('555-0123', ContactDetail::formatPhone(' 555-0123 '));
+        $this->assertSame('21451436735', ContactDetail::formatPhone('21451436735'));
+        $this->assertNull(ContactDetail::formatPhone(null));
+    }
+
+    public function test_display_values_format_only_phone_numbers(): void
+    {
+        $contact = Contact::create(['name' => 'Jamie Rivera']);
+
+        // Stored as typed, shown formatted
+        $phone = $contact->usePrimary(ContactDetail::TYPE_PHONE, '(970) 555-0123');
+        $this->assertSame('(970) 555-0123', $phone->value);
+        $this->assertSame('970-555-0123', $phone->displayValue());
+
+        // An email or address with 10 digits in it stays as it is
+        $this->assertSame('jamie9705550123@example.com', $contact->usePrimary(ContactDetail::TYPE_EMAIL, 'jamie9705550123@example.com')->displayValue());
+        $this->assertSame('1234 County Road 5550123', $contact->moveTo('1234 County Road 5550123')->displayValue());
     }
 
     public function test_saving_sets_the_normalized_value(): void
