@@ -3,8 +3,10 @@
 namespace App\Reports;
 
 use App\Models\Contact;
+use App\Models\ContactActivity;
 use App\Models\ContactDetail;
 use App\Models\FormSubmission;
+use App\Models\LeafApplication;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Collection as BaseCollection;
@@ -17,8 +19,13 @@ class ContactReport
     /**
      * Contacts, not deleted, with the person who applied most recently
      * first and contacts without an application last, newest first. Each
-     * has its current details, `applications_count`, and
-     * `applications_max_created_at` (when they last applied, or null).
+     * has its current details, `applications_count`,
+     * `applications_max_created_at` (when they last applied, or null),
+     * `latest_application_type` (their latest application's type, or null),
+     * `bags_pending` (the estimated bags on their pending applications, or
+     * null without one), and `bags_donated` (the bags of their logged
+     * pickups and drop-offs, or null without one). Deleted applications and
+     * timeline entries aren't counted.
      *
      * $search, when not empty, matches part of a name or an email, ignoring
      * case, or part of a phone number's digits, however it's written,
@@ -32,7 +39,20 @@ class ContactReport
             ->with(['details' => fn ($query) => $query->current()->orderByDesc('is_primary')->orderBy('id')])
             ->withCount('applications')
             ->withMax('applications', 'created_at')
-            ->withCasts(['applications_max_created_at' => 'datetime'])
+            ->withSum(['applications as bags_pending' => fn ($query) => $query->pending()], 'estimated_bag_count')
+            ->withSum(['activities as bags_donated' => fn ($query) => $query->whereIn('type', ContactActivity::COMPLETING_TYPES)], 'bag_count')
+            // After the aggregates, which select the contact's own columns first
+            ->addSelect(['latest_application_type' => LeafApplication::query()
+                ->select('type')
+                ->whereColumn('contact_id', 'contacts.id')
+                ->orderByDesc('created_at')
+                ->orderByDesc('id')
+                ->limit(1)])
+            ->withCasts([
+                'applications_max_created_at' => 'datetime',
+                'bags_pending' => 'integer',
+                'bags_donated' => 'integer',
+            ])
             ->when($search !== '', fn ($query) => $this->search($query, $search))
             ->orderByRaw('applications_max_created_at DESC NULLS LAST')
             ->orderByDesc('created_at')
