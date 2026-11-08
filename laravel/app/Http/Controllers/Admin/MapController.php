@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SaveLocationsRequest;
+use App\Models\Contact;
 use App\Models\ContactActivity;
 use App\Models\ContactDetail;
 use App\Models\LeafApplication;
@@ -14,6 +15,7 @@ use App\Services\LocationImport;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -27,7 +29,9 @@ use Illuminate\View\View;
  * load's stops in route order, to follow on a phone, and with `edit=1`, the
  * same form for a planned load's date, capacity, and stops; with
  * `show=everything`, every located contact, those in a planned load ringed;
- * with a search, the contacts it finds and how far each drop-off site is.
+ * with a search, the contacts it finds and how far each drop-off site is;
+ * and with `contact={id}`, from a contact's address, that contact the same
+ * way.
  * Every view but an opened load lists the trailer loads above the map.
  * Under
  * it, the addresses that still need a location, as JSON to copy for the
@@ -153,13 +157,18 @@ class MapController extends Controller
         $loadId = $request->query('load');
         $load = is_string($loadId) && ctype_digit($loadId) ? TrailerLoad::find((int) $loadId) : null;
         abort_if($loadId !== null && $load === null, 404);
-        $building = $show === self::SHOW_PICKUPS && $search === '' && $load === null && $request->boolean('build');
+        // One contact, from the link on their address; an unknown or deleted one is a 404
+        $contactId = $request->query('contact');
+        $focus = is_string($contactId) && ctype_digit($contactId) ? $report->contact((int) $contactId) : null;
+        abort_if($contactId !== null && $focus === null, 404);
+        $building = $show === self::SHOW_PICKUPS && $search === '' && $load === null && $focus === null && $request->boolean('build');
         $editing = $load !== null && $load->isPlanned() && $request->boolean('edit');
         $unlocated = $report->unlocated();
 
         $page = match (true) {
             $editing => $this->editPage($request, $report, $load),
             $load !== null => $this->loadPage($report, $load),
+            $focus !== null => $this->contactPage($report, $focus),
             $search !== '' => $this->searchPage($report, $contacts, $search),
             $show === self::SHOW_EVERYTHING => $this->everythingPage($report),
             default => $this->pickupsPage($report, $building ? $this->chosenStops($request) : null),
@@ -172,6 +181,7 @@ class MapController extends Controller
             'title' => 'Map',
             'search' => $search,
             'show' => $show,
+            'focused' => $focus !== null,
             'load' => null,
             // The form for a new or edited load, with its words and where it goes
             'builder' => match (true) {
@@ -443,8 +453,7 @@ class MapController extends Controller
     private function searchPage(MapReport $report, ContactReport $contacts, string $search): array
     {
         $found = $report->search($search, $contacts);
-        $results = $found['results'];
-        $shown = $results->count();
+        $shown = $found['results']->count();
 
         return [
             'summary' => match (true) {
@@ -452,6 +461,38 @@ class MapController extends Controller
                 $found['total'] > $shown => "The first {$shown} of {$found['total']} contacts matching “{$search}”.",
                 default => $this->count($shown, 'contact') . " matching “{$search}”.",
             },
+            ...$this->resultsPage($report, $found['results']),
+        ];
+    }
+
+    /**
+     * One contact, from the link on their address on their page, as a
+     * search shows each contact it finds.
+     *
+     * @param  array{contact: Contact, address: ?ContactDetail, sites: Collection<int, array{contact: Contact, miles: float}>}  $result
+     * @return array<string, mixed>
+     */
+    private function contactPage(MapReport $report, array $result): array
+    {
+        return [
+            'summary' => $result['address']?->location !== null
+                ? "Where {$result['contact']->name} is, with the drop-off sites."
+                : "{$result['contact']->name}’s address isn’t on the map yet.",
+            ...$this->resultsPage($report, collect([$result])),
+        ];
+    }
+
+    /**
+     * Contacts found by a search or opened from their address: each on the
+     * map with the drop-off sites, and listed with their address, main
+     * phone number, and the drop-off sites nearest first.
+     *
+     * @param  Collection<int, array{contact: Contact, address: ?ContactDetail, sites: Collection<int, array{contact: Contact, miles: float}>}>  $results
+     * @return array{points: list<array<string, mixed>>, results: list<array<string, mixed>>}
+     */
+    private function resultsPage(MapReport $report, Collection $results): array
+    {
+        return [
             'points' => [
                 ...$results
                     ->filter(fn (array $result) => $result['address']?->location !== null && ! $result['contact']->is_drop_off_site)
@@ -520,7 +561,7 @@ class MapController extends Controller
      * it isn't on the map yet), and a phone number. It links to the
      * contact, or to the application before it's linked to one.
      *
-     * @param  array{application: LeafApplication, contact: ?\App\Models\Contact, address: ?ContactDetail, kind: string, days: ?int}  $pickup
+     * @param  array{application: LeafApplication, contact: ?Contact, address: ?ContactDetail, kind: string, days: ?int}  $pickup
      * @return array<string, mixed>
      */
     private function pickupRow(array $pickup, int $total): array
@@ -586,7 +627,7 @@ class MapController extends Controller
      * the map yet), the main phone number with a link that dials it, and the
      * contact's notes, which can hold things like a gate code.
      *
-     * @param  array{application: LeafApplication, contact: ?\App\Models\Contact, address: ?ContactDetail, position: int}  $stop
+     * @param  array{application: LeafApplication, contact: ?Contact, address: ?ContactDetail, position: int}  $stop
      * @return array{application: int, position: int, name: string, url: string, bags: int, address: string, phone: ?string, tel: ?string, notes: string}
      */
     private function stop(array $stop): array

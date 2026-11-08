@@ -449,13 +449,13 @@ class ContactController extends Controller
 
     /**
      * A contact's details for their page: phone numbers and emails, one per
-     * line with the main one first, the current address, any previous
-     * phone numbers, emails, and addresses, whether they're a drop-off site,
-     * their follow-up group and why when they have a pending application,
-     * notes, and when they were added.
+     * line with the main one first, the current address, linking to the
+     * map, any previous phone numbers, emails, and addresses, whether
+     * they're a drop-off site, their follow-up group and why when they have
+     * a pending application, notes, and when they were added.
      *
      * @param  array{application: LeafApplication, tier: string, reason: string, last_reached_at: ?\Carbon\CarbonInterface}|null  $followUp
-     * @return array<string, string>
+     * @return array<string, string|array{text: string, url: string}>
      */
     private function fields(Contact $contact, ?array $followUp): array
     {
@@ -465,8 +465,11 @@ class ContactController extends Controller
         $fields = [
             'Phone' => $this->detailLines($current->where('type', ContactDetail::TYPE_PHONE)),
             'Email' => $this->detailLines($current->where('type', ContactDetail::TYPE_EMAIL)),
-            'Address' => (string) $current->firstWhere('type', ContactDetail::TYPE_ADDRESS)?->value,
         ];
+
+        // The address links to the map, showing them with the drop-off sites
+        $address = $current->firstWhere('type', ContactDetail::TYPE_ADDRESS);
+        $fields['Address'] = $address ? ['text' => $address->value, 'url' => route('admin.map', ['contact' => $contact->id])] : '';
 
         foreach ([ContactDetail::TYPE_PHONE => 'phone number', ContactDetail::TYPE_EMAIL => 'email', ContactDetail::TYPE_ADDRESS => 'address'] as $type => $name) {
             $previous = $removed->where('type', $type);
