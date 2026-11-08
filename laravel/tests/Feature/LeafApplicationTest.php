@@ -207,6 +207,25 @@ class LeafApplicationTest extends TestCase
         $this->assertSame(0, LeafApplication::count());
     }
 
+    public function test_phone_numbers_need_an_area_code_and_can_have_an_extension(): void
+    {
+        // Too many digits, no area code, not a US number, or an extension without its number
+        foreach (['21451436735', '555-0123', '+44 20 7946 0958', '970-555-0123 ext'] as $phone) {
+            $this->post(route('leaves.apply.store'), $this->application(['phone' => $phone]))
+                ->assertSessionHasErrors(['phone' => 'Enter a phone number with its area code, such as (970) 555-0123, and any extension after it, such as x12.']);
+        }
+
+        $this->assertSame(0, LeafApplication::count());
+
+        $this->post(route('leaves.apply.store'), $this->application(['phone' => '+1 970.555.0123 ext. 4']))
+            ->assertSessionHasNoErrors();
+
+        // Kept as typed, and matched without the extension
+        $application = LeafApplication::sole();
+        $this->assertSame('+1 970.555.0123 ext. 4', $application->phone);
+        $this->assertSame('9705550123', $application->contact->primary(ContactDetail::TYPE_PHONE)->normalized);
+    }
+
     public function test_errors_are_shown_and_input_is_kept(): void
     {
         $this->from(route('leaves.apply'))

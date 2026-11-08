@@ -170,7 +170,7 @@ class AdminContactFormsTest extends TestCase
             ->assertRedirect('/admin/contacts/new')
             ->assertSessionHasErrors([
                 'name' => 'Enter the contact’s name.',
-                'phone' => 'Enter a phone number using digits, such as (970) 555-0123.',
+                'phone' => 'Enter a phone number with its area code, such as (970) 555-0123, and any extension after it, such as x12.',
                 'email' => 'Enter a valid email address, such as name@example.com.',
             ]);
 
@@ -313,6 +313,31 @@ class AdminContactFormsTest extends TestCase
             ->assertSessionHas('status', 'Added (970) 555-0188.');
 
         $this->assertSame([['(970) 555-0123', true], ['(970) 555-0188', false]], $this->current($contact, ContactDetail::TYPE_PHONE));
+    }
+
+    public function test_phone_numbers_follow_the_leaf_application_forms_rule(): void
+    {
+        $contact = $this->contact();
+
+        foreach (['21451436735', '555-0123', '+44 20 7946 0958'] as $phone) {
+            $this->actingAs($this->admin)
+                ->post('/admin/contacts', ['name' => 'Pat Morgan', 'phone' => $phone])
+                ->assertSessionHasErrors(['phone' => 'Enter a phone number with its area code, such as (970) 555-0123, and any extension after it, such as x12.']);
+
+            $this->actingAs($this->admin)
+                ->post("/admin/contacts/{$contact->id}/details", ['type' => 'phone', 'phone' => $phone])
+                ->assertSessionHasErrors(['phone' => 'Enter a phone number with its area code, such as (970) 555-0123, and any extension after it, such as x12.']);
+        }
+
+        $this->assertSame(1, Contact::count());
+        $this->assertSame(2, $contact->details()->count());
+
+        // An extension is kept as typed, and doesn't change what matches
+        $this->actingAs($this->admin)
+            ->post("/admin/contacts/{$contact->id}/details", ['type' => 'phone', 'phone' => '(970) 555-0188 x12'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('9705550188', $contact->findDetail(ContactDetail::TYPE_PHONE, '(970) 555-0188 x12')->normalized);
     }
 
     public function test_the_first_email_becomes_the_main_one(): void

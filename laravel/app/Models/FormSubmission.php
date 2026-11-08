@@ -256,13 +256,15 @@ class FormSubmission extends Model
 
     /**
      * The phone number entered on the leaf application form, as digits only
-     * without the US country code, so different spellings of the same number
-     * match: "(970) 555-0123" and "+1 970.555.0123" are both "9705550123".
-     * Null without one, or with fewer than 7 digits.
+     * without the US country code or any extension, so different spellings
+     * of the same number match: "(970) 555-0123", "+1 970.555.0123", and
+     * "970-555-0123 x4" are all "9705550123". Null without one, or with
+     * fewer than 7 digits, since a submission the form refused keeps what
+     * was typed.
      */
     public function phoneDigits(): ?string
     {
-        $digits = preg_replace('/\D/', '', (string) ($this->data['phone'] ?? ''));
+        $digits = preg_replace('/\D/', '', ContactDetail::withoutPhoneExtension((string) ($this->data['phone'] ?? '')));
 
         if (strlen($digits) === 11 && str_starts_with($digits, '1')) {
             $digits = substr($digits, 1);

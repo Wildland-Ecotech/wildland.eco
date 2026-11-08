@@ -47,7 +47,7 @@ class AddContactDetailRequest extends FormRequest
             'type' => 'Add a phone number, email, or address from its own box.',
             'phone.required' => 'Enter the phone number to add.',
             'phone.max' => 'Enter a phone number of 50 characters or fewer.',
-            'phone' => 'Enter a phone number using digits, such as (970) 555-0123.',
+            'phone' => 'Enter a phone number with its area code, such as (970) 555-0123, and any extension after it, such as x12.',
             'email.required' => 'Enter the email to add.',
             'email.max' => 'Enter an email address of 255 characters or fewer.',
             'email' => 'Enter a valid email address, such as name@example.com.',

@@ -108,8 +108,10 @@ class FormSubmissionReport
             return collect();
         }
 
-        // A phone number's digits, without a leading US country code 1
-        $digits = "regexp_replace(regexp_replace(data->>'phone', '[^0-9]', '', 'g'), '^1([0-9]{10})$', '\\1')";
+        // A phone number's digits, without any extension (as
+        // ContactDetail::withoutPhoneExtension() leaves it out) or a leading
+        // US country code 1
+        $digits = "regexp_replace(regexp_replace(regexp_replace(trim(data->>'phone'), '\\s*(extension|ext\\.?|x)\\s*[0-9]{1,6}$', '', 'i'), '[^0-9]', '', 'g'), '^1([0-9]{10})$', '\\1')";
 
         $submissions = FormSubmission::query()
             ->with(['checkout', 'resolvedBy'])

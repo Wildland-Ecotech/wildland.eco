@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\ContactDetail;
 use App\Models\LeafApplication;
 use App\Services\ProofOfWork;
 use Illuminate\Foundation\Http\FormRequest;
@@ -65,7 +66,8 @@ class StoreLeafApplicationRequest extends FormRequest
             'type' => ['required', Rule::in(LeafApplication::TYPES)],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255'],
-            'phone' => ['required', 'string', 'max:50', 'regex:/^\+?[0-9\s().-]{7,}$/'],
+            // A US number with its area code, and any extension
+            'phone' => ['required', 'string', 'max:50', 'regex:' . ContactDetail::PHONE_PATTERN],
             'address' => ['required', 'string', 'max:500'],
             'estimated_bag_count' => ['required', 'integer', 'min:1', 'max:10000'],
             'ready_now' => ['required', 'boolean'],
@@ -138,7 +140,7 @@ class StoreLeafApplicationRequest extends FormRequest
             'email' => 'Enter a valid email address, such as name@example.com.',
             'phone.required' => 'Enter your phone number, so we can reach you about your leaves.',
             'phone.max' => 'Enter a phone number of 50 characters or fewer.',
-            'phone' => 'Enter a phone number using digits, such as (970) 555-0123.',
+            'phone' => 'Enter a phone number with its area code, such as (970) 555-0123, and any extension after it, such as x12.',
             'address.required' => 'Enter the address your leaves are coming from.',
             'address.max' => 'Enter an address of 500 characters or fewer.',
             'address' => 'Enter the address your leaves are coming from.',

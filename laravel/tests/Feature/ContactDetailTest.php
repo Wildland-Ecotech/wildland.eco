@@ -25,6 +25,9 @@ class ContactDetailTest extends TestCase
         $this->assertSame('jamie@example.com', ContactDetail::normalize(ContactDetail::TYPE_EMAIL, ' Jamie@Example.COM '));
         $this->assertSame('9705550123', ContactDetail::normalize(ContactDetail::TYPE_PHONE, '(970) 555-0123'));
         $this->assertSame('9705550123', ContactDetail::normalize(ContactDetail::TYPE_PHONE, '+1 970.555.0123'));
+        // An extension is left out, so the number matches with or without it
+        $this->assertSame('9705550123', ContactDetail::normalize(ContactDetail::TYPE_PHONE, '970-555-0123 ext. 4'));
+        $this->assertSame('9705550123', ContactDetail::normalize(ContactDetail::TYPE_PHONE, '(970) 555-0123x12'));
         $this->assertSame('123 example st fort collins co 80521', ContactDetail::normalize(ContactDetail::TYPE_ADDRESS, ' 123 Example St.,  Fort Collins, CO 80521 '));
     }
 
@@ -35,6 +38,17 @@ class ContactDetailTest extends TestCase
         $this->assertNull(ContactDetail::normalize(ContactDetail::TYPE_PHONE, '+44 20 7946 0958'));
         $this->assertNull(ContactDetail::normalize(ContactDetail::TYPE_EMAIL, '  '));
         $this->assertNull(ContactDetail::normalize(ContactDetail::TYPE_ADDRESS, null));
+    }
+
+    public function test_the_forms_take_us_phone_numbers_with_any_extension(): void
+    {
+        foreach (['(970) 555-0123', '970.555.0123', '9705550123', '+1 970 555 0123', '1-970-555-0123', '970-555-0123 x4', '970-555-0123 ext. 12', '(970) 555-0123 Extension 123456'] as $phone) {
+            $this->assertMatchesRegularExpression(ContactDetail::PHONE_PATTERN, $phone);
+        }
+
+        foreach (['21451436735', '555-0123', '+44 20 7946 0958', '970-555-01234', '970-555-0123 ext', '970-555-0123 x1234567', '970-555-0123 #4', 'call me'] as $phone) {
+            $this->assertDoesNotMatchRegularExpression(ContactDetail::PHONE_PATTERN, $phone);
+        }
     }
 
     public function test_saving_sets_the_normalized_value(): void
