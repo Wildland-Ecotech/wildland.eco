@@ -214,24 +214,55 @@ class MapReport
     public function search(string $search, ContactReport $contacts): array
     {
         $found = $contacts->list($search);
-        $sites = $this->sites()->filter(fn (array $site) => $site['address']?->location !== null);
 
         return [
             'total' => $found->count(),
-            'results' => $found->take(self::MAX_SEARCH_RESULTS)->map(function (Contact $contact) use ($sites) {
-                $address = $contact->details->firstWhere('type', ContactDetail::TYPE_ADDRESS);
-                $location = $address?->location;
-
-                return [
-                    'contact' => $contact,
-                    'address' => $address,
-                    'sites' => $location === null ? collect() : $sites
-                        ->map(fn (array $site) => ['contact' => $site['contact'], 'miles' => $this->miles($location, $site['address']->location)])
-                        ->sortBy('miles')
-                        ->values(),
-                ];
-            })->values(),
+            'results' => $this->withNearestSites($found->take(self::MAX_SEARCH_RESULTS)),
         ];
+    }
+
+    /**
+     * One contact, not deleted, as search() gives each: with their current
+     * address and the drop-off sites nearest first; or null.
+     *
+     * @return array{contact: Contact, address: ?ContactDetail, sites: Collection<int, array{contact: Contact, miles: float}>}|null
+     */
+    public function contact(int $id): ?array
+    {
+        $contact = Contact::query()
+            ->with(['details' => fn ($query) => $query->current()->orderByDesc('is_primary')->orderBy('id')])
+            ->find($id);
+
+        return $contact === null ? null : $this->withNearestSites(collect([$contact]))->first();
+    }
+
+    /**
+     * Each contact, whose current details must be loaded, with their
+     * current address and the drop-off sites with a location, nearest
+     * first, with the straight-line distance in miles when the contact has
+     * a location.
+     *
+     * @param  Collection<int, Contact>  $contacts
+     * @return Collection<int, array{contact: Contact, address: ?ContactDetail, sites: Collection<int, array{contact: Contact, miles: float}>}>
+     */
+    private function withNearestSites(Collection $contacts): Collection
+    {
+        $sites = $this->sites()->filter(fn (array $site) => $site['address']?->location !== null);
+
+        // As a plain collection, since each is an array, not a model
+        return collect($contacts->map(function (Contact $contact) use ($sites) {
+            $address = $contact->details->firstWhere('type', ContactDetail::TYPE_ADDRESS);
+            $location = $address?->location;
+
+            return [
+                'contact' => $contact,
+                'address' => $address,
+                'sites' => $location === null ? collect() : $sites
+                    ->map(fn (array $site) => ['contact' => $site['contact'], 'miles' => $this->miles($location, $site['address']->location)])
+                    ->sortBy('miles')
+                    ->values(),
+            ];
+        })->values()->all());
     }
 
     /**

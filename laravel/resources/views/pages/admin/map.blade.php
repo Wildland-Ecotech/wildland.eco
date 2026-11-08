@@ -32,7 +32,7 @@
                 </div>
             </div>
 
-            @if ($show === MapController::SHOW_PICKUPS && $search === '' && $builder === null)
+            @if ($show === MapController::SHOW_PICKUPS && $search === '' && ! $focused && $builder === null)
                 <div class="page-actions">
                     <a class="button dark small" href="{{ route('admin.map', ['build' => 1]) }}">Start a Trailer Load</a>
                 </div>
@@ -305,7 +305,7 @@
         <a class="back" href="{{ route('admin.map') }}">← Back to Map</a>
     @endif
 
-    {{-- A search: each contact found, with the drop-off sites nearest first --}}
+    {{-- A search, or one contact opened from their address: each with the drop-off sites nearest first --}}
     @foreach ($results as $result)
         <h2>{{ $result['name'] }}</h2>
         <p class="summary">@if ($result['details'] !== ''){{ $result['details'] }} · @endif<a href="{{ $result['url'] }}">View contact</a></p>

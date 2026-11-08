@@ -374,7 +374,8 @@ class AdminContactsTest extends TestCase
             // One of each, so neither is marked as the main one
             ->assertSee('<dd>970-555-0123</dd>', false)
             ->assertSee('<dd>jamie@example.com</dd>', false)
-            ->assertSee('<dd>123 Example St, Fort Collins, CO 80521</dd>', false)
+            // The address opens the map
+            ->assertSee('<dd><a href="' . route('admin.map', ['contact' => $contact->id]) . '">123 Example St, Fort Collins, CO 80521</a></dd>', false)
             ->assertSeeInOrder(['Previous address', '456 Sample Ave, Fort Collins, CO 80524'])
             ->assertSee('Thu, Nov 5, 2026 7:30 PM MST')
             // Newest first, linking to each application

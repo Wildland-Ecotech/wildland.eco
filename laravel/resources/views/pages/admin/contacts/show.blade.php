@@ -9,7 +9,8 @@
         @foreach ($fields as $label => $value)
             <div>
                 <dt>{{ $label }}</dt>
-                <dd>{{ $value === '' ? '—' : $value }}</dd>
+                {{-- The address links to the map --}}
+                <dd>@if (is_array($value))<a href="{{ $value['url'] }}">{{ $value['text'] }}</a>@else{{ $value === '' ? '—' : $value }}@endif</dd>
             </div>
         @endforeach
     </dl>

@@ -228,6 +228,53 @@ class AdminMapTest extends TestCase
             ->assertSee('No contacts match “nobody”.', false);
     }
 
+    public function test_a_contacts_address_opens_them_with_the_closest_drop_off_sites(): void
+    {
+        $jamie = $this->contact('Jamie Rivera', '123 Example St, Fort Collins, CO 80521', 40.58, -105.08);
+        $jamie->usePrimary(ContactDetail::TYPE_PHONE, '(970) 555-0123');
+        $this->contact('South Drop-off Site', '2 Example Way, Fort Collins, CO 80525', 40.53, -105.08, site: true);
+        $this->contact('North Drop-off Site', '1 Example Way, Fort Collins, CO 80524', 40.59, -105.08, site: true);
+        // Someone with the same last name isn't shown, as a search would
+        $this->contact('Alex Rivera', '412 Sample Ave, Fort Collins, CO 80521', 40.5853, -105.0844);
+
+        $response = $this->actingAs($this->admin)->get("/admin/map?contact={$jamie->id}");
+
+        $response->assertOk()
+            ->assertSee('Where Jamie Rivera is, with the drop-off sites.')
+            ->assertSeeInOrder([
+                '<h2>Jamie Rivera</h2>',
+                '123 Example St, Fort Collins, CO 80521 · 970-555-0123',
+                'View contact',
+                'Closest drop-off site', 'North Drop-off Site · 0.7 mi',
+                'Next closest', 'South Drop-off Site · 3.5 mi',
+            ], false)
+            ->assertDontSee('Alex Rivera')
+            ->assertDontSee('Start a Trailer Load');
+
+        $this->assertSame(['Jamie Rivera', 'North Drop-off Site', 'South Drop-off Site'], array_keys($this->points($response)));
+    }
+
+    public function test_a_contact_without_a_location_says_so(): void
+    {
+        $dana = $this->contact('Dana Cruz', '3 Example Blvd, Fort Collins, CO 80525');
+
+        $this->actingAs($this->admin)
+            ->get("/admin/map?contact={$dana->id}")
+            ->assertOk()
+            ->assertSee('Dana Cruz’s address isn’t on the map yet.', false)
+            ->assertSee('No location yet, so the distances aren’t known.', false);
+    }
+
+    public function test_an_unknown_or_deleted_contact_is_not_found(): void
+    {
+        $deleted = $this->contact('Pat Morgan', '9 Sample Rd, Fort Collins, CO 80526', 40.55, -105.1);
+        $deleted->delete();
+
+        $this->actingAs($this->admin)->get("/admin/map?contact={$deleted->id}")->assertNotFound();
+        $this->actingAs($this->admin)->get('/admin/map?contact=999999')->assertNotFound();
+        $this->actingAs($this->admin)->get('/admin/map?contact=abc')->assertNotFound();
+    }
+
     public function test_lists_addresses_without_a_location_to_copy(): void
     {
         $other = $this->contact('Taylor Brooks', '2 Sample Ct, Fort Collins, CO 80525');
