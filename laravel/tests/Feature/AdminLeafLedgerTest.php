@@ -178,13 +178,13 @@ class AdminLeafLedgerTest extends TestCase
         $this->application(30)->flag($this->admin, LeafApplication::FLAG_SPAM);
 
         $this->actingAs($this->admin)
-            ->get('/admin/leaves?spam=1')
+            ->get('/admin/leaves/applications?spam=1')
             ->assertOk()
             ->assertSee('<a class="button dark small" href="' . route('admin.leaves.ledger') . '">Leaf Ledger</a>', false)
             ->assertSee('20 bags estimated, 12 still waiting for a pickup or drop-off.');
 
         $this->actingAs($this->admin)
-            ->get('/admin/leaves?type[]=drop_off')
+            ->get('/admin/leaves/applications?type[]=drop_off')
             ->assertOk()
             ->assertDontSee('bags estimated');
     }

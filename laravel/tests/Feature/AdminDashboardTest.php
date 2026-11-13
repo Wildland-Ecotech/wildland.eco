@@ -147,7 +147,7 @@ class AdminDashboardTest extends TestCase
     {
         $response = $this->actingAs($this->admin)->get('/admin')->assertOk();
 
-        foreach (['admin.donations', 'admin.leaves'] as $route) {
+        foreach (['admin.donations', 'admin.leaves.applications'] as $route) {
             $response->assertSee('href="' . route($route, ['period' => '90']) . '"', false);
         }
 
@@ -235,7 +235,7 @@ class AdminDashboardTest extends TestCase
             ], false);
 
         // Only on the dashboard, since Follow Up opens Contacts
-        foreach (['/admin/contacts', '/admin/leaves', '/admin/donations', '/admin/errors'] as $page) {
+        foreach (['/admin/contacts', '/admin/leaves/applications', '/admin/donations', '/admin/errors'] as $page) {
             $this->actingAs($this->admin)
                 ->get($page)
                 ->assertDontSee('notice warning', false);

@@ -10,8 +10,8 @@ use Illuminate\Console\Command;
 
 /**
  * Lists recent leaf program applications as a table, for an overview, like
- * the admin leaf applications page (/admin/leaves). leaves:view shows one in
- * full. The output contains donors' personal contact details: never paste it
+ * the admin leaf applications page (/admin/leaves/applications).
+ * leaves:view shows one in full. The output contains donors' personal contact details: never paste it
  * into issues, chat, or the repository.
  */
 class ListLeafApplications extends Command

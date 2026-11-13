@@ -698,6 +698,13 @@ $control-height: 16px * $control-line-height + 16px + 4px;
         }
     }
 
+    // Opened lines on phones stack each label over its value, giving values
+    // the full width instead of a narrow column beside the labels
+    .records-list dl div {
+        grid-template-columns: 1fr;
+        gap: 0.15em;
+    }
+
     .back {
         color: $green;
         text-decoration: underline;

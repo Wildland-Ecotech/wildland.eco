@@ -21,8 +21,9 @@ use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
- * The admin leaf application pages (/admin/leaves): the list of applications
- * with filters and a CSV download, and one application in full. They show
+ * The admin leaf application pages: the list of applications
+ * (/admin/leaves/applications) with filters and a CSV download, and one
+ * application in full (/admin/leaves/{application}). They show
  * the same records and values as leaves:applications and leaves:view, from
  * LeafApplicationReport and DescribesLeafApplications, with each
  * application's follow-up: complete, not linked to a contact yet, or its
@@ -95,7 +96,7 @@ class LeafApplicationController extends Controller
                     'url' => route('admin.leaves.show', $application->id),
                 ];
             })->all(),
-            'csvUrl' => route('admin.leaves.csv', $this->query($filters)),
+            'csvUrl' => route('admin.leaves.applications.csv', $this->query($filters)),
         ]);
     }
 

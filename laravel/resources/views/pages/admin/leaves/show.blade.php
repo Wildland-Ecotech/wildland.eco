@@ -117,5 +117,5 @@
         </form>
     @endif
 
-    <a class="back" href="{{ route('admin.leaves') }}">← Back to Leaf Applications</a>
+    <a class="back" href="{{ route('admin.leaves.applications') }}">← Back to Leaf Applications</a>
 </x-admin-page>
