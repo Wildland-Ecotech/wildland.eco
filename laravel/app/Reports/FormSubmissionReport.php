@@ -6,6 +6,7 @@ use App\Models\Checkout;
 use App\Models\Contact;
 use App\Models\ContactDetail;
 use App\Models\FormSubmission;
+use App\Models\LeafApplication;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -21,7 +22,9 @@ use Illuminate\Support\Facades\DB;
  * email address, or for leaf applications the same phone number, at any
  * time after. followUp() says where each stands: submitted later, closed by
  * an admin as resolved, a test, or spam, or else unresolved. Spam and tests
- * are left out unless asked for.
+ * are left out unless asked for. forApplication() finds the submissions
+ * linked to a leaf application, for closing them when it's marked as a test
+ * or spam.
  */
 class FormSubmissionReport
 {
@@ -128,6 +131,31 @@ class FormSubmissionReport
         $this->findLaterSubmissions($submissions);
 
         return $submissions;
+    }
+
+    /**
+     * The submissions Error Logs links to a leaf application, oldest first:
+     * the one that saved it, and the visitor's earlier tries that didn't go
+     * through and were followed by it, matched by email or phone number as
+     * list() matches them. Tries with nothing to match on, such as one left
+     * without an email or phone number, aren't linked. Empty for an
+     * application saved before submissions were recorded.
+     *
+     * @return Collection<int, FormSubmission>
+     */
+    public function forApplication(LeafApplication $application): Collection
+    {
+        $saved = FormSubmission::query()->where('leaf_application_id', $application->id)->get();
+
+        if ($saved->isEmpty()) {
+            return collect();
+        }
+
+        $earlier = $this->list(null, [FormSubmission::FORM_LEAF_APPLICATION], spamAndTests: true)
+            ->filter(fn (FormSubmission $submission) => $submission->laterSubmission !== null
+                && $saved->contains('id', $submission->laterSubmission->id));
+
+        return $earlier->concat($saved)->sortBy('created_at')->values();
     }
 
     /**

@@ -82,6 +82,21 @@ Always use an explicit language identifier on every code block (e.g., `bash`, `i
 
 Bare ` ``` ` without a language tag causes consecutive blocks to merge into a single block in the Claude chat renderer. This was identified early and must be avoided throughout all documentation and chat output.
 
+## Writing Style
+
+Write about things as categories, using short noun phrases, instead of describing one imagined example with pronouns and relative clauses. Walking through an individual case ("a contact whose applications are all marked") where a category would do ("contacts with only spam applications") is a recognizable sign of AI writing. This applies to commit messages, documentation, code comments, page text, and chat.
+
+- **Name the category or the action** rather than describing what happens to one example.
+- **Prefer a noun phrase to a relative clause:** "spam applications", not "an application that isn't a real request".
+- **Avoid pronouns that point back to an imagined individual**, such as "their", "they", or "one", when the subject is a group.
+- **Add examples sparingly**, only when the category alone is unclear. Don't attach a "such as" example to every sentence.
+
+| Instead of | Write |
+|------------|-------|
+| Mark leaf applications as test or spam, so their contacts can be deleted | Mark leaf applications as test or spam, allowing contact deletion |
+| A contact whose applications are all marked can be deleted | Contacts with only test or spam applications can be deleted |
+| An application that isn't a real request, such as one from someone probing the form | Test and spam applications |
+
 ## Commit Messages
 
 Draft a short commit message to explain what we've built. Don't explain intermediary steps, don't explain our iterations and internal dev process, only explain the final state we agreed upon. We want to produce something people will actually read, not gloss over a wall of text.

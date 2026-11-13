@@ -8,9 +8,10 @@ use Illuminate\Validation\Validator;
 
 /**
  * Validates deleting a contact on the admin edit page: the box confirming
- * it, and that no application belongs to them, even a deleted one, so only
- * contacts added by mistake or as a test can be deleted. Only admins reach
- * it, through the admin routes' middleware.
+ * it, and that no application belongs to them, even a deleted one, other
+ * than applications marked as a test or spam, so only contacts added by
+ * mistake or as a test, or made by bogus applications, can be deleted. Only
+ * admins reach it, through the admin routes' middleware.
  */
 class DeleteContactRequest extends FormRequest
 {
@@ -32,8 +33,9 @@ class DeleteContactRequest extends FormRequest
     }
 
     /**
-     * Check that no application belongs to the contact, in case one was
-     * linked since the page was opened.
+     * Check that no application belongs to the contact, other than ones
+     * marked as a test or spam, in case one was linked since the page was
+     * opened.
      *
      * @return array<int, callable>
      */
@@ -43,7 +45,7 @@ class DeleteContactRequest extends FormRequest
             function (Validator $validator) {
                 /** @var Contact $contact */
                 $contact = $this->route('contact');
-                $count = $contact->applications()->withTrashed()->count();
+                $count = $contact->applications()->withTrashed()->notFlagged()->count();
 
                 if ($count > 0) {
                     $validator->errors()->add('confirm', self::hasApplications($contact, $count));
