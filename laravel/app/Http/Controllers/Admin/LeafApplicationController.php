@@ -26,9 +26,11 @@ use Illuminate\View\View;
  * the same records and values as leaves:applications and leaves:view, from
  * LeafApplicationReport and DescribesLeafApplications, with each
  * application's follow-up: complete, not linked to a contact yet, or its
- * follow-up group and why (FollowUpReport). An application's page also shows
- * its contact, and why it needs review, with the forms that settle it
- * (ApplicationContactController).
+ * follow-up group and why (FollowUpReport). The list includes applications
+ * marked as a test or spam only when asked. An application's page also
+ * shows its contact, and why it needs review, with the forms that settle it
+ * (ApplicationContactController), and the forms that mark it as a test or
+ * spam or unmark it (ApplicationFlagController).
  */
 class LeafApplicationController extends Controller
 {
@@ -57,7 +59,7 @@ class LeafApplicationController extends Controller
     public function index(Request $request, LeafApplicationReport $report, FollowUpReport $followUpReport): View
     {
         $filters = $this->filters($request);
-        $applications = $report->list(self::PERIODS[$filters['period']], $filters['types'])->load('contact');
+        $applications = $report->list(self::PERIODS[$filters['period']], $filters['types'], $filters['spam'])->load('contact');
         $count = $applications->count();
         $followUps = $followUpReport->pending()->keyBy(fn (array $item) => $item['application']->id);
 
@@ -98,7 +100,8 @@ class LeafApplicationController extends Controller
 
     /**
      * The same list as a CSV download, with every detail, like
-     * `leaves:applications --csv`.
+     * `leaves:applications --csv`. Applications marked as a test or spam
+     * are always left out.
      */
     public function download(Request $request, LeafApplicationReport $report): Response
     {
@@ -138,6 +141,7 @@ class LeafApplicationController extends Controller
                 'Terms accepted' => $this->localTime($record->terms_accepted_at),
             ],
             'deletedAt' => $record->trashed() ? $this->localTime($record->deleted_at) : null,
+            'flaggedNote' => $this->leafApplicationFlaggedNote($record),
             'contact' => $record->contact,
             'reviewReasons' => $record->needsContactReview() ? $this->reviewReasons($record, $candidates) : [],
             'reviewedNote' => $this->reviewedNote($record),
@@ -152,10 +156,10 @@ class LeafApplicationController extends Controller
     }
 
     /**
-     * An application's follow-up: complete once its pickup or drop-off is
-     * logged, not linked to a contact yet (Needs Review lists it), or its
-     * follow-up group and why, as FollowUpReport gives them. A cell for the
-     * list: a label with its tone, then words.
+     * An application's follow-up: marked as a test or spam, complete once
+     * its pickup or drop-off is logged, not linked to a contact yet (Needs
+     * Review lists it), or its follow-up group and why, as FollowUpReport
+     * gives them. A cell for the list: a label with its tone, then words.
      *
      * @param  array{application: LeafApplication, tier: string, reason: string, last_reached_at: ?\Carbon\CarbonInterface}|null  $item
      * @return array{badge: string, tone: ?string, text: string}
@@ -163,6 +167,7 @@ class LeafApplicationController extends Controller
     private function followUpCell(LeafApplication $application, ?array $item): array
     {
         return match (true) {
+            $application->isFlagged() => ['badge' => ApplicationFlagController::FLAG_CHOICES[$application->flagged_as], 'tone' => 'muted', 'text' => ''],
             $application->status === LeafApplication::STATUS_COMPLETE => ['badge' => 'Complete', 'tone' => 'muted', 'text' => ''],
             $application->contact_id === null => ['badge' => 'Not linked', 'tone' => 'soon', 'text' => 'Link it to a contact'],
             $item !== null => [
@@ -226,10 +231,11 @@ class LeafApplicationController extends Controller
     }
 
     /**
-     * The list's filters from the query string. Anything unexpected falls
-     * back to the defaults, since the form itself can only send valid values.
+     * The list's filters from the query string, with spam and tests only
+     * with `spam=1`. Anything unexpected falls back to the defaults, since
+     * the form itself can only send valid values.
      *
-     * @return array{period: string, types: array<int, string>}
+     * @return array{period: string, types: array<int, string>, spam: bool}
      */
     private function filters(Request $request): array
     {
@@ -238,13 +244,15 @@ class LeafApplicationController extends Controller
         return [
             'period' => $this->periodFilter($request),
             'types' => is_array($types) ? array_values(array_intersect(LeafApplication::TYPES, $types)) : [],
+            'spam' => $request->query('spam') === '1',
         ];
     }
 
     /**
-     * The query string for the filters, for the CSV download link.
+     * The query string for the filters, for the CSV download link, which
+     * leaves out spam and tests.
      *
-     * @param  array{period: string, types: array<int, string>}  $filters
+     * @param  array{period: string, types: array<int, string>, spam: bool}  $filters
      * @return array<string, mixed>
      */
     private function query(array $filters): array

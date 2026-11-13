@@ -10,7 +10,8 @@ use Illuminate\Console\Command;
 /**
  * Shows one leaf program application in full, by its ID from
  * leaves:applications. A deleted application is shown too, marked as
- * deleted, since it was asked for by ID. The output contains the donor's
+ * deleted, or as a test or spam with who marked it, since it was asked for
+ * by ID. The output contains the donor's
  * personal contact details: never paste it into issues, chat, or the
  * repository.
  */
@@ -53,7 +54,10 @@ class ViewLeafApplication extends Command
             'Terms accepted' => $this->localTime($application->terms_accepted_at),
         ]);
 
-        if ($application->trashed()) {
+        if ($application->isFlagged()) {
+            $this->newLine();
+            $this->components->warn($this->leafApplicationFlaggedNote($application) . ' leaves:applications leaves it out.');
+        } elseif ($application->trashed()) {
             $this->newLine();
             $this->components->warn('This application was deleted on ' . $this->localTime($application->deleted_at) . ', so leaves:applications leaves it out.');
         }

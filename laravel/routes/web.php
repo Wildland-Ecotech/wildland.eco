@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AbandonedCheckoutController as AdminAbandonedCheckoutController;
 use App\Http\Controllers\Admin\ApplicationContactController as AdminApplicationContactController;
+use App\Http\Controllers\Admin\ApplicationFlagController as AdminApplicationFlagController;
 use App\Http\Controllers\Admin\ContactActivityController as AdminContactActivityController;
 use App\Http\Controllers\Admin\ContactController as AdminContactController;
 use App\Http\Controllers\Admin\ContactDetailController as AdminContactDetailController;
@@ -137,6 +138,14 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
     Route::post('/leaves/{application}/contact', [AdminApplicationContactController::class, 'contact'])
         ->whereNumber('application')
         ->name('admin.leaves.contact');
+    Route::post('/leaves/{application}/flag', [AdminApplicationFlagController::class, 'flag'])
+        ->whereNumber('application')
+        ->name('admin.leaves.flag');
+    // Marked applications are soft-deleted, so unmarking finds deleted ones
+    Route::post('/leaves/{application}/unflag', [AdminApplicationFlagController::class, 'unflag'])
+        ->whereNumber('application')
+        ->withTrashed()
+        ->name('admin.leaves.unflag');
 
     Route::get('/errors', [AdminErrorLogController::class, 'index'])->name('admin.errors');
     Route::get('/errors/csv', [AdminErrorLogController::class, 'download'])->name('admin.errors.csv');

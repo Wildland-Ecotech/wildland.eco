@@ -118,6 +118,25 @@ trait DescribesLeafApplications
     }
 
     /**
+     * How an admin marked the application, by whom, and when, with the
+     * note: "Marked as spam by Rachel Shelton on Nov 12, 2026 9:30 AM MST:
+     * “Probing the form.”". Null for applications not marked.
+     */
+    protected function leafApplicationFlaggedNote(LeafApplication $application): ?string
+    {
+        if (! $application->isFlagged()) {
+            return null;
+        }
+
+        $admin = $application->flaggedBy;
+        $marked = ($application->flagged_as === LeafApplication::FLAG_TEST ? 'Marked as a test' : 'Marked as spam')
+            . ($admin ? ' by ' . ($admin->name ?: $admin->email) : '')
+            . ' on ' . $this->tableTime($application->flagged_at);
+
+        return $application->flag_note ? "{$marked}: “{$application->flag_note}”" : "{$marked}.";
+    }
+
+    /**
      * Whether the donor asked for a pickup or will drop the leaves off.
      */
     protected function leafApplicationType(LeafApplication $application): string

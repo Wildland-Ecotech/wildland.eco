@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Http\Requests\AddContactDetailRequest;
 use App\Http\Requests\CancelTrailerLoadRequest;
 use App\Http\Requests\DeleteContactRequest;
+use App\Http\Requests\FlagLeafApplicationRequest;
 use App\Http\Requests\LinkApplicationContactRequest;
 use App\Http\Requests\LogContactActivityRequest;
 use App\Http\Requests\MarkTrailerLoadDoneRequest;
@@ -40,6 +41,7 @@ class FormMessagesTest extends TestCase
             new SaveTrailerLoadRequest,
             new CancelTrailerLoadRequest,
             new MarkTrailerLoadDoneRequest,
+            new FlagLeafApplicationRequest,
         ];
 
         foreach ($requests as $request) {
