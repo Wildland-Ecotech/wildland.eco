@@ -128,8 +128,10 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
         ->where('donation', '[0-9]+|pi_[A-Za-z0-9]+')
         ->name('admin.donations.show');
 
-    Route::get('/leaves', [AdminLeafApplicationController::class, 'index'])->name('admin.leaves');
-    Route::get('/leaves/csv', [AdminLeafApplicationController::class, 'download'])->name('admin.leaves.csv');
+    // Leaves opens the applications list until the Leaves dashboard is built
+    Route::redirect('/leaves', '/admin/leaves/applications')->name('admin.leaves');
+    Route::get('/leaves/applications', [AdminLeafApplicationController::class, 'index'])->name('admin.leaves.applications');
+    Route::get('/leaves/applications/csv', [AdminLeafApplicationController::class, 'download'])->name('admin.leaves.applications.csv');
     Route::get('/leaves/ledger', [AdminLeafLedgerController::class, 'index'])->name('admin.leaves.ledger');
     Route::get('/leaves/ledger/csv', [AdminLeafLedgerController::class, 'download'])->name('admin.leaves.ledger.csv');
     Route::get('/leaves/{application}', [AdminLeafApplicationController::class, 'show'])

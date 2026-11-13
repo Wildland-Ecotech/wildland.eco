@@ -2,7 +2,7 @@
 
 <x-admin-page title="Leaf Applications" current="admin.leaves">
     {{-- A plain GET form, so the filters are in the URL and work without JavaScript --}}
-    <form class="filters" method="GET" action="{{ route('admin.leaves') }}">
+    <form class="filters" method="GET" action="{{ route('admin.leaves.applications') }}">
         <div class="filter">
             <label for="period">Period</label>
             <select id="period" name="period">

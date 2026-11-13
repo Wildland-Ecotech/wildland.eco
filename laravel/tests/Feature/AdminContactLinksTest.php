@@ -96,7 +96,7 @@ class AdminContactLinksTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)
-            ->get('/admin/leaves')
+            ->get('/admin/leaves/applications')
             ->assertSee('<td class=""><a href="' . route('admin.contacts.show', $linked->contact_id) . '">Jamie Rivera</a></td>', false)
             ->assertSee('<td class="">Sam Lee</td>', false)
             // The ID still opens the application

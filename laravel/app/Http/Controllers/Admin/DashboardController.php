@@ -69,7 +69,7 @@ class DashboardController extends Controller
                 [
                     'count' => $applications->list(self::DAYS)->count(),
                     'label' => 'Leaf applications',
-                    'url' => route('admin.leaves', ['period' => (string) self::DAYS]),
+                    'url' => route('admin.leaves.applications', ['period' => (string) self::DAYS]),
                 ],
                 [
                     // Leaving out errors the visitor got through later, and

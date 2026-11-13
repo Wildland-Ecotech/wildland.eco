@@ -338,7 +338,7 @@ class LeafApplicationFlagTest extends TestCase
         $deleted->delete();
 
         $this->actingAs($this->admin)
-            ->get('/admin/leaves?period=all')
+            ->get('/admin/leaves/applications?period=all')
             ->assertOk()
             ->assertSee('name="spam" value="1"', false)
             ->assertSee(route('admin.leaves.show', $real->id))
@@ -346,7 +346,7 @@ class LeafApplicationFlagTest extends TestCase
             ->assertDontSee('Deleted Person');
 
         $this->actingAs($this->admin)
-            ->get('/admin/leaves?period=all&spam=1')
+            ->get('/admin/leaves/applications?period=all&spam=1')
             ->assertOk()
             ->assertSee(route('admin.leaves.show', $real->id))
             ->assertSee('Probe Bot')
@@ -354,7 +354,7 @@ class LeafApplicationFlagTest extends TestCase
             ->assertDontSee('Deleted Person');
 
         // The CSV leaves them out, and doesn't carry the filter
-        $csv = $this->actingAs($this->admin)->get(route('admin.leaves.csv', ['period' => 'all', 'spam' => '1']))->getContent();
+        $csv = $this->actingAs($this->admin)->get(route('admin.leaves.applications.csv', ['period' => 'all', 'spam' => '1']))->getContent();
         $this->assertStringNotContainsString('Probe Bot', $csv);
         $this->assertStringContainsString('Jamie Rivera', $csv);
     }

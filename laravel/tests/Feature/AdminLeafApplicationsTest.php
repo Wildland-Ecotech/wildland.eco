@@ -67,7 +67,7 @@ class AdminLeafApplicationsTest extends TestCase
     private function csvRows(array $query = []): array
     {
         $handle = fopen('php://temp', 'r+');
-        fwrite($handle, $this->actingAs($this->admin)->get(route('admin.leaves.csv', $query))->getContent());
+        fwrite($handle, $this->actingAs($this->admin)->get(route('admin.leaves.applications.csv', $query))->getContent());
         rewind($handle);
 
         $rows = [];
@@ -84,7 +84,7 @@ class AdminLeafApplicationsTest extends TestCase
     public function test_only_signed_in_admins_can_see_leaf_applications(): void
     {
         $application = $this->application();
-        $pages = ['/admin/leaves', '/admin/leaves/csv', "/admin/leaves/{$application->id}"];
+        $pages = ['/admin/leaves', '/admin/leaves/applications', '/admin/leaves/applications/csv', "/admin/leaves/{$application->id}"];
 
         foreach ($pages as $page) {
             $this->get($page)->assertRedirect(route('login'));
@@ -97,12 +97,19 @@ class AdminLeafApplicationsTest extends TestCase
         }
     }
 
+    public function test_leaves_opens_the_list_until_the_dashboard_is_built(): void
+    {
+        $this->actingAs($this->admin)
+            ->get('/admin/leaves')
+            ->assertRedirect('/admin/leaves/applications');
+    }
+
     public function test_lists_applications_with_a_link_to_each(): void
     {
         $application = $this->application(['type' => LeafApplication::TYPE_PICKUP, 'ready_now' => false, 'ready_date' => '2026-11-08']);
 
         $this->actingAs($this->admin)
-            ->get('/admin/leaves')
+            ->get('/admin/leaves/applications')
             ->assertOk()
             ->assertSee('1 application in the last 30 days.')
             ->assertSee('Oct 18, 7:30 PM')
@@ -124,7 +131,7 @@ class AdminLeafApplicationsTest extends TestCase
         // Date, name, type, and bags, with the year only when it isn't this
         // year, then the follow-up label (neither is linked to a contact)
         $this->actingAs($this->admin)
-            ->get('/admin/leaves?period=all')
+            ->get('/admin/leaves/applications?period=all')
             ->assertSee('<summary>Oct 18 · Jamie Rivera · Drop-off · 12 bags <span class="badge soon">Not linked</span></summary>', false)
             ->assertSee('<summary>Oct 21, 2025 · Sam Lee · Pickup · 1 bag <span class="badge soon">Not linked</span></summary>', false)
             // The table's time also has the year only when it isn't this year
@@ -140,7 +147,7 @@ class AdminLeafApplicationsTest extends TestCase
         $unlinked = $this->application(['name' => 'Taylor Brooks'], daysAgo: 1);
 
         $this->actingAs($this->admin)
-            ->get('/admin/leaves')
+            ->get('/admin/leaves/applications')
             ->assertSee('>Follow-up</th>', false)
             ->assertSee('<span class="badge urgent">Waiting on us</span> No word from us in 9 days</td>', false)
             ->assertSee('<span class="badge muted">Complete</span></td>', false)
@@ -166,20 +173,20 @@ class AdminLeafApplicationsTest extends TestCase
         $this->application(['name' => 'Last Spring', 'type' => LeafApplication::TYPE_PICKUP], daysAgo: 200);
 
         $this->actingAs($this->admin)
-            ->get('/admin/leaves?type[]=drop_off')
+            ->get('/admin/leaves/applications?type[]=drop_off')
             ->assertSee('Drops Off')
             ->assertDontSee('Picks Up')
             ->assertSee('1 drop-off application in the last 30 days.');
 
         $this->actingAs($this->admin)
-            ->get('/admin/leaves?type[]=pickup&period=365')
+            ->get('/admin/leaves/applications?type[]=pickup&period=365')
             ->assertSee('Picks Up')
             ->assertSee('Last Spring')
             ->assertDontSee('Drops Off')
             ->assertSee('2 pickup applications in the last 365 days.');
 
         $this->actingAs($this->admin)
-            ->get('/admin/leaves?type[]=pickup&type[]=drop_off&period=all')
+            ->get('/admin/leaves/applications?type[]=pickup&type[]=drop_off&period=all')
             ->assertSee('3 applications to date.');
     }
 
@@ -188,7 +195,7 @@ class AdminLeafApplicationsTest extends TestCase
         $this->application();
 
         $this->actingAs($this->admin)
-            ->get('/admin/leaves?period=7&type[]=mail&type=pickup')
+            ->get('/admin/leaves/applications?period=7&type[]=mail&type=pickup')
             ->assertOk()
             ->assertSee('1 application in the last 30 days.');
     }
@@ -196,12 +203,12 @@ class AdminLeafApplicationsTest extends TestCase
     public function test_says_when_there_are_no_applications(): void
     {
         $this->actingAs($this->admin)
-            ->get('/admin/leaves')
+            ->get('/admin/leaves/applications')
             ->assertOk()
             ->assertSee('No applications in the last 30 days.');
 
         $this->actingAs($this->admin)
-            ->get('/admin/leaves?period=all')
+            ->get('/admin/leaves/applications?period=all')
             ->assertSee('No applications yet.');
     }
 
@@ -211,7 +218,7 @@ class AdminLeafApplicationsTest extends TestCase
         $this->application(['name' => 'Picks Up', 'type' => LeafApplication::TYPE_PICKUP]);
 
         $this->actingAs($this->admin)
-            ->get(route('admin.leaves.csv', ['type' => ['drop_off']]))
+            ->get(route('admin.leaves.applications.csv', ['type' => ['drop_off']]))
             ->assertOk()
             ->assertHeader('Content-Type', 'text/csv; charset=UTF-8')
             ->assertDownload('leaf-applications-2026-10-21.csv');
@@ -250,7 +257,7 @@ class AdminLeafApplicationsTest extends TestCase
         $application->delete();
 
         $this->actingAs($this->admin)
-            ->get('/admin/leaves')
+            ->get('/admin/leaves/applications')
             ->assertDontSee('Jamie Rivera');
 
         $this->actingAs($this->admin)
