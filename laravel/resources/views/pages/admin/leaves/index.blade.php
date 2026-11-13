@@ -25,6 +25,15 @@
             <p class="hint">Leave both unchecked to show every application.</p>
         </fieldset>
 
+        <fieldset class="filter">
+            <legend>Include</legend>
+
+            <label class="checkbox">
+                <input type="checkbox" name="spam" value="1" @checked($filters['spam'])>
+                <span>Spam and tests</span>
+            </label>
+        </fieldset>
+
         <div class="filter-actions">
             <button type="submit" class="button dark small">Show</button>
             <a class="download" href="{{ $csvUrl }}">Download CSV</a>

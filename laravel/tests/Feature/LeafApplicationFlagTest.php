@@ -13,8 +13,8 @@ use Tests\TestCase;
 
 /**
  * Marking leaf applications as a test or spam: hiding them, closing their
- * form submissions on Error Logs, unmarking them, and deleting a contact
- * whose applications are all marked.
+ * form submissions on Error Logs, unmarking them, deleting contacts with
+ * only marked applications, and the admin pages and leaves:view.
  */
 class LeafApplicationFlagTest extends TestCase
 {
@@ -230,5 +230,143 @@ class LeafApplicationFlagTest extends TestCase
             ->assertSessionHas('status', 'Deleted Jamie Rivera.');
 
         $this->assertSoftDeleted($contact);
+    }
+
+    public function test_only_signed_in_admins_can_mark_applications(): void
+    {
+        $application = $this->application();
+
+        $this->post("/admin/leaves/{$application->id}/flag", ['flag' => 'spam'])->assertRedirect(route('login'));
+        $this->post("/admin/leaves/{$application->id}/unflag")->assertRedirect(route('login'));
+
+        $this->assertFalse($application->refresh()->isFlagged());
+    }
+
+    public function test_an_application_is_marked_and_unmarked_from_its_page(): void
+    {
+        $application = $this->application();
+
+        $this->actingAs($this->admin)
+            ->get("/admin/leaves/{$application->id}")
+            ->assertOk()
+            ->assertSee('<h2 id="mark">Spam or Test</h2>', false)
+            ->assertSee('action="' . route('admin.leaves.flag', $application->id) . '"', false)
+            ->assertSee('Mark Application');
+
+        $this->actingAs($this->admin)
+            ->post("/admin/leaves/{$application->id}/flag", ['flag' => 'spam', 'note' => 'Probing the form.'])
+            ->assertRedirect(route('admin.leaves.show', $application->id))
+            ->assertSessionHas('status', "Marked application {$application->id} as spam.");
+
+        $this->assertSoftDeleted($application);
+
+        $this->actingAs($this->admin)
+            ->get("/admin/leaves/{$application->id}")
+            ->assertOk()
+            ->assertSee('Marked as spam by Sam Rivera on Nov 12, 2026 9:30 AM MST: “Probing the form.” The application list leaves it out unless it includes spam and tests.')
+            ->assertSee('action="' . route('admin.leaves.unflag', $application->id) . '"', false)
+            ->assertDontSee('Mark Application')
+            ->assertDontSee('was deleted on');
+
+        $this->actingAs($this->admin)
+            ->post("/admin/leaves/{$application->id}/unflag")
+            ->assertRedirect(route('admin.leaves.show', $application->id))
+            ->assertSessionHas('status', "Unmarked application {$application->id}.");
+
+        $this->assertNotSoftDeleted($application);
+        $this->assertFalse($application->refresh()->isFlagged());
+
+        // Unmarking twice says so
+        $this->actingAs($this->admin)
+            ->post("/admin/leaves/{$application->id}/unflag")
+            ->assertSessionHas('status', "Application {$application->id} isn’t marked as a test or spam.");
+    }
+
+    public function test_marking_as_a_test_says_so(): void
+    {
+        $application = $this->application();
+
+        $this->actingAs($this->admin)
+            ->post("/admin/leaves/{$application->id}/flag", ['flag' => 'test'])
+            ->assertSessionHas('status', "Marked application {$application->id} as a test.");
+
+        $this->actingAs($this->admin)
+            ->get("/admin/leaves/{$application->id}")
+            ->assertSee('Marked as a test by Sam Rivera on Nov 12, 2026 9:30 AM MST. The application list');
+    }
+
+    public function test_marking_needs_spam_or_test_and_a_short_note(): void
+    {
+        $application = $this->application();
+
+        $this->actingAs($this->admin)
+            ->from("/admin/leaves/{$application->id}")
+            ->post("/admin/leaves/{$application->id}/flag", ['flag' => 'resolved', 'note' => str_repeat('a', 1001)])
+            ->assertRedirect(route('admin.leaves.show', $application->id) . '#mark')
+            ->assertSessionHasErrors([
+                'flag' => 'Choose spam or test.',
+                'note' => 'Keep the note to 1,000 characters or fewer.',
+            ]);
+
+        $this->assertFalse($application->refresh()->isFlagged());
+    }
+
+    public function test_a_deleted_application_not_marked_has_no_mark_form(): void
+    {
+        $application = $this->application();
+        $application->delete();
+
+        $this->actingAs($this->admin)
+            ->get("/admin/leaves/{$application->id}")
+            ->assertOk()
+            ->assertSee('was deleted on')
+            ->assertDontSee('Spam or Test');
+
+        $this->actingAs($this->admin)
+            ->post("/admin/leaves/{$application->id}/flag", ['flag' => 'spam'])
+            ->assertNotFound();
+    }
+
+    public function test_the_list_includes_marked_applications_only_when_asked(): void
+    {
+        $real = $this->application();
+        $marked = $this->application();
+        $marked->forceFill(['name' => 'Probe Bot'])->save();
+        $marked->flag($this->admin, LeafApplication::FLAG_SPAM);
+        $deleted = $this->application();
+        $deleted->forceFill(['name' => 'Deleted Person'])->save();
+        $deleted->delete();
+
+        $this->actingAs($this->admin)
+            ->get('/admin/leaves?period=all')
+            ->assertOk()
+            ->assertSee('name="spam" value="1"', false)
+            ->assertSee(route('admin.leaves.show', $real->id))
+            ->assertDontSee('Probe Bot')
+            ->assertDontSee('Deleted Person');
+
+        $this->actingAs($this->admin)
+            ->get('/admin/leaves?period=all&spam=1')
+            ->assertOk()
+            ->assertSee(route('admin.leaves.show', $real->id))
+            ->assertSee('Probe Bot')
+            ->assertSee('<span class="badge muted">Spam</span>', false)
+            ->assertDontSee('Deleted Person');
+
+        // The CSV leaves them out, and doesn't carry the filter
+        $csv = $this->actingAs($this->admin)->get(route('admin.leaves.csv', ['period' => 'all', 'spam' => '1']))->getContent();
+        $this->assertStringNotContainsString('Probe Bot', $csv);
+        $this->assertStringContainsString('Jamie Rivera', $csv);
+    }
+
+    public function test_leaves_view_says_who_marked_an_application(): void
+    {
+        $application = $this->application();
+        $application->flag($this->admin, LeafApplication::FLAG_SPAM, 'Probing the form.');
+
+        $this->artisan('leaves:view', ['application' => (string) $application->id])
+            ->expectsOutputToContain("Application {$application->id}")
+            ->expectsOutputToContain('Marked as spam by Sam Rivera on Nov 12, 2026 9:30 AM MST')
+            ->assertSuccessful();
     }
 }

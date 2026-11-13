@@ -1,9 +1,15 @@
+@use('App\Http\Controllers\Admin\ApplicationFlagController')
+@use('App\Http\Requests\FlagLeafApplicationRequest')
+@use('App\Models\LeafApplication')
+
 <x-admin-page :title="'Application ' . $application->id" current="admin.leaves">
     @if (session('status'))
         <p class="status" role="status">{{ session('status') }}</p>
     @endif
 
-    @if ($deletedAt)
+    @if ($flaggedNote)
+        <p class="notice">{{ $flaggedNote }} The application list leaves it out unless it includes spam and tests.</p>
+    @elseif ($deletedAt)
         <p class="notice">This application was deleted on {{ $deletedAt }}, so the application list leaves it out.</p>
     @endif
 
@@ -64,6 +70,52 @@
             </form>
         </div>
     @endunless
+
+    @if ($flaggedNote)
+        <h2 id="mark">Spam or Test</h2>
+
+        <form class="close-form" method="POST" action="{{ route('admin.leaves.unflag', $application->id) }}">
+            @csrf
+
+            <p>Unmarking returns the application to every list, along with its contact if the contact was deleted. Error logs closed with it stay closed.</p>
+
+            <button type="submit" class="button dark small">Unmark</button>
+        </form>
+    @elseif (! $deletedAt)
+        <h2 id="mark">Spam or Test</h2>
+
+        <form class="close-form" method="POST" action="{{ route('admin.leaves.flag', $application->id) }}">
+            @csrf
+
+            <fieldset>
+                <legend>Mark this application as</legend>
+
+                @foreach (ApplicationFlagController::FLAG_CHOICES as $value => $label)
+                    <label class="checkbox">
+                        <input type="radio" name="flag" value="{{ $value }}" @checked(old('flag', LeafApplication::FLAG_SPAM) === $value)>
+                        <span>{{ $label }}</span>
+                    </label>
+                @endforeach
+
+                @error('flag')
+                    <p class="field-error">{{ $message }}</p>
+                @enderror
+            </fieldset>
+
+            <div class="field">
+                <label for="note">Note (optional)</label>
+                <textarea id="note" name="note" rows="3" maxlength="{{ FlagLeafApplicationRequest::NOTE_MAX_LENGTH }}" @error('note') aria-invalid="true" aria-describedby="note-error" @enderror>{{ old('note') }}</textarea>
+
+                @error('note')
+                    <p class="field-error" id="note-error">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <p>Marked applications leave every list, and their error logs close the same way. Contacts with only marked applications can be deleted.</p>
+
+            <button type="submit" class="button dark small">Mark Application</button>
+        </form>
+    @endif
 
     <a class="back" href="{{ route('admin.leaves') }}">← Back to Leaf Applications</a>
 </x-admin-page>
