@@ -34,6 +34,10 @@
             </label>
         </fieldset>
 
+        <div class="page-actions">
+            <a class="button dark small" href="{{ route('admin.leaves.ledger') }}">Leaf Ledger</a>
+        </div>
+
         <div class="filter-actions">
             <button type="submit" class="button dark small">Show</button>
             <a class="download" href="{{ $csvUrl }}">Download CSV</a>
@@ -41,6 +45,10 @@
     </form>
 
     <p class="summary" role="status">{{ $summary }}</p>
+
+    @if ($bags)
+        <p class="summary">{{ $bags }}</p>
+    @endif
 
     @if ($rows !== [])
         <x-admin-records

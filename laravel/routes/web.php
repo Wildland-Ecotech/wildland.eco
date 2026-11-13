@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\DonationController as AdminDonationController;
 use App\Http\Controllers\Admin\DonationTotalsController as AdminDonationTotalsController;
 use App\Http\Controllers\Admin\ErrorLogController as AdminErrorLogController;
 use App\Http\Controllers\Admin\LeafApplicationController as AdminLeafApplicationController;
+use App\Http\Controllers\Admin\LeafLedgerController as AdminLeafLedgerController;
 use App\Http\Controllers\Admin\MapController as AdminMapController;
 use App\Http\Controllers\Admin\SignInController as AdminSignInController;
 use App\Http\Controllers\Admin\TrailerLoadController as AdminTrailerLoadController;
@@ -129,6 +130,8 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
 
     Route::get('/leaves', [AdminLeafApplicationController::class, 'index'])->name('admin.leaves');
     Route::get('/leaves/csv', [AdminLeafApplicationController::class, 'download'])->name('admin.leaves.csv');
+    Route::get('/leaves/ledger', [AdminLeafLedgerController::class, 'index'])->name('admin.leaves.ledger');
+    Route::get('/leaves/ledger/csv', [AdminLeafLedgerController::class, 'download'])->name('admin.leaves.ledger.csv');
     Route::get('/leaves/{application}', [AdminLeafApplicationController::class, 'show'])
         ->whereNumber('application')
         ->name('admin.leaves.show');

@@ -66,6 +66,7 @@ class LeafApplicationController extends Controller
         return view('pages.admin.leaves.index', [
             'filters' => $filters,
             'summary' => $this->periodSummary($filters['period'], $count, $this->leafApplicationListName($filters['types'], $count)),
+            'bags' => $this->bags($applications),
             'headers' => [...self::LEAF_APPLICATION_TABLE_HEADERS, 'Follow-up'],
             'rows' => $applications->map(function (LeafApplication $application) use ($followUps) {
                 $followUp = $this->followUpCell($application, $followUps->get($application->id));
@@ -96,6 +97,29 @@ class LeafApplicationController extends Controller
             })->all(),
             'csvUrl' => route('admin.leaves.csv', $this->query($filters)),
         ]);
+    }
+
+    /**
+     * The estimated bags in the listed applications, and how many are still
+     * waiting for a pickup or drop-off, such as "180 bags estimated, 95
+     * still waiting for a pickup or drop-off." Test and spam applications
+     * aren't counted. Null when no bags are listed.
+     *
+     * @param  Collection<int, LeafApplication>  $applications
+     */
+    private function bags(Collection $applications): ?string
+    {
+        $real = $applications->reject(fn (LeafApplication $application) => $application->isFlagged());
+        $bags = (int) $real->sum('estimated_bag_count');
+
+        if ($bags === 0) {
+            return null;
+        }
+
+        $waiting = (int) $real->where('status', LeafApplication::STATUS_PENDING)->sum('estimated_bag_count');
+
+        return number_format($bags) . ' ' . Str::plural('bag', $bags) . ' estimated, '
+            . number_format($waiting) . ' still waiting for a pickup or drop-off.';
     }
 
     /**
