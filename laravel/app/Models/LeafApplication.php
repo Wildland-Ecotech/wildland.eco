@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Reports\FormSubmissionReport;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 /**
  * A request to donate leaves to the leaf program, by drop-off or pickup.
@@ -25,6 +27,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * An application is pending until a pickup or drop-off is logged for it on
  * the contact's timeline (ContactActivity), which marks it complete. Its
  * `status` and `follow_up_on` are set only that way and by admin pages.
+ *
+ * An admin marks an application that isn't a real request as a test or
+ * spam with flag(), which soft-deletes it and closes its form submissions
+ * the same way, and unmarks one marked by mistake with unflag(). The flag
+ * columns are set only that way, never from form input.
  */
 #[Fillable([
     'type',
@@ -57,6 +64,18 @@ class LeafApplication extends Model
     public const STATUS_COMPLETE = 'complete';
 
     public const STATUSES = [self::STATUS_PENDING, self::STATUS_COMPLETE];
+
+    /**
+     * How an admin marked an application that isn't a real request: someone
+     * testing the form, or spam. The values match FormSubmission's
+     * resolutions, so marking an application closes its form submissions
+     * the same way.
+     */
+    public const FLAG_TEST = FormSubmission::RESOLUTION_TEST;
+
+    public const FLAG_SPAM = FormSubmission::RESOLUTION_SPAM;
+
+    public const FLAGS = [self::FLAG_TEST, self::FLAG_SPAM];
 
     /**
      * Why an application's contact needs an admin to look: the contact it
@@ -110,6 +129,7 @@ class LeafApplication extends Model
             'contact_review' => 'array',
             'contact_reviewed_at' => 'datetime',
             'follow_up_on' => 'date',
+            'flagged_at' => 'datetime',
         ];
     }
 
@@ -156,6 +176,80 @@ class LeafApplication extends Model
     }
 
     /**
+     * The admin who marked the application as a test or spam, if any.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function flaggedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'flagged_by')->withTrashed();
+    }
+
+    /**
+     * Whether an admin marked the application as a test or spam.
+     */
+    public function isFlagged(): bool
+    {
+        return $this->flagged_as !== null;
+    }
+
+    /**
+     * Mark the application as a test or spam (FLAGS), with an optional note,
+     * recording which admin did and when. It's soft-deleted, so it leaves
+     * every list, the map, and the follow-up list, and its contact can be
+     * deleted once all their applications are marked. The form submission
+     * that saved it, and the visitor's earlier tries that Error Logs links
+     * to it, are closed the same way (FormSubmissionReport::forApplication()),
+     * unless an admin already closed them.
+     */
+    public function flag(User $admin, string $flag, ?string $note = null): void
+    {
+        DB::transaction(function () use ($admin, $flag, $note) {
+            $this->forceFill([
+                'flagged_as' => $flag,
+                'flagged_at' => now(),
+                'flagged_by' => $admin->id,
+                'flag_note' => $note,
+            ])->save();
+
+            $this->delete();
+
+            $closing = "Application {$this->id} was marked as " . ($flag === self::FLAG_TEST ? 'a test' : 'spam') . '.';
+
+            app(FormSubmissionReport::class)->forApplication($this)
+                ->reject(fn (FormSubmission $submission) => $submission->isClosed())
+                ->each(fn (FormSubmission $submission) => $submission->close($admin, $flag, $closing));
+        });
+    }
+
+    /**
+     * Unmark an application marked by mistake, restoring it, and its
+     * contact when that was deleted without being merged, such as after
+     * deleting a contact whose applications were all marked. Form
+     * submissions closed with it stay closed; each can be reopened on Error
+     * Logs.
+     */
+    public function unflag(): void
+    {
+        DB::transaction(function () {
+            $this->forceFill([
+                'flagged_as' => null,
+                'flagged_at' => null,
+                'flagged_by' => null,
+                'flag_note' => null,
+            ])->save();
+
+            $this->restore();
+
+            $contact = $this->contact;
+
+            if ($contact?->trashed() && $contact->merged_into_id === null) {
+                $contact->restore();
+            }
+        });
+    }
+
+    /**
      * Whether linking the application to its contact still needs an admin
      * to look.
      */
@@ -173,6 +267,18 @@ class LeafApplication extends Model
     protected function needingContactReview(Builder $query): void
     {
         $query->whereNotNull('contact_review')->whereNull('contact_reviewed_at');
+    }
+
+    /**
+     * Applications not marked as a test or spam. Deleted ones are included
+     * only when the query includes them, such as with withTrashed().
+     *
+     * @param  Builder<LeafApplication>  $query
+     */
+    #[Scope]
+    protected function notFlagged(Builder $query): void
+    {
+        $query->whereNull('flagged_as');
     }
 
     /**
