@@ -33,18 +33,22 @@ class AdminLeavesTest extends TestCase
     }
 
     /**
-     * A pickup or drop-off for the contact, at a Fort Collins time.
+     * A pickup or drop-off for the contact, or with no contact, at a Fort
+     * Collins time.
+     *
+     * @param  array<string, mixed>  $attributes
      */
-    private function entry(Contact $contact, string $type, string $when, int $bags): ContactActivity
+    private function entry(?Contact $contact, string $type, string $when, int $bags, array $attributes = []): ContactActivity
     {
         $entry = new ContactActivity;
         $entry->forceFill([
-            'contact_id' => $contact->id,
+            'contact_id' => $contact?->id,
             'type' => $type,
             // Stored in UTC, as the timeline form stores it
             'happened_at' => Carbon::parse($when, 'America/Denver')->utc(),
             'bag_count' => $bags,
             'logged_by' => $this->admin->id,
+            ...$attributes,
         ])->save();
 
         return $entry;
@@ -126,6 +130,21 @@ class AdminLeavesTest extends TestCase
             ->assertSee('<a href="' . route('admin.contacts.show', $contact->id) . '">Jamie Rivera</a>', false)
             ->assertDontSee('Nov 1, 10:00 AM')
             ->assertDontSee('Applicant 1<', false);
+    }
+
+    public function test_drop_offs_with_no_contact_count_and_are_unknown(): void
+    {
+        $site = Contact::create(['name' => 'North Drop-off Site', 'is_drop_off_site' => true]);
+        $jamie = Contact::create(['name' => 'Jamie Rivera']);
+        $this->entry($jamie, ContactActivity::TYPE_PICKUP, '2026-11-02 10:00', 14);
+        $this->entry(null, ContactActivity::TYPE_DROP_OFF, '2026-11-08 09:19', 6, ['drop_off_site_id' => $site->id]);
+
+        $this->actingAs($this->admin)
+            ->get('/admin/leaves')
+            ->assertOk()
+            ->assertSeeInOrder(['<span class="count">20</span>', 'Bags collected', '<span class="count">2</span>', 'Pickups and drop-offs'], false)
+            ->assertSeeInOrder(['Latest Ledger Entries', 'Nov 8, 9:19 AM', 'Unknown', 'Nov 2, 10:00 AM', 'Jamie Rivera'])
+            ->assertDontSee('>Unknown</a>', false);
     }
 
     public function test_says_when_nothing_is_logged_or_applied_for(): void

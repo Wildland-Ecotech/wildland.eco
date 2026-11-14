@@ -172,6 +172,21 @@ class ContactMergeTest extends TestCase
         $this->assertSame($jamie->id, ContactActivity::withTrashed()->find($deleted->id)->contact_id);
     }
 
+    public function test_merging_a_drop_off_site_moves_the_drop_offs_left_there(): void
+    {
+        $site = Contact::create(['name' => 'North Drop-off Site', 'is_drop_off_site' => true]);
+        $other = Contact::create(['name' => 'North Site']);
+        $dropOff = new ContactActivity;
+        $dropOff->forceFill(['type' => ContactActivity::TYPE_DROP_OFF, 'happened_at' => now(), 'bag_count' => 6, 'drop_off_site_id' => $other->id])->save();
+
+        $this->actingAs($this->admin)
+            ->post("/admin/contacts/{$site->id}/merge/{$other->id}")
+            ->assertRedirect(route('admin.contacts.show', $site->id));
+
+        $this->assertSame($site->id, $dropOff->refresh()->drop_off_site_id);
+        $this->assertNull($dropOff->contact_id);
+    }
+
     public function test_reviews_for_other_reasons_stay_open(): void
     {
         $jamie = $this->apply()->contact;

@@ -23,8 +23,9 @@ class LeafLedgerReport
 
     /**
      * Pickups and drop-offs logged for the season, oldest first, with their
-     * contact and the admin who logged them. Deleted entries, and entries
-     * of deleted contacts, are left out.
+     * contact and the admin who logged them, including drop-offs with no
+     * contact yet. Deleted entries, and entries of deleted contacts, are
+     * left out.
      *
      * @return Collection<int, ContactActivity>
      */
@@ -37,7 +38,7 @@ class LeafLedgerReport
             ->whereIn('type', ContactActivity::COMPLETING_TYPES)
             ->where('happened_at', '>=', $start)
             ->where('happened_at', '<', $end)
-            ->whereHas('contact', fn ($query) => $query->withoutTrashed())
+            ->where(fn ($query) => $query->whereNull('contact_id')->orWhereHas('contact', fn ($query) => $query->withoutTrashed()))
             ->orderBy('happened_at')
             ->orderBy('id')
             ->get();

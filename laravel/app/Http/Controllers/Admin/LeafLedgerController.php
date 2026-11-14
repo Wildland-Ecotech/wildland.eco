@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ContactActivity;
 use App\Reports\LeafLedgerReport;
+use App\Reports\Traits\DescribesLedgerEntries;
 use App\Reports\Traits\FormatsCsv;
 use App\Reports\Traits\FormatsTimes;
 use Illuminate\Http\Request;
@@ -22,7 +23,7 @@ use Illuminate\View\View;
  */
 class LeafLedgerController extends Controller
 {
-    use FormatsCsv, FormatsTimes;
+    use DescribesLedgerEntries, FormatsCsv, FormatsTimes;
 
     public const HEADERS = ['Date', 'Name', 'Bags', 'Type', 'Notes', 'Logged by'];
 
@@ -50,7 +51,7 @@ class LeafLedgerController extends Controller
             'rows' => $entries->map(fn (ContactActivity $entry) => [
                 'cells' => [
                     $this->listTime($entry->happened_at),
-                    ['text' => $entry->contact->name, 'url' => route('admin.contacts.show', $entry->contact_id)],
+                    $this->ledgerEntryNameCell($entry),
                     number_format($entry->bag_count),
                     ContactActivityController::TYPE_LABELS[$entry->type],
                     $entry->body ?? '',
@@ -58,7 +59,7 @@ class LeafLedgerController extends Controller
                 ],
                 'summary' => [
                     $this->shortDate($entry->happened_at),
-                    $entry->contact->name,
+                    $this->ledgerEntryName($entry),
                     ContactActivityController::TYPE_LABELS[$entry->type],
                     number_format($entry->bag_count) . ' ' . Str::plural('bag', $entry->bag_count),
                 ],
@@ -76,7 +77,7 @@ class LeafLedgerController extends Controller
 
         $rows = $report->list($season)->map(fn (ContactActivity $entry) => [
             $this->localTime($entry->happened_at, 'Y-m-d H:i'),
-            $entry->contact->name,
+            $this->ledgerEntryName($entry),
             $entry->bag_count,
             ContactActivityController::TYPE_LABELS[$entry->type],
             $entry->body ?? '',

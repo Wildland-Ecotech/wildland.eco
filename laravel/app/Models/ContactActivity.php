@@ -14,8 +14,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * so they aren't copied here.
  *
  * A pickup or drop-off for an application marks it complete, so it leaves
- * the map and the follow-up list. Holds conversations with people: never
- * paste them into issues, chat, or the repository. Deleting an entry
+ * the map and the follow-up list. Drop-offs can have no contact yet: bags
+ * left at a drop-off site without anyone seeing who brought them, assigned
+ * to contacts once the donor is known. Holds conversations with people:
+ * never paste them into issues, chat, or the repository. Deleting an entry
  * soft-deletes it.
  */
 #[Fillable([
@@ -24,6 +26,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'happened_at',
     'body',
     'bag_count',
+    'bag_brand',
+    'drop_off_site_id',
     'leaf_application_id',
 ])]
 class ContactActivity extends Model
@@ -76,6 +80,7 @@ class ContactActivity extends Model
         return [
             'happened_at' => 'datetime',
             'bag_count' => 'integer',
+            'assigned_at' => 'datetime',
         ];
     }
 
@@ -99,6 +104,14 @@ class ContactActivity extends Model
     }
 
     /**
+     * Whether it's a drop-off with no contact yet.
+     */
+    public function isUnknown(): bool
+    {
+        return $this->contact_id === null;
+    }
+
+    /**
      * Whether we reached the contact: a text or call from us, or a visit.
      */
     public function reachedThem(): bool
@@ -108,7 +121,8 @@ class ContactActivity extends Model
     }
 
     /**
-     * The contact whose timeline it's on, even if deleted.
+     * The contact whose timeline it's on, even if deleted, or null for a
+     * drop-off with no contact yet.
      *
      * @return BelongsTo<Contact, $this>
      */
@@ -126,6 +140,36 @@ class ContactActivity extends Model
     public function application(): BelongsTo
     {
         return $this->belongsTo(LeafApplication::class, 'leaf_application_id')->withTrashed();
+    }
+
+    /**
+     * The drop-off site the bags were left at, even if deleted, or null.
+     *
+     * @return BelongsTo<Contact, $this>
+     */
+    public function dropOffSite(): BelongsTo
+    {
+        return $this->belongsTo(Contact::class, 'drop_off_site_id')->withTrashed();
+    }
+
+    /**
+     * The drop-off the bags were split from, even if deleted, or null.
+     *
+     * @return BelongsTo<ContactActivity, $this>
+     */
+    public function splitFrom(): BelongsTo
+    {
+        return $this->belongsTo(ContactActivity::class, 'split_from_id')->withTrashed();
+    }
+
+    /**
+     * The admin who assigned the bags to the contact, if any.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function assignedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_by');
     }
 
     /**

@@ -35,15 +35,16 @@ class AdminLeafLedgerTest extends TestCase
     }
 
     /**
-     * A timeline entry for the contact, at a Fort Collins time.
+     * A timeline entry for the contact, or with no contact, at a Fort Collins
+     * time.
      *
      * @param  array<string, mixed>  $attributes
      */
-    private function entry(Contact $contact, string $type, string $when, ?int $bags = null, array $attributes = []): ContactActivity
+    private function entry(?Contact $contact, string $type, string $when, ?int $bags = null, array $attributes = []): ContactActivity
     {
         $entry = new ContactActivity;
         $entry->forceFill([
-            'contact_id' => $contact->id,
+            'contact_id' => $contact?->id,
             'type' => $type,
             // Stored in UTC, as the timeline form stores it
             'happened_at' => Carbon::parse($when, 'America/Denver')->utc(),
@@ -116,6 +117,32 @@ class AdminLeafLedgerTest extends TestCase
             ->assertDontSee('Texted about bags')
             ->assertDontSee('Logged by mistake')
             ->assertDontSee('Spammy Spammer');
+    }
+
+    public function test_drop_offs_with_no_contact_are_unknown(): void
+    {
+        $site = Contact::create(['name' => 'North Drop-off Site', 'is_drop_off_site' => true]);
+        $jamie = Contact::create(['name' => 'Jamie Rivera']);
+        $deleted = Contact::create(['name' => 'Spammy Spammer']);
+
+        $this->entry($jamie, ContactActivity::TYPE_PICKUP, '2026-11-02 10:00', 14);
+        $this->entry(null, ContactActivity::TYPE_DROP_OFF, '2026-11-08 09:19', 6, ['drop_off_site_id' => $site->id, 'body' => 'By the gate']);
+        // Entries of deleted contacts are still left out
+        $this->entry($deleted, ContactActivity::TYPE_DROP_OFF, '2026-11-09 10:00', 5);
+        $deleted->delete();
+
+        $this->actingAs($this->admin)
+            ->get('/admin/leaves/ledger')
+            ->assertOk()
+            ->assertSee('20 bags collected in Autumn 2026, from 1 pickup and 1 drop-off.')
+            ->assertSeeInOrder(['Nov 2, 10:00 AM', 'Jamie Rivera', 'Nov 8, 9:19 AM', 'Unknown', 'By the gate'])
+            ->assertDontSee('>Unknown</a>', false)
+            ->assertDontSee('Spammy Spammer');
+
+        $this->assertStringContainsString(
+            "\"2026-11-08 09:19\",Unknown,6,Drop-off,\"By the gate\",\"Sam Rivera\"\n",
+            $this->actingAs($this->admin)->get('/admin/leaves/ledger/csv?season=2026')->getContent(),
+        );
     }
 
     public function test_seasons_run_july_through_june(): void

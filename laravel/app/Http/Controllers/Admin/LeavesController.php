@@ -8,6 +8,7 @@ use App\Models\LeafApplication;
 use App\Reports\LeafApplicationReport;
 use App\Reports\LeafLedgerReport;
 use App\Reports\Traits\DescribesLeafApplications;
+use App\Reports\Traits\DescribesLedgerEntries;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -21,7 +22,7 @@ use Illuminate\View\View;
  */
 class LeavesController extends Controller
 {
-    use DescribesLeafApplications;
+    use DescribesLeafApplications, DescribesLedgerEntries;
 
     /**
      * How many of the latest ledger entries and applications are shown.
@@ -69,13 +70,13 @@ class LeavesController extends Controller
             'ledgerRows' => $entries->reverse()->take(self::LATEST)->map(fn (ContactActivity $entry) => [
                 'cells' => [
                     $this->listTime($entry->happened_at),
-                    ['text' => $entry->contact->name, 'url' => route('admin.contacts.show', $entry->contact_id)],
+                    $this->ledgerEntryNameCell($entry),
                     number_format($entry->bag_count),
                     ContactActivityController::TYPE_LABELS[$entry->type],
                 ],
                 'summary' => [
                     $this->shortDate($entry->happened_at),
-                    $entry->contact->name,
+                    $this->ledgerEntryName($entry),
                     ContactActivityController::TYPE_LABELS[$entry->type],
                     number_format($entry->bag_count) . ' ' . Str::plural('bag', $entry->bag_count),
                 ],
