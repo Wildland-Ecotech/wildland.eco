@@ -97,13 +97,6 @@ class AdminLeafApplicationsTest extends TestCase
         }
     }
 
-    public function test_leaves_opens_the_list_until_the_dashboard_is_built(): void
-    {
-        $this->actingAs($this->admin)
-            ->get('/admin/leaves')
-            ->assertRedirect('/admin/leaves/applications');
-    }
-
     public function test_lists_applications_with_a_link_to_each(): void
     {
         $application = $this->application(['type' => LeafApplication::TYPE_PICKUP, 'ready_now' => false, 'ready_date' => '2026-11-08']);
@@ -119,7 +112,7 @@ class AdminLeafApplicationsTest extends TestCase
             // The ID is the link, rather than a separate View column
             ->assertSee('<a class="record-link" href="' . route('admin.leaves.show', $application->id) . '">' . $application->id . '</a>', false)
             ->assertDontSee('>View</a>', false)
-            ->assertSee('aria-current="page">Leaf Applications</a>', false)
+            ->assertSee('aria-current="page">Leaves</a>', false)
             ->assertHeader('X-Robots-Tag', 'noindex, nofollow');
     }
 

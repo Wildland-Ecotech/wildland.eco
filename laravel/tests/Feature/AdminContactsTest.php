@@ -97,7 +97,7 @@ class AdminContactsTest extends TestCase
     {
         $this->actingAs($this->admin)
             ->get('/admin')
-            ->assertSeeInOrder(['>Dashboard</a>', '>Contacts</a>', '>Leaf Applications</a>', '>Donations</a>', '>Error Logs</a>'], false);
+            ->assertSeeInOrder(['>Dashboard</a>', '>Contacts</a>', '>Leaves</a>', '>Donations</a>', '>Error Logs</a>'], false);
 
         $this->actingAs($this->admin)
             ->get('/admin/contacts')

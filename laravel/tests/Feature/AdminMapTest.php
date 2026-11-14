@@ -109,7 +109,7 @@ class AdminMapTest extends TestCase
     {
         $this->actingAs($this->admin)
             ->get('/admin')
-            ->assertSeeInOrder(['>Contacts</a>', '>Map</a>', '>Leaf Applications</a>'], false);
+            ->assertSeeInOrder(['>Contacts</a>', '>Map</a>', '>Leaves</a>'], false);
     }
 
     public function test_needs_scheduling_lists_pickups_soonest_first_with_a_running_total(): void

@@ -16,7 +16,7 @@
         'admin' => 'Dashboard',
         'admin.contacts' => 'Contacts',
         'admin.map' => 'Map',
-        'admin.leaves' => 'Leaf Applications',
+        'admin.leaves' => 'Leaves',
         'admin.donations' => 'Donations',
         'admin.errors' => 'Error Logs',
     ];

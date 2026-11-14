@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\DonationTotalsController as AdminDonationTotalsCo
 use App\Http\Controllers\Admin\ErrorLogController as AdminErrorLogController;
 use App\Http\Controllers\Admin\LeafApplicationController as AdminLeafApplicationController;
 use App\Http\Controllers\Admin\LeafLedgerController as AdminLeafLedgerController;
+use App\Http\Controllers\Admin\LeavesController as AdminLeavesController;
 use App\Http\Controllers\Admin\MapController as AdminMapController;
 use App\Http\Controllers\Admin\SignInController as AdminSignInController;
 use App\Http\Controllers\Admin\TrailerLoadController as AdminTrailerLoadController;
@@ -128,8 +129,7 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
         ->where('donation', '[0-9]+|pi_[A-Za-z0-9]+')
         ->name('admin.donations.show');
 
-    // Leaves opens the applications list until the Leaves dashboard is built
-    Route::redirect('/leaves', '/admin/leaves/applications')->name('admin.leaves');
+    Route::get('/leaves', [AdminLeavesController::class, 'index'])->name('admin.leaves');
     Route::get('/leaves/applications', [AdminLeafApplicationController::class, 'index'])->name('admin.leaves.applications');
     Route::get('/leaves/applications/csv', [AdminLeafApplicationController::class, 'download'])->name('admin.leaves.applications.csv');
     Route::get('/leaves/ledger', [AdminLeafLedgerController::class, 'index'])->name('admin.leaves.ledger');

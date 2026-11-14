@@ -31,5 +31,5 @@
         />
     @endif
 
-    <a class="back" href="{{ route('admin.leaves') }}">← Back to Leaf Applications</a>
+    <a class="back" href="{{ route('admin.leaves') }}">← Back to Leaves</a>
 </x-admin-page>
