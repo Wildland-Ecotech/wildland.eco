@@ -227,22 +227,28 @@ A contact has **one current address**, and at most **one current primary detail 
 
 ### contact_activities
 
-Entries on a contact's timeline, logged by admins: texts and calls, visits, notes, and pickups and drop-offs of leaves. Applications and form errors appear on the timeline from their own tables and aren't copied here. Model: `App\Models\ContactActivity`. Holds conversations with people; never copy its rows into the repository, issues, or chat.
+Entries on a contact's timeline, logged by admins: texts and calls, visits, notes, and pickups and drop-offs of leaves. Applications and form errors appear on the timeline from their own tables and aren't copied here. Drop-offs can have no contact yet: bags left at a drop-off site without anyone seeing who brought them, assigned to contacts once the donor is known. Model: `App\Models\ContactActivity`. Holds conversations with people; never copy its rows into the repository, issues, or chat.
 
 | Column | Notes |
 |--------|-------|
-| contact_id | Foreign key; restricts deletes. Indexed together with `happened_at` |
+| contact_id | Nullable foreign key; restricts deletes. Indexed together with `happened_at`. Null for drop-offs with no contact yet (`isUnknown()`), until the bags are assigned |
 | type | String, up to 20 characters (`ContactActivity::TYPES`): `text`, `call`, `visit`, `note`, `pickup`, or `drop_off` |
 | direction | Nullable string, up to 20 characters, for texts and calls (`DIRECTIONS`): `outgoing` (from us) or `incoming` (from them) |
 | happened_at | Timestamp; when it happened, which may be before it was logged |
 | body | Nullable text; what was said, or the note |
 | bag_count | Nullable integer; for pickups and drop-offs |
+| bag_brand | Nullable string, up to 100 characters; the brand of bags, as typed, such as Ace Hardware, for any pickup or drop-off. Most donors use one brand, which helps work out who left unknown bags |
+| drop_off_site_id | Nullable foreign key to `contacts`; restricts deletes. For drop-offs: the drop-off site the bags were left at (`$activity->dropOffSite`). Required for drop-offs with no contact |
 | leaf_application_id | Nullable foreign key; restricts deletes. The application a pickup or drop-off was for |
 | logged_by | Nullable foreign key to `users`; restricts deletes. The admin who logged it, set by the admin pages, never from form input |
+| split_from_id | Nullable foreign key to `contact_activities`; restricts deletes. For entries split from a drop-off with no contact, when only some of its bags were assigned: the entry the bags came from (`$activity->splitFrom`). Set by the admin pages, never from form input |
+| assigned_at, assigned_by | Nullable timestamp, and a nullable foreign key to `users` that restricts deletes: when and by which admin the bags of a drop-off with no contact were assigned to a contact (`$activity->assignedBy`). Set by the admin pages, never from form input |
 | created_at, updated_at | |
 | deleted_at | Nullable; soft deletes. Deleted entries are kept but left off the timeline |
 
-**A pickup or drop-off for an application marks it complete** (`status`), when it's saved with that type and application, so it leaves the map and the follow-up list. `reachedThem()` is true for a text or call from us, or a visit, which the follow-up list counts as reaching someone; notes are only for us. `$activity->contact`, `application`, and `loggedBy` are what they belong to, and `$application->activities` an application's entries. Merging contacts moves their entries (see [ContactMerger](02-services-and-commands.md#contactmerger-appservicescontactmergerphp)).
+**Drop-offs with no contact:** check constraints make the database refuse an entry with no contact unless it's a drop-off at a drop-off site with no application (`contact_activities_unknown_only_drop_offs`), and refuse a drop-off site on anything but a drop-off (`contact_activities_site_only_on_drop_offs`). Rolling back the migration that added them fails while drop-offs with no contact exist.
+
+**A pickup or drop-off for an application marks it complete** (`status`), when it's saved with that type and application, so it leaves the map and the follow-up list. `reachedThem()` is true for a text or call from us, or a visit, which the follow-up list counts as reaching someone; notes are only for us. `$activity->contact`, `application`, and `loggedBy` are what they belong to, and `$application->activities` an application's entries. Merging contacts moves their entries, and the drop-offs left at a merged drop-off site (see [ContactMerger](02-services-and-commands.md#contactmerger-appservicescontactmergerphp)).
 
 ### trailer_loads
 

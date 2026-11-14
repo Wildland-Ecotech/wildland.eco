@@ -6,6 +6,7 @@ use App\Models\Contact;
 use App\Models\ContactActivity;
 use App\Models\LeafApplication;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -113,6 +114,72 @@ class ContactActivityTest extends TestCase
         $this->assertSame([$activity->id], $this->contact->activities()->pluck('id')->all());
         $this->assertSame([$activity->id], $application->activities()->pluck('id')->all());
         $this->assertNotNull(ContactActivity::withTrashed()->find($deleted->id));
+    }
+
+    /**
+     * A drop-off with no contact, left at a new drop-off site and logged by
+     * the admin.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    private function logUnknown(array $attributes = []): ContactActivity
+    {
+        $site = Contact::create(['name' => 'North Drop-off Site', 'is_drop_off_site' => true]);
+
+        $activity = new ContactActivity;
+        $activity->forceFill([
+            'type' => ContactActivity::TYPE_DROP_OFF,
+            'happened_at' => now(),
+            'bag_count' => 6,
+            'drop_off_site_id' => $site->id,
+            'logged_by' => $this->admin->id,
+            ...$attributes,
+        ])->save();
+
+        return $activity;
+    }
+
+    public function test_a_drop_off_can_have_no_contact_yet(): void
+    {
+        $activity = $this->logUnknown(['bag_brand' => 'Ace Hardware'])->refresh();
+
+        $this->assertTrue($activity->isUnknown());
+        $this->assertNull($activity->contact);
+        $this->assertSame('North Drop-off Site', $activity->dropOffSite->name);
+        $this->assertSame('Ace Hardware', $activity->bag_brand);
+        $this->assertFalse($this->log(['type' => ContactActivity::TYPE_NOTE, 'body' => 'Call back'])->isUnknown());
+    }
+
+    public function test_the_database_refuses_pickups_with_no_contact(): void
+    {
+        $this->expectException(QueryException::class);
+
+        $this->logUnknown(['type' => ContactActivity::TYPE_PICKUP, 'drop_off_site_id' => null]);
+    }
+
+    public function test_the_database_refuses_drop_offs_with_no_contact_or_drop_off_site(): void
+    {
+        $this->expectException(QueryException::class);
+
+        $this->logUnknown(['drop_off_site_id' => null]);
+    }
+
+    public function test_the_database_refuses_drop_offs_for_an_application_with_no_contact(): void
+    {
+        $application = $this->apply(LeafApplication::TYPE_DROP_OFF);
+
+        $this->expectException(QueryException::class);
+
+        $this->logUnknown(['leaf_application_id' => $application->id]);
+    }
+
+    public function test_the_database_allows_a_drop_off_site_only_on_drop_offs(): void
+    {
+        $site = Contact::create(['name' => 'North Drop-off Site', 'is_drop_off_site' => true]);
+
+        $this->expectException(QueryException::class);
+
+        $this->log(['type' => ContactActivity::TYPE_PICKUP, 'bag_count' => 6, 'drop_off_site_id' => $site->id]);
     }
 
     public function test_reaching_them_means_a_text_or_call_from_us_or_a_visit(): void
