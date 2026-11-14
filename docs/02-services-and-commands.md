@@ -448,6 +448,20 @@ docker compose exec app php artisan leaves:view 12
 
 The output contains the donor's personal contact details: never paste it into issues or chat.
 
+### leaves:seed (`app/Console/Commands/SeedTestApplications.php`)
+
+Creates made-up leaf applications for local QA testing, such as trying the Map and trailer loads without entering applications by hand. Each application is linked like a real one (see [ContactLinker](#contactlinker-appservicescontactlinkerphp)), making a new contact, and its address gets a random map location in a box around Fort Collins, set as the first admin, so no geocoding is needed. It runs only on an admin's computer (the `local` environment, or `testing`); on a server it refuses, and Faker, which makes up the names and streets, is a dev package servers don't have.
+
+| Argument | Default | Effect |
+|----------|---------|--------|
+| `count` | 10 | How many applications to create, from 1 to 500 |
+
+Applications are about 75% pickups and 25% drop-offs, with 3 to 60 bags, ready now or within three weeks. Emails are `@example.com` and phone numbers are 970-555 numbers, each with a random number so no two contacts share one. It needs an admin account first (see [users:admin](#usersadmin-appconsolecommandsmanageadminphp)). To clear test data, empty the local database with `migrate:fresh` and create the admin again.
+
+```bash
+docker compose exec app php artisan leaves:seed 25
+```
+
 ### addresses:geocode (`app/Console/Commands/GeocodeAddresses.php`)
 
 Looks up addresses copied from the Map page in the local [Geocoder](07-deployment.md#geocoder) and prints their locations, to paste back on the page. It runs only on an admin's computer (the `local` environment, or `testing`), so no address leaves it; on a server it refuses.

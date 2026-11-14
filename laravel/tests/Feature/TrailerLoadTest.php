@@ -215,6 +215,41 @@ class TrailerLoadTest extends TestCase
         $this->assertSame(0, TrailerLoad::count());
     }
 
+    public function test_a_new_load_sent_back_with_errors_keeps_its_stops_in_the_order_chosen(): void
+    {
+        $sam = $this->application($this->contact('Sam Lee', '412 Sample Ave, Fort Collins, CO 80521'), 40);
+        $dana = $this->application($this->contact('Dana Cruz', '3 Example Blvd, Fort Collins, CO 80525'), 30);
+
+        // Nothing chosen yet, so the script numbers pickups as they're clicked
+        $this->actingAs($this->admin)
+            ->get('/admin/map?build=1')
+            ->assertSee('<script type="application/json" id="load-order">[]</script>', false);
+
+        // Dana clicked first, though Sam comes first in the list
+        $this->actingAs($this->admin)
+            ->from('/admin/map?build=1')
+            ->followingRedirects()
+            ->post('/admin/map/loads', ['planned_on' => '2026-11-08', 'capacity' => '0', 'stops' => [(string) $dana->id, (string) $sam->id]])
+            ->assertSee('Enter how many bags the trailer holds, such as 80.')
+            ->assertSee('<script type="application/json" id="load-order">[' . $dana->id . ',' . $sam->id . ']</script>', false);
+    }
+
+    public function test_an_edited_load_sent_back_with_errors_keeps_new_stops_in_the_order_chosen(): void
+    {
+        $jamie = $this->application($this->contact('Jamie Rivera', '10 New Rd, Fort Collins, CO 80521'), 25);
+        $taylor = $this->application($this->contact('Taylor Brooks', '2 Sample Ct, Fort Collins, CO 80525'), 15);
+        $sam = $this->application($this->contact('Sam Lee', '412 Sample Ave, Fort Collins, CO 80521'), 40);
+        $load = $this->load('2026-11-08', [$jamie]);
+
+        // The load's stops first, then Sam and Taylor in the order clicked
+        $this->actingAs($this->admin)
+            ->from(route('admin.map', ['load' => $load->id, 'edit' => 1]))
+            ->followingRedirects()
+            ->post("/admin/map/loads/{$load->id}", ['planned_on' => '2026-11-08', 'capacity' => '0', 'stops' => [(string) $sam->id, (string) $jamie->id, (string) $taylor->id]])
+            ->assertSee('Enter how many bags the trailer holds, such as 80.')
+            ->assertSee('<script type="application/json" id="load-order">[' . $jamie->id . ',' . $sam->id . ',' . $taylor->id . ']</script>', false);
+    }
+
     public function test_only_pending_pickups_can_be_stops(): void
     {
         $contact = $this->contact('Sam Lee', '412 Sample Ave, Fort Collins, CO 80521');

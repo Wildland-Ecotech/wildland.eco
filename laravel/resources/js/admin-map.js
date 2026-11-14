@@ -8,10 +8,10 @@
 //
 // While building or editing a trailer load (#trailer-load), clicking a
 // pickup's dot checks or unchecks its box in the list, the chosen dots are
-// numbered (an edited load's stops in their route order, from #load-order,
-// then the others in the list's order, as they'll be saved), and the
-// progress bar follows the chosen bags. The list's boxes and the form work
-// without this script.
+// numbered (the stops in #load-order first, then the others in the order
+// they were chosen), the form sends the stops in that order so the load is
+// saved as numbered, and the progress bar follows the chosen bags. The
+// list's boxes and the form work without this script, in the list's order.
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -77,12 +77,32 @@ function initBuilder(form, markers) {
     // Each pickup's box is on the page twice: in the table, and in the list shown on phones
     const boxes = () => [...document.querySelectorAll('input[type="checkbox"][form="trailer-load"]')];
 
-    // The chosen pickups' IDs, once each: an edited load's stops in route
-    // order, then the rest in the list's order
-    const chosen = () => {
-        const checked = [...new Set(boxes().filter((box) => box.checked).map((box) => box.value))];
+    // Pickups not in #load-order, in the order they were chosen
+    const picked = [];
 
-        return [...order.filter((id) => checked.includes(id)), ...checked.filter((id) => !order.includes(id))];
+    // The chosen pickups' IDs, once each: #load-order's stops (an edited
+    // load's route, or what a form sent back with errors), then the rest in
+    // the order they were chosen. Boxes checked without a click, such as by
+    // the browser restoring the page, go last in the list's order.
+    const chosen = () => {
+        const checked = new Set(boxes().filter((box) => box.checked).map((box) => box.value));
+
+        picked.push(...[...checked].filter((id) => !order.includes(id) && !picked.includes(id)));
+
+        return [...order.filter((id) => checked.has(id)), ...picked.filter((id) => checked.has(id))];
+    };
+
+    // A pickup chosen again goes to the end
+    const choose = (id, checked) => {
+        const index = picked.indexOf(id);
+
+        if (index !== -1) {
+            picked.splice(index, 1);
+        }
+
+        if (checked && !order.includes(id)) {
+            picked.push(id);
+        }
     };
 
     const update = () => {
@@ -105,6 +125,7 @@ function initBuilder(form, markers) {
         same.forEach((box) => {
             box.checked = checked;
         });
+        choose(String(id), checked);
         update();
     };
 
@@ -115,10 +136,17 @@ function initBuilder(form, markers) {
             boxes().filter((other) => other.value === box.value).forEach((other) => {
                 other.checked = box.checked;
             });
+            choose(box.value, box.checked);
             update();
         }
     });
     capacity.addEventListener('input', update);
+
+    // Send the stops in the order chosen, rather than the list's order
+    form.addEventListener('formdata', (event) => {
+        event.formData.delete('stops[]');
+        chosen().forEach((id) => event.formData.append('stops[]', id));
+    });
 
     update();
 }

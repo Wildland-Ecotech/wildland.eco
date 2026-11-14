@@ -130,7 +130,7 @@
             </div>
         </form>
         <script type="application/json" id="load-bags">@json((object) $loadBags)</script>
-        {{-- An edited load's stops in route order, so the map numbers them that way, new ones after --}}
+        {{-- The stops numbered first: an edited load's in route order, or a form's sent back with errors in the order chosen --}}
         <script type="application/json" id="load-order">@json($loadOrder)</script>
     @endif
 

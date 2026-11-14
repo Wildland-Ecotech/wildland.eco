@@ -171,7 +171,11 @@ class MapController extends Controller
             $focus !== null => $this->contactPage($report, $focus),
             $search !== '' => $this->searchPage($report, $contacts, $search),
             $show === self::SHOW_EVERYTHING => $this->everythingPage($report),
-            default => $this->pickupsPage($report, $building ? $this->chosenStops($request) : null),
+            default => [
+                ...$this->pickupsPage($report, $building ? $this->chosenStops($request) : null),
+                // A form sent back with errors keeps its stops in the order chosen
+                'loadOrder' => $building ? $this->chosenStops($request) : [],
+            ],
         };
         // A preview's locations, on the map with the rest until they're saved
         $page['points'] = [...$page['points'], ...($extra['previewPoints'] ?? [])];
@@ -187,14 +191,14 @@ class MapController extends Controller
             'builder' => match (true) {
                 $building => [
                     'title' => 'New Trailer Load',
-                    'hint' => 'Click pickups on the map, or check them in the list, to add them. Click again to take one out.',
+                    'hint' => 'Click pickups on the map, or check them in the list, in the order you’ll visit them. Click again to take one out.',
                     'action' => route('admin.map.loads.store'),
                     'button' => 'Save Load',
                     'cancel' => route('admin.map'),
                 ],
                 $editing => [
                     'title' => 'Edit Load',
-                    'hint' => 'Click pickups on the map, or check them in the list, to add them or take them out. New stops go at the end; move them into place after saving.',
+                    'hint' => 'Click pickups on the map, or check them in the list, to add them or take them out. New stops go at the end in the order you choose them; move them into place after saving.',
                     'action' => route('admin.map.loads.update', $load->id),
                     'button' => 'Save Changes',
                     'cancel' => route('admin.map', ['load' => $load->id]),
@@ -346,7 +350,8 @@ class MapController extends Controller
             'title' => "Trailer Load: {$load->label()}",
             'load' => $load,
             'summary' => TrailerLoad::STATUS_LABELS[$load->status] . ' · ' . $this->count(count($own), 'stop'),
-            'loadOrder' => $own,
+            // New stops sent back with errors follow, in the order chosen
+            'loadOrder' => [...$own, ...array_values(array_diff($chosen, $own))],
         ];
     }
 
