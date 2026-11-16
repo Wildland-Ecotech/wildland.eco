@@ -3,15 +3,18 @@
 namespace App\Http\Requests;
 
 use App\Models\Contact;
+use App\Models\ContactActivity;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
 /**
  * Validates deleting a contact on the admin edit page: the box confirming
- * it, and that no application belongs to them, even a deleted one, other
- * than applications marked as a test or spam, so only contacts added by
- * mistake or as a test, or made by bogus applications, can be deleted. Only
- * admins reach it, through the admin routes' middleware.
+ * it, that no application belongs to them, even a deleted one, other than
+ * applications marked as a test or spam, and that the Leaf Ledger has no
+ * pickups or drop-offs of theirs and no drop-offs left at them as a
+ * drop-off site, so only contacts added by mistake or as a test, or made by
+ * bogus applications, can be deleted, and no bags drop out of the ledger.
+ * Only admins reach it, through the admin routes' middleware.
  */
 class DeleteContactRequest extends FormRequest
 {
@@ -33,9 +36,8 @@ class DeleteContactRequest extends FormRequest
     }
 
     /**
-     * Check that no application belongs to the contact, other than ones
-     * marked as a test or spam, in case one was linked since the page was
-     * opened.
+     * Check that the contact can still be deleted, in case an application
+     * was linked or bags were logged since the page was opened.
      *
      * @return array<int, callable>
      */
@@ -43,12 +45,10 @@ class DeleteContactRequest extends FormRequest
     {
         return [
             function (Validator $validator) {
-                /** @var Contact $contact */
-                $contact = $this->route('contact');
-                $count = $contact->applications()->withTrashed()->notFlagged()->count();
+                $reason = self::whyNot($this->route('contact'));
 
-                if ($count > 0) {
-                    $validator->errors()->add('confirm', self::hasApplications($contact, $count));
+                if ($reason !== null) {
+                    $validator->errors()->add('confirm', $reason);
                 }
             },
         ];
@@ -78,13 +78,25 @@ class DeleteContactRequest extends FormRequest
     }
 
     /**
-     * Why a contact with applications can't be deleted, and what to do
-     * instead, for the edit page and the error.
+     * Why a contact can't be deleted, for the edit page and the error, or
+     * null when it can be: applications other than test and spam ones, even
+     * deleted ones; pickups or drop-offs in the Leaf Ledger; or, for a
+     * drop-off site, drop-offs left there.
      */
-    public static function hasApplications(Contact $contact, int $count): string
+    public static function whyNot(Contact $contact): ?string
     {
-        $applications = $count === 1 ? 'an application' : number_format($count) . ' applications';
+        if ($contact->applications()->withTrashed()->notFlagged()->exists()) {
+            return "Contacts with applications can't be deleted.";
+        }
 
-        return "{$contact->name} has {$applications}, so they can’t be deleted. If this is a duplicate, merge it into the other contact from Shares Details With.";
+        if ($contact->activities()->whereIn('type', ContactActivity::COMPLETING_TYPES)->exists()) {
+            return "Contacts with pickups or drop-offs in the Leaf Ledger can't be deleted.";
+        }
+
+        if ($contact->siteDropOffs()->exists()) {
+            return "Drop-off sites with drop-offs in the Leaf Ledger can't be deleted.";
+        }
+
+        return null;
     }
 }

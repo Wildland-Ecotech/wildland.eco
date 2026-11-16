@@ -86,6 +86,16 @@ class Contact extends Model
     }
 
     /**
+     * Drop-offs left at this contact as a drop-off site, not deleted.
+     *
+     * @return HasMany<ContactActivity, $this>
+     */
+    public function siteDropOffs(): HasMany
+    {
+        return $this->hasMany(ContactActivity::class, 'drop_off_site_id');
+    }
+
+    /**
      * The primary email or phone number, or null.
      */
     public function primary(string $type): ?ContactDetail

@@ -205,13 +205,13 @@ class LeafApplicationFlagTest extends TestCase
         $this->actingAs($this->admin)
             ->get("/admin/contacts/{$contact->id}/edit")
             ->assertOk()
-            ->assertSee('Jamie Rivera has an application, so they can’t be deleted.')
+            ->assertSee("Contacts with applications can't be deleted.")
             ->assertDontSee('action="' . route('admin.contacts.destroy', $contact->id) . '"', false);
 
         $this->actingAs($this->admin)
             ->post("/admin/contacts/{$contact->id}/delete", ['confirm' => '1'])
             ->assertRedirect(route('admin.contacts.edit', $contact->id) . '#delete')
-            ->assertSessionHasErrors(['confirm' => 'Jamie Rivera has an application, so they can’t be deleted. If this is a duplicate, merge it into the other contact from Shares Details With.']);
+            ->assertSessionHasErrors(['confirm' => "Contacts with applications can't be deleted."]);
 
         $this->assertNotSoftDeleted($contact);
 
@@ -222,7 +222,7 @@ class LeafApplicationFlagTest extends TestCase
             ->get("/admin/contacts/{$contact->id}/edit")
             ->assertOk()
             ->assertSee('action="' . route('admin.contacts.destroy', $contact->id) . '"', false)
-            ->assertDontSee('so they can’t be deleted');
+            ->assertDontSee("can't be deleted");
 
         $this->actingAs($this->admin)
             ->post("/admin/contacts/{$contact->id}/delete", ['confirm' => '1'])
