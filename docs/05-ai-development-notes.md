@@ -97,6 +97,8 @@ Write about things as categories, using short noun phrases, instead of describin
 | A contact whose applications are all marked can be deleted | Contacts with only test or spam applications can be deleted |
 | An application that isn't a real request, such as one from someone probing the form | Test and spam applications |
 
+**Straight quotes only:** use `'` and `"`, never curly quotes or apostrophes (U+2018, U+2019, U+201C, U+201D), in code, page text, messages, and documentation, since curly quotes cause encoding problems and break plain-text searches. PHP strings with an apostrophe use double quotes. Tests asserting unescaped HTML wrap expected text with an apostrophe in `e()`, since Blade prints `'` as `&#039;`.
+
 ## Commit Messages
 
 Draft a short commit message to explain what we've built. Don't explain intermediary steps, don't explain our iterations and internal dev process, only explain the final state we agreed upon. We want to produce something people will actually read, not gloss over a wall of text.

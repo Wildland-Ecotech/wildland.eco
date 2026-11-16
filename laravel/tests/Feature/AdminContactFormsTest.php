@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Contact;
+use App\Models\ContactActivity;
 use App\Models\ContactDetail;
 use App\Models\LeafApplication;
 use App\Models\User;
@@ -517,14 +518,14 @@ class AdminContactFormsTest extends TestCase
 
         $this->actingAs($this->admin)
             ->get("/admin/contacts/{$contact->id}/edit")
-            ->assertSeeInOrder(['<h2 id="delete">Delete Contact</h2>', 'Jamie Rivera has an application, so they can’t be deleted. If this is a duplicate, merge it into the other contact from Shares Details With.'], false)
+            ->assertSeeInOrder(['<h2 id="delete">Delete Contact</h2>', e("Contacts with applications can't be deleted.")], false)
             ->assertDontSee('action="' . route('admin.contacts.destroy', $contact->id) . '"', false);
 
         // Even when the page was opened before the application was linked
         $this->actingAs($this->admin)
             ->post("/admin/contacts/{$contact->id}/delete", ['confirm' => '1'])
             ->assertRedirect(route('admin.contacts.edit', $contact->id) . '#delete')
-            ->assertSessionHasErrors(['confirm' => 'Jamie Rivera has an application, so they can’t be deleted. If this is a duplicate, merge it into the other contact from Shares Details With.']);
+            ->assertSessionHasErrors(['confirm' => "Contacts with applications can't be deleted."]);
 
         $this->assertNotSoftDeleted($contact);
     }
@@ -537,12 +538,59 @@ class AdminContactFormsTest extends TestCase
 
         $this->actingAs($this->admin)
             ->get("/admin/contacts/{$contact->id}/edit")
-            ->assertSee('Jamie Rivera has 2 applications, so they can’t be deleted.');
+            ->assertSee("Contacts with applications can't be deleted.");
 
         $this->actingAs($this->admin)
             ->post("/admin/contacts/{$contact->id}/delete", ['confirm' => '1'])
             ->assertSessionHasErrors('confirm');
 
         $this->assertNotSoftDeleted($contact);
+    }
+
+    public function test_a_contact_with_bags_in_the_ledger_cannot_be_deleted(): void
+    {
+        $contact = $this->contact();
+        $contact->activities()->create(['type' => ContactActivity::TYPE_DROP_OFF, 'happened_at' => now(), 'bag_count' => 6]);
+
+        $this->actingAs($this->admin)
+            ->get("/admin/contacts/{$contact->id}/edit")
+            ->assertSeeInOrder(['<h2 id="delete">Delete Contact</h2>', e("Contacts with pickups or drop-offs in the Leaf Ledger can't be deleted.")], false)
+            ->assertDontSee('action="' . route('admin.contacts.destroy', $contact->id) . '"', false);
+
+        $this->actingAs($this->admin)
+            ->post("/admin/contacts/{$contact->id}/delete", ['confirm' => '1'])
+            ->assertRedirect(route('admin.contacts.edit', $contact->id) . '#delete')
+            ->assertSessionHasErrors(['confirm' => "Contacts with pickups or drop-offs in the Leaf Ledger can't be deleted."]);
+
+        $this->assertNotSoftDeleted($contact);
+    }
+
+    public function test_a_drop_off_site_with_drop_offs_cannot_be_deleted(): void
+    {
+        $site = Contact::create(['name' => 'North Drop-off Site', 'is_drop_off_site' => true]);
+        (new ContactActivity)->forceFill(['type' => ContactActivity::TYPE_DROP_OFF, 'happened_at' => now(), 'bag_count' => 6, 'drop_off_site_id' => $site->id])->save();
+
+        $this->actingAs($this->admin)
+            ->get("/admin/contacts/{$site->id}/edit")
+            ->assertSee("Drop-off sites with drop-offs in the Leaf Ledger can't be deleted.");
+
+        $this->actingAs($this->admin)
+            ->post("/admin/contacts/{$site->id}/delete", ['confirm' => '1'])
+            ->assertSessionHasErrors(['confirm' => "Drop-off sites with drop-offs in the Leaf Ledger can't be deleted."]);
+
+        $this->assertNotSoftDeleted($site);
+    }
+
+    public function test_other_timeline_entries_and_deleted_drop_offs_dont_keep_a_contact(): void
+    {
+        $contact = $this->contact();
+        $contact->activities()->create(['type' => ContactActivity::TYPE_NOTE, 'happened_at' => now(), 'body' => 'Added by mistake']);
+        $contact->activities()->create(['type' => ContactActivity::TYPE_DROP_OFF, 'happened_at' => now(), 'bag_count' => 6])->delete();
+
+        $this->actingAs($this->admin)
+            ->post("/admin/contacts/{$contact->id}/delete", ['confirm' => '1'])
+            ->assertRedirect(route('admin.contacts'));
+
+        $this->assertSoftDeleted($contact);
     }
 }

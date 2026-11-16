@@ -285,8 +285,7 @@ class ContactController extends Controller
     /**
      * The form for editing a contact: their name and notes, their phone
      * numbers, emails, and address, each with its own buttons, and deleting
-     * them when no application belongs to them, even a deleted one, other
-     * than applications marked as a test or spam.
+     * them, or else why they can't be deleted (DeleteContactRequest).
      */
     public function edit(Contact $contact): View
     {
@@ -297,7 +296,7 @@ class ContactController extends Controller
             'phones' => $details->where('type', ContactDetail::TYPE_PHONE)->values(),
             'emails' => $details->where('type', ContactDetail::TYPE_EMAIL)->values(),
             'address' => $details->firstWhere('type', ContactDetail::TYPE_ADDRESS),
-            'applicationCount' => $contact->applications()->withTrashed()->notFlagged()->count(),
+            'cantDelete' => DeleteContactRequest::whyNot($contact),
         ]);
     }
 
@@ -317,8 +316,8 @@ class ContactController extends Controller
 
     /**
      * Delete a contact with no applications, such as one added as a test,
-     * or only applications marked as a test or spam, and go back to
-     * Contacts. Like a merged contact, it's only soft-deleted, and left out
+     * or only applications marked as a test or spam, and nothing in the
+     * Leaf Ledger, and go back to Contacts. Like a merged contact, it's only soft-deleted, and left out
      * of every list, the map, and matching new applications.
      */
     public function destroy(DeleteContactRequest $request, Contact $contact): RedirectResponse

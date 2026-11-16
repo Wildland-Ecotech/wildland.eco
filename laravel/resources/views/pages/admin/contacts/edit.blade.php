@@ -1,4 +1,3 @@
-@use('App\Http\Requests\DeleteContactRequest')
 @use('App\Models\ContactDetail')
 
 <x-admin-page :title="$contact->name" current="admin.contacts">
@@ -94,11 +93,11 @@
         @enderror
     </form>
 
-    {{-- Deleting a contact added by mistake or as a test; one with applications is merged instead --}}
+    {{-- Deleting a contact added by mistake or as a test; one with applications or bags in the ledger is merged instead --}}
     <h2 id="delete">Delete Contact</h2>
 
-    @if ($applicationCount > 0)
-        <p class="detail-hint">{{ DeleteContactRequest::hasApplications($contact, $applicationCount) }}</p>
+    @if ($cantDelete !== null)
+        <p class="detail-hint">{{ $cantDelete }}</p>
     @else
         <form class="record-form" method="POST" action="{{ route('admin.contacts.destroy', $contact->id) }}">
             @csrf
