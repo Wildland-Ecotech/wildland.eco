@@ -191,7 +191,7 @@ class MapController extends Controller
             'builder' => match (true) {
                 $building => [
                     'title' => 'New Trailer Load',
-                    'hint' => 'Click pickups on the map, or check them in the list, in the order you’ll visit them. Click again to take one out.',
+                    'hint' => "Click pickups on the map, or check them in the list, in the order you'll visit them. Click again to take one out.",
                     'action' => route('admin.map.loads.store'),
                     'button' => 'Save Load',
                     'cancel' => route('admin.map'),
@@ -368,14 +368,20 @@ class MapController extends Controller
         $located = $stops->filter(fn (array $stop) => $stop['address']?->location !== null);
         $bags = $stops->sum(fn (array $stop) => $stop['application']->estimated_bag_count);
         $count = $this->count($stops->count(), 'stop');
-        // A done load says what was picked up at each stop
+        // A done load says what was picked up at each stop, and a planned
+        // one which stops were withdrawn
         $done = $load->status === TrailerLoad::STATUS_DONE;
+        $withdrawn = $stops->contains(fn (array $stop) => $stop['application']->isWithdrawn());
         $logged = $done
             ? ContactActivity::whereIn('id', $stops->map(fn (array $stop) => $stop['application']->pivot->contact_activity_id)->filter()->all())->pluck('bag_count', 'id')
             : collect();
         $cards = $stops->map(fn (array $stop) => [
             ...$this->stop($stop),
-            'pickup' => $done ? $this->pickupResult($stop, $logged->all()) : null,
+            'pickup' => match (true) {
+                $done => $this->pickupResult($stop, $logged->all()),
+                $stop['application']->isWithdrawn() => 'Withdrawn',
+                default => '',
+            },
         ])->all();
 
         return [
@@ -395,7 +401,7 @@ class MapController extends Controller
                 ...$this->sitePoints($report),
             ],
             'stops' => $cards,
-            'showPickups' => $done,
+            'showPickups' => $done || $withdrawn,
             'canEdit' => $load->isPlanned(),
         ];
     }
@@ -415,6 +421,7 @@ class MapController extends Controller
         return match (true) {
             $activityId !== null && isset($logged[$activityId]) => 'Picked up ' . number_format($logged[$activityId]) . ' ' . Str::plural('bag', $logged[$activityId]),
             $stop['application']->status === LeafApplication::STATUS_COMPLETE => 'Picked up separately',
+            $stop['application']->isWithdrawn() => 'Withdrawn',
             default => 'Not picked up',
         };
     }
@@ -462,9 +469,9 @@ class MapController extends Controller
 
         return [
             'summary' => match (true) {
-                $found['total'] === 0 => "No contacts match “{$search}”.",
-                $found['total'] > $shown => "The first {$shown} of {$found['total']} contacts matching “{$search}”.",
-                default => $this->count($shown, 'contact') . " matching “{$search}”.",
+                $found['total'] === 0 => "No contacts match \"{$search}\".",
+                $found['total'] > $shown => "The first {$shown} of {$found['total']} contacts matching \"{$search}\".",
+                default => $this->count($shown, 'contact') . " matching \"{$search}\".",
             },
             ...$this->resultsPage($report, $found['results']),
         ];
@@ -482,7 +489,7 @@ class MapController extends Controller
         return [
             'summary' => $result['address']?->location !== null
                 ? "Where {$result['contact']->name} is, with the drop-off sites."
-                : "{$result['contact']->name}’s address isn’t on the map yet.",
+                : "{$result['contact']->name}'s address isn't on the map yet.",
             ...$this->resultsPage($report, collect([$result])),
         ];
     }

@@ -60,6 +60,9 @@ class ViewLeafApplication extends Command
         } elseif ($application->trashed()) {
             $this->newLine();
             $this->components->warn('This application was deleted on ' . $this->localTime($application->deleted_at) . ', so leaves:applications leaves it out.');
+        } elseif ($application->isWithdrawn()) {
+            $this->newLine();
+            $this->components->warn($this->leafApplicationWithdrawnNote($application));
         }
 
         return self::SUCCESS;

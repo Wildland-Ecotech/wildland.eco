@@ -55,14 +55,14 @@ trait DescribesLeafApplications
     }
 
     /**
-     * The header row of a CSV of applications: every detail but when the
-     * terms were accepted.
+     * The header row of a CSV of applications: the status, and every detail
+     * but when the terms were accepted.
      *
      * @return array<int, string>
      */
     protected function leafApplicationCsvHeader(): array
     {
-        return ['ID', 'Applied', ...self::LEAF_APPLICATION_LABELS];
+        return ['ID', 'Applied', 'Status', ...self::LEAF_APPLICATION_LABELS];
     }
 
     /**
@@ -75,6 +75,7 @@ trait DescribesLeafApplications
         return [
             $application->id,
             $this->localTime($application->created_at),
+            $this->leafApplicationStatus($application),
             ...array_values($this->leafApplicationFields($application)),
         ];
     }
@@ -120,7 +121,7 @@ trait DescribesLeafApplications
     /**
      * How an admin marked the application, by whom, and when, with the
      * note: "Marked as spam by Rachel Shelton on Nov 12, 2026 9:30 AM MST:
-     * “Probing the form.”". Null for applications not marked.
+     * "Probing the form."". Null for applications not marked.
      */
     protected function leafApplicationFlaggedNote(LeafApplication $application): ?string
     {
@@ -133,7 +134,40 @@ trait DescribesLeafApplications
             . ($admin ? ' by ' . ($admin->name ?: $admin->email) : '')
             . ' on ' . $this->tableTime($application->flagged_at);
 
-        return $application->flag_note ? "{$marked}: “{$application->flag_note}”" : "{$marked}.";
+        return $application->flag_note ? "{$marked}: \"{$application->flag_note}\"" : "{$marked}.";
+    }
+
+    /**
+     * The application's status: Pending, Complete, or Withdrawn with why,
+     * such as "Withdrawn: Took leaves elsewhere".
+     */
+    protected function leafApplicationStatus(LeafApplication $application): string
+    {
+        return match ($application->status) {
+            LeafApplication::STATUS_COMPLETE => 'Complete',
+            LeafApplication::STATUS_WITHDRAWN => 'Withdrawn: ' . LeafApplication::WITHDRAWN_REASON_LABELS[$application->withdrawn_reason],
+            default => 'Pending',
+        };
+    }
+
+    /**
+     * Who withdrew the application and when, why, and the note: "Withdrawn
+     * by Rachel Shelton on Nov 17, 2026 4:20 PM MST: Took leaves elsewhere.
+     * Brought them to the city yard." Null for applications not withdrawn.
+     */
+    protected function leafApplicationWithdrawnNote(LeafApplication $application): ?string
+    {
+        if (! $application->isWithdrawn()) {
+            return null;
+        }
+
+        $admin = $application->withdrawnBy;
+
+        return 'Withdrawn'
+            . ($admin ? ' by ' . ($admin->name ?: $admin->email) : '')
+            . ' on ' . $this->tableTime($application->withdrawn_at)
+            . ': ' . LeafApplication::WITHDRAWN_REASON_LABELS[$application->withdrawn_reason] . '.'
+            . ($application->withdrawn_note ? " {$application->withdrawn_note}" : '');
     }
 
     /**
