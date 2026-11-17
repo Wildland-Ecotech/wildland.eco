@@ -142,7 +142,11 @@ class AdminLeavesTest extends TestCase
         $this->actingAs($this->admin)
             ->get('/admin/leaves')
             ->assertOk()
-            ->assertSeeInOrder(['<span class="count">20</span>', 'Bags collected', '<span class="count">2</span>', 'Pickups and drop-offs'], false)
+            ->assertSeeInOrder([
+                '<span class="count">20</span>', 'Bags collected',
+                '<span class="count">2</span>', 'Pickups and drop-offs',
+                'href="' . route('admin.leaves.ledger', ['unknown' => '1']) . '"', '<span class="count">6</span>', 'Bags to identify',
+            ], false)
             ->assertSeeInOrder(['Latest Ledger Entries', 'Nov 8, 9:19 AM', 'Unknown', 'Nov 2, 10:00 AM', 'Jamie Rivera'])
             ->assertDontSee('>Unknown</a>', false);
     }

@@ -15,8 +15,9 @@ use Illuminate\View\View;
 
 /**
  * The admin Leaves dashboard (/admin/leaves), Leaves in the admin menu: the
- * current season's bags collected and logged pickups and drop-offs, the bags
- * still waiting, and the latest ledger entries and applications, each with a
+ * current season's bags collected and logged pickups and drop-offs, its bags
+ * still to identify, the bags still waiting, and the latest ledger entries
+ * and applications, each with a
  * button to its full page (LeafLedgerController and
  * LeafApplicationController).
  */
@@ -44,6 +45,7 @@ class LeavesController extends Controller
         $season = $ledger->current();
         $entries = $ledger->list($season);
         $bags = (int) $entries->sum('bag_count');
+        $unknown = (int) $entries->filter(fn (ContactActivity $entry) => $entry->isUnknown())->sum('bag_count');
 
         return view('pages.admin.leaves.dashboard', [
             'seasonName' => $ledger->name($season),
@@ -58,6 +60,11 @@ class LeavesController extends Controller
                     'count' => $entries->count(),
                     'label' => 'Pickups and drop-offs',
                     'url' => route('admin.leaves.ledger'),
+                ],
+                [
+                    'count' => $unknown,
+                    'label' => Str::plural('Bag', $unknown) . ' to identify',
+                    'url' => route('admin.leaves.ledger', ['unknown' => '1']),
                 ],
                 [
                     // Like the bags line on Leaf Applications for all time

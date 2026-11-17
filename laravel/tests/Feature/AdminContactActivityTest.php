@@ -385,6 +385,22 @@ class AdminContactActivityTest extends TestCase
             ->assertSee('<td class="">Complete</td>', false);
     }
 
+    public function test_the_timeline_shows_the_brand_and_drop_off_site(): void
+    {
+        $site = Contact::create(['name' => 'North Drop-off Site', 'is_drop_off_site' => true]);
+        $this->log(['type' => ContactActivity::TYPE_PICKUP, 'bag_count' => '12', 'bag_brand' => 'Home Depot', 'happened_at' => '2026-11-04T09:00']);
+        $this->log(['type' => ContactActivity::TYPE_DROP_OFF, 'bag_count' => '6', 'bag_brand' => 'Ace Hardware', 'drop_off_site_id' => $site->id, 'happened_at' => '2026-11-05T09:00']);
+        $this->log(['type' => ContactActivity::TYPE_DROP_OFF, 'bag_count' => '1', 'drop_off_site_id' => $site->id, 'happened_at' => '2026-11-06T09:00']);
+
+        $this->actingAs($this->admin)
+            ->get("/admin/contacts/{$this->contact->id}")
+            ->assertSeeInOrder([
+                'Drop-off: 1 bag at North Drop-off Site · Rachel',
+                'Drop-off: 6 Ace Hardware bags at North Drop-off Site · Rachel',
+                'Pickup: 12 Home Depot bags · Rachel',
+            ]);
+    }
+
     public function test_a_contact_with_nothing_yet_says_so(): void
     {
         $this->actingAs($this->admin)

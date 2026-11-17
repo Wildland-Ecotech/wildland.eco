@@ -134,15 +134,81 @@ class AdminLeafLedgerTest extends TestCase
         $this->actingAs($this->admin)
             ->get('/admin/leaves/ledger')
             ->assertOk()
-            ->assertSee('20 bags collected in Autumn 2026, from 1 pickup and 1 drop-off.')
-            ->assertSeeInOrder(['Nov 2, 10:00 AM', 'Jamie Rivera', 'Nov 8, 9:19 AM', 'Unknown', 'By the gate'])
+            ->assertSee('20 bags collected in Autumn 2026, from 1 pickup and 1 drop-off. 6 bags still to identify.')
+            ->assertSeeInOrder(['Nov 2, 10:00 AM', 'Jamie Rivera', 'Nov 8, 9:19 AM', 'Unknown', 'Drop-off', 'North Drop-off Site', 'By the gate'])
             ->assertDontSee('>Unknown</a>', false)
             ->assertDontSee('Spammy Spammer');
 
         $this->assertStringContainsString(
-            "\"2026-11-08 09:19\",Unknown,6,Drop-off,\"By the gate\",\"Sam Rivera\"\n",
+            "\"2026-11-08 09:19\",Unknown,6,,Drop-off,\"North Drop-off Site\",\"By the gate\",\"Sam Rivera\"\n",
             $this->actingAs($this->admin)->get('/admin/leaves/ledger/csv?season=2026')->getContent(),
         );
+    }
+
+    public function test_lists_the_brand_and_drop_off_site(): void
+    {
+        $site = Contact::create(['name' => 'North Drop-off Site', 'is_drop_off_site' => true]);
+        $jamie = Contact::create(['name' => 'Jamie Rivera']);
+
+        $this->entry($jamie, ContactActivity::TYPE_PICKUP, '2026-11-02 10:00', 14, ['bag_brand' => 'Home Depot']);
+        $this->entry($jamie, ContactActivity::TYPE_DROP_OFF, '2026-11-05 10:00', 6, ['bag_brand' => 'Ace Hardware', 'drop_off_site_id' => $site->id]);
+        // Logged before drop-off sites were recorded
+        $this->entry($jamie, ContactActivity::TYPE_DROP_OFF, '2026-11-08 10:00', 4);
+
+        $this->actingAs($this->admin)
+            ->get('/admin/leaves/ledger')
+            ->assertSeeInOrder(['>Bags</th>', '>Brand</th>', '>Type</th>', '>Site</th>', '>Notes</th>'], false)
+            ->assertSeeInOrder(['Nov 2, 10:00 AM', 'Home Depot', 'Pickup', 'Nov 5, 10:00 AM', 'Ace Hardware', 'Drop-off', 'North Drop-off Site', 'Nov 8, 10:00 AM', 'Drop-off', 'Not recorded'])
+            // Every bag is known, so there's nothing to identify
+            ->assertSee('24 bags collected in Autumn 2026, from 1 pickup and 2 drop-offs.')
+            ->assertDontSee('still to identify');
+
+        $this->assertStringContainsString(
+            "\"2026-11-05 10:00\",\"Jamie Rivera\",6,\"Ace Hardware\",Drop-off,\"North Drop-off Site\",,\"Sam Rivera\"\n"
+            . "\"2026-11-08 10:00\",\"Jamie Rivera\",4,,Drop-off,\"Not recorded\",,\"Sam Rivera\"\n",
+            $this->actingAs($this->admin)->get('/admin/leaves/ledger/csv?season=2026')->getContent(),
+        );
+    }
+
+    public function test_the_unknown_only_filter_shows_bags_still_to_identify(): void
+    {
+        $site = Contact::create(['name' => 'North Drop-off Site', 'is_drop_off_site' => true]);
+        $jamie = Contact::create(['name' => 'Jamie Rivera']);
+
+        $this->entry($jamie, ContactActivity::TYPE_PICKUP, '2026-11-02 10:00', 14);
+        $this->entry(null, ContactActivity::TYPE_DROP_OFF, '2026-11-08 09:19', 6, ['drop_off_site_id' => $site->id, 'bag_brand' => 'Ace Hardware']);
+        $this->entry(null, ContactActivity::TYPE_DROP_OFF, '2026-11-09 09:00', 3, ['drop_off_site_id' => $site->id]);
+
+        $this->actingAs($this->admin)
+            ->get('/admin/leaves/ledger')
+            ->assertSee('<input type="checkbox" name="unknown" value="1" >', false)
+            ->assertSee('Jamie Rivera');
+
+        // The totals stay the whole season's
+        $this->actingAs($this->admin)
+            ->get('/admin/leaves/ledger?season=2026&unknown=1')
+            ->assertOk()
+            ->assertSee('<input type="checkbox" name="unknown" value="1" checked>', false)
+            ->assertSee('23 bags collected in Autumn 2026, from 1 pickup and 2 drop-offs. 9 bags still to identify.')
+            ->assertSeeInOrder(['Nov 8, 9:19 AM', 'Unknown', 'Ace Hardware', 'Nov 9, 9:00 AM', 'Unknown'])
+            ->assertDontSee('Jamie Rivera')
+            ->assertSee(e(route('admin.leaves.ledger.csv', ['season' => 2026, 'unknown' => '1'])), false);
+
+        $response = $this->actingAs($this->admin)->get('/admin/leaves/ledger/csv?season=2026&unknown=1');
+        $response->assertHeader('Content-Disposition', 'attachment; filename="leaf-ledger-2026-unknown.csv"');
+        $this->assertStringNotContainsString('Jamie Rivera', $response->getContent());
+        $this->assertSame(3, substr_count($response->getContent(), "\n"));
+    }
+
+    public function test_the_unknown_only_filter_says_when_every_bag_is_known(): void
+    {
+        $this->entry(Contact::create(['name' => 'Jamie Rivera']), ContactActivity::TYPE_PICKUP, '2026-11-02 10:00', 14);
+
+        $this->actingAs($this->admin)
+            ->get('/admin/leaves/ledger?unknown=1')
+            ->assertSee('14 bags collected in Autumn 2026, from 1 pickup and 0 drop-offs.')
+            ->assertSee('<p class="hint">No unknown bags in Autumn 2026.</p>', false)
+            ->assertDontSee('Jamie Rivera');
     }
 
     public function test_seasons_run_july_through_june(): void
@@ -192,8 +258,8 @@ class AdminLeafLedgerTest extends TestCase
             ->assertHeader('Content-Disposition', 'attachment; filename="leaf-ledger-2026.csv"');
 
         $this->assertSame(
-            "Date,Name,Bags,Type,Notes,\"Logged by\"\n"
-            . "\"2026-10-25 10:00\",\"Jamie Rivera\",14,Pickup,\"Had tape, removed\",\"Sam Rivera\"\n",
+            "Date,Name,Bags,Brand,Type,Site,Notes,\"Logged by\"\n"
+            . "\"2026-10-25 10:00\",\"Jamie Rivera\",14,,Pickup,,\"Had tape, removed\",\"Sam Rivera\"\n",
             $response->getContent(),
         );
     }

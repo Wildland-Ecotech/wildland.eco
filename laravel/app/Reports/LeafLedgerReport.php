@@ -24,7 +24,7 @@ class LeafLedgerReport
 
     /**
      * Pickups and drop-offs logged for the season, oldest first, with their
-     * contact and the admin who logged them, including drop-offs with no
+     * contact, drop-off site, and the admin who logged them, including drop-offs with no
      * contact yet. Deleted entries, and entries of deleted contacts, are
      * left out.
      *
@@ -35,7 +35,7 @@ class LeafLedgerReport
         [$start, $end] = $this->range($season);
 
         return ContactActivity::query()
-            ->with(['contact', 'loggedBy' => fn ($query) => $query->withTrashed()])
+            ->with(['contact', 'dropOffSite', 'loggedBy' => fn ($query) => $query->withTrashed()])
             ->whereIn('type', ContactActivity::COMPLETING_TYPES)
             ->where('happened_at', '>=', $start)
             ->where('happened_at', '<', $end)
