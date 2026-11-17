@@ -14,6 +14,7 @@ use App\Models\LeafApplication;
 use App\Reports\ContactReport;
 use App\Reports\FollowUpReport;
 use App\Reports\FormSubmissionReport;
+use App\Reports\ReviewReport;
 use App\Reports\Traits\DescribesFollowUps;
 use App\Reports\Traits\DescribesFormSubmissions;
 use App\Reports\Traits\DescribesLeafApplications;
@@ -100,6 +101,28 @@ class ContactController extends Controller
     public const REVIEW_NUMBER_COLUMNS = [0];
 
     /**
+     * Needs Review's columns for drop-offs with no drop-off site, the ones
+     * that make up an entry's line on a phone (date, name, and bags), and
+     * the column lined up on the right (bags).
+     */
+    public const NO_SITE_HEADERS = ['Date', 'Name', 'Bags', 'Brand'];
+
+    public const NO_SITE_SUMMARY_COLUMNS = [0, 1, 2];
+
+    public const NO_SITE_NUMBER_COLUMNS = [2];
+
+    /**
+     * Needs Review's columns for drop-offs with no contact yet, the ones
+     * that make up an entry's line on a phone (date, site, and bags), and
+     * the column lined up on the right (bags).
+     */
+    public const UNKNOWN_HEADERS = ['Date', 'Site', 'Bags', 'Brand', 'Notes'];
+
+    public const UNKNOWN_SUMMARY_COLUMNS = [0, 1, 2];
+
+    public const UNKNOWN_NUMBER_COLUMNS = [2];
+
+    /**
      * The longest search the list takes; anything longer is cut short.
      */
     public const MAX_SEARCH_LENGTH = 100;
@@ -129,7 +152,7 @@ class ContactController extends Controller
         return view('pages.admin.contacts.index', [
             'search' => $search,
             'sort' => $sort,
-            'reviewCount' => LeafApplication::needingContactReview()->count(),
+            'reviewCount' => app(ReviewReport::class)->count(),
             'summary' => $this->summary($contacts->count(), $followUps->count(), $search, $sort),
             'headers' => self::HEADERS,
             'summaryColumns' => self::SUMMARY_COLUMNS,
@@ -203,19 +226,53 @@ class ContactController extends Controller
     }
 
     /**
-     * Applications whose contact needs an admin to look, oldest first, with
-     * the contact each is linked to and why.
+     * Everything waiting for an admin to look, oldest first (ReviewReport):
+     * applications whose contact needs review, with the contact each is
+     * linked to and why; drop-offs with no drop-off site; and drop-offs
+     * with no contact yet. Entries open their edit page, which comes back
+     * here after saving.
      */
-    public function review(): View
+    public function review(ReviewReport $report): View
     {
-        $applications = LeafApplication::needingContactReview()->with('contact')->orderBy('created_at')->orderBy('id')->get();
-        $count = $applications->count();
+        $applications = $report->applications();
+        $noSite = $report->dropOffsWithNoSite();
+        $unknown = $report->unknownDropOffs();
+
+        $parts = array_filter([
+            $applications->isNotEmpty() ? number_format($applications->count()) . ' ' . Str::plural('application', $applications->count()) : null,
+            $noSite->isNotEmpty() ? number_format($noSite->count()) . ' ' . Str::plural('drop-off', $noSite->count()) . ' with no site' : null,
+            $unknown->isNotEmpty() ? number_format($unknown->count()) . ' ' . Str::plural('drop-off', $unknown->count()) . ' with no contact' : null,
+        ]);
+        $total = $applications->count() + $noSite->count() + $unknown->count();
 
         return view('pages.admin.contacts.review', [
-            'summary' => $count === 0
+            'summary' => $parts === []
                 ? 'Nothing needs review.'
-                : "{$count} " . Str::plural('application', $count) . ' ' . ($count === 1 ? 'needs' : 'need') . ' review, oldest first.',
+                : $this->listWords($parts) . ' ' . ($total === 1 ? 'needs' : 'need') . ' review, oldest first.',
             'headers' => self::REVIEW_HEADERS,
+            'noSiteHeaders' => self::NO_SITE_HEADERS,
+            'unknownHeaders' => self::UNKNOWN_HEADERS,
+            'noSiteRows' => $noSite->map(fn (ContactActivity $entry) => [
+                'cells' => [
+                    $this->listTime($entry->happened_at),
+                    ['text' => $entry->contact->name, 'url' => route('admin.contacts.show', $entry->contact_id)],
+                    number_format($entry->bag_count),
+                    $entry->bag_brand ?? '',
+                ],
+                'summary' => [$this->shortDate($entry->happened_at), $entry->contact->name, number_format($entry->bag_count) . ' ' . Str::plural('bag', $entry->bag_count)],
+                'url' => route('admin.activities.edit', $entry->id),
+            ])->all(),
+            'unknownRows' => $unknown->map(fn (ContactActivity $entry) => [
+                'cells' => [
+                    $this->listTime($entry->happened_at),
+                    $entry->dropOffSite?->name ?? '',
+                    number_format($entry->bag_count),
+                    $entry->bag_brand ?? '',
+                    $entry->body ?? '',
+                ],
+                'summary' => [$this->shortDate($entry->happened_at), $entry->dropOffSite?->name ?? 'Unknown', number_format($entry->bag_count) . ' ' . Str::plural('bag', $entry->bag_count)],
+                'url' => route('admin.activities.edit', $entry->id),
+            ])->all(),
             'rows' => $applications->map(function (LeafApplication $application) {
                 $why = collect($application->contact_review)->map(fn (string $reason) => LeafApplication::REVIEW_LABELS[$reason] ?? $reason)->implode('; ');
 
@@ -234,6 +291,21 @@ class ContactController extends Controller
                 ];
             })->all(),
         ]);
+    }
+
+    /**
+     * Words joined as a list, such as "3 applications, 12 drop-offs with no
+     * site, and 2 drop-offs with no contact".
+     *
+     * @param  array<int, string>  $words
+     */
+    private function listWords(array $words): string
+    {
+        $words = array_values($words);
+
+        return count($words) <= 2
+            ? implode(' and ', $words)
+            : implode(', ', array_slice($words, 0, -1)) . ', and ' . end($words);
     }
 
     /**

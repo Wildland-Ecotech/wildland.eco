@@ -9,6 +9,9 @@
 
     <div class="record-actions">
         <a class="button dark small" href="{{ route('admin.leaves.ledger.unknown.create') }}">Log Unknown Bags</a>
+        @if ($reviewCount > 0)
+            <a class="button dark small" href="{{ route('admin.contacts.review') }}">Needs Review ({{ number_format($reviewCount) }})</a>
+        @endif
     </div>
 
     {{-- A plain GET form, so the filters are in the URL and work without JavaScript --}}
