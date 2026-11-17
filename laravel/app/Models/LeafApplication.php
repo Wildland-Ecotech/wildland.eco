@@ -58,13 +58,53 @@ class LeafApplication extends Model
     public const TYPES = [self::TYPE_DROP_OFF, self::TYPE_PICKUP];
 
     /**
-     * Waiting for its pickup or drop-off, or done.
+     * Waiting for its pickup or drop-off, done, or withdrawn by an admin
+     * without one (withdraw()).
      */
     public const STATUS_PENDING = 'pending';
 
     public const STATUS_COMPLETE = 'complete';
 
-    public const STATUSES = [self::STATUS_PENDING, self::STATUS_COMPLETE];
+    public const STATUS_WITHDRAWN = 'withdrawn';
+
+    public const STATUSES = [self::STATUS_PENDING, self::STATUS_COMPLETE, self::STATUS_WITHDRAWN];
+
+    /**
+     * Why an application was withdrawn, for reporting; each withdrawal can
+     * add a note with the details, required for Other.
+     */
+    public const WITHDRAWN_NOT_ELIGIBLE = 'not_eligible';
+
+    public const WITHDRAWN_REPLACED = 'replaced';
+
+    public const WITHDRAWN_WENT_ELSEWHERE = 'went_elsewhere';
+
+    public const WITHDRAWN_UNREACHABLE = 'unreachable';
+
+    public const WITHDRAWN_NO_LONGER_DONATING = 'no_longer_donating';
+
+    public const WITHDRAWN_OTHER = 'other';
+
+    public const WITHDRAWN_REASONS = [
+        self::WITHDRAWN_NOT_ELIGIBLE,
+        self::WITHDRAWN_REPLACED,
+        self::WITHDRAWN_WENT_ELSEWHERE,
+        self::WITHDRAWN_UNREACHABLE,
+        self::WITHDRAWN_NO_LONGER_DONATING,
+        self::WITHDRAWN_OTHER,
+    ];
+
+    /**
+     * How each reason reads, such as "Took leaves elsewhere".
+     */
+    public const WITHDRAWN_REASON_LABELS = [
+        self::WITHDRAWN_NOT_ELIGIBLE => "Didn't meet requirements",
+        self::WITHDRAWN_REPLACED => 'Replaced by a newer application',
+        self::WITHDRAWN_WENT_ELSEWHERE => 'Took leaves elsewhere',
+        self::WITHDRAWN_UNREACHABLE => "Couldn't reach them",
+        self::WITHDRAWN_NO_LONGER_DONATING => 'No longer donating',
+        self::WITHDRAWN_OTHER => 'Other',
+    ];
 
     /**
      * How an admin marked an application that isn't a real request: someone
@@ -131,6 +171,7 @@ class LeafApplication extends Model
             'contact_reviewed_at' => 'datetime',
             'follow_up_on' => 'date',
             'flagged_at' => 'datetime',
+            'withdrawn_at' => 'datetime',
         ];
     }
 
@@ -184,6 +225,58 @@ class LeafApplication extends Model
     public function flaggedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'flagged_by')->withTrashed();
+    }
+
+    /**
+     * The admin who withdrew the application, even if deleted, or null.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function withdrawnBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'withdrawn_by')->withTrashed();
+    }
+
+    /**
+     * Whether an admin withdrew the application.
+     */
+    public function isWithdrawn(): bool
+    {
+        return $this->status === self::STATUS_WITHDRAWN;
+    }
+
+    /**
+     * Withdraw a pending application, with why (WITHDRAWN_REASONS) and an
+     * optional note, recording which admin did and when, in the edits table
+     * too. It stays listed, but leaves everything built on pending
+     * applications: the follow-up list, the map, waiting totals, and trailer
+     * load planning. Its contact still can't be deleted.
+     */
+    public function withdraw(User $admin, string $reason, ?string $note = null): void
+    {
+        $this->forceFill([
+            'status' => self::STATUS_WITHDRAWN,
+            'withdrawn_reason' => $reason,
+            'withdrawn_note' => $note,
+            'withdrawn_at' => now(),
+            'withdrawn_by' => $admin->id,
+        ])->saveRecordingEdit($admin, Edit::ACTION_WITHDRAWN);
+    }
+
+    /**
+     * Put a withdrawn application back to pending, withdrawn by mistake or
+     * picked back up, recording which admin did. The edits table keeps the
+     * withdrawal.
+     */
+    public function reopen(User $admin): void
+    {
+        $this->forceFill([
+            'status' => self::STATUS_PENDING,
+            'withdrawn_reason' => null,
+            'withdrawn_note' => null,
+            'withdrawn_at' => null,
+            'withdrawn_by' => null,
+        ])->saveRecordingEdit($admin, Edit::ACTION_REOPENED);
     }
 
     /**

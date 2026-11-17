@@ -87,7 +87,7 @@
                 Uncheck a stop that wasn't picked up; it stays pending, ready for another load.
                 Each checked stop is logged as a pickup on its contact's timeline, which marks the application complete.
                 @if ($skipped > 0)
-                    {{ $skipped === 1 ? '1 other stop was' : "{$skipped} other stops were" }} already picked up or deleted, so {{ $skipped === 1 ? "it isn't" : "they aren't" }} listed.
+                    {{ $skipped === 1 ? '1 other stop was' : "{$skipped} other stops were" }} already picked up, withdrawn, or deleted, so {{ $skipped === 1 ? "it isn't" : "they aren't" }} listed.
                 @endif
             </p>
         </fieldset>

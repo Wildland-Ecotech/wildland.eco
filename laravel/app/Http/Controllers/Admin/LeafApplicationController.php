@@ -61,7 +61,8 @@ class LeafApplicationController extends Controller
     public function index(Request $request, LeafApplicationReport $report, FollowUpReport $followUpReport, ReviewReport $reviewReport): View
     {
         $filters = $this->filters($request);
-        $applications = $report->list(self::PERIODS[$filters['period']], $filters['types'], $filters['spam'])->load('contact');
+        $listed = $report->list(self::PERIODS[$filters['period']], $filters['types'], $filters['spam'])->load('contact');
+        $applications = $filters['withdrawn'] ? $listed->filter(fn (LeafApplication $application) => $application->isWithdrawn())->values() : $listed;
         $count = $applications->count();
         $followUps = $followUpReport->pending()->keyBy(fn (array $item) => $item['application']->id);
 
@@ -70,6 +71,7 @@ class LeafApplicationController extends Controller
             'reviewCount' => $reviewReport->count(),
             'summary' => $this->periodSummary($filters['period'], $count, $this->leafApplicationListName($filters['types'], $count)),
             'bags' => $this->bags($applications),
+            'withdrawn' => $this->withdrawnSummary($listed),
             'headers' => [...self::LEAF_APPLICATION_TABLE_HEADERS, 'Follow-up'],
             'rows' => $applications->map(function (LeafApplication $application) use ($followUps) {
                 $followUp = $this->followUpCell($application, $followUps->get($application->id));
@@ -105,14 +107,14 @@ class LeafApplicationController extends Controller
     /**
      * The estimated bags in the listed applications, and how many are still
      * waiting for a pickup or drop-off, such as "180 bags estimated, 95
-     * still waiting for a pickup or drop-off." Test and spam applications
-     * aren't counted. Null when no bags are listed.
+     * still waiting for a pickup or drop-off." Test, spam, and withdrawn
+     * applications aren't counted. Null when no bags are listed.
      *
      * @param  Collection<int, LeafApplication>  $applications
      */
     private function bags(Collection $applications): ?string
     {
-        $real = $applications->reject(fn (LeafApplication $application) => $application->isFlagged());
+        $real = $applications->reject(fn (LeafApplication $application) => $application->isFlagged() || $application->isWithdrawn());
         $bags = (int) $real->sum('estimated_bag_count');
 
         if ($bags === 0) {
@@ -126,6 +128,30 @@ class LeafApplicationController extends Controller
     }
 
     /**
+     * How many of the listed applications were withdrawn, by reason, most
+     * first, such as "3 withdrawn: 2 took leaves elsewhere, 1 replaced by
+     * a newer application." Null when none were.
+     *
+     * @param  Collection<int, LeafApplication>  $applications
+     */
+    private function withdrawnSummary(Collection $applications): ?string
+    {
+        $withdrawn = $applications->filter(fn (LeafApplication $application) => $application->isWithdrawn());
+
+        if ($withdrawn->isEmpty()) {
+            return null;
+        }
+
+        $reasons = $withdrawn->countBy('withdrawn_reason')
+            ->sortDesc()
+            ->map(fn (int $count, string $reason) => number_format($count) . ' ' . Str::lcfirst(LeafApplication::WITHDRAWN_REASON_LABELS[$reason]))
+            ->values()
+            ->all();
+
+        return number_format($withdrawn->count()) . ' withdrawn: ' . implode(', ', $reasons) . '.';
+    }
+
+    /**
      * The same list as a CSV download, with every detail, like
      * `leaves:applications --csv`. Applications marked as a test or spam
      * are always left out.
@@ -133,7 +159,8 @@ class LeafApplicationController extends Controller
     public function download(Request $request, LeafApplicationReport $report): Response
     {
         $filters = $this->filters($request);
-        $applications = $report->list(self::PERIODS[$filters['period']], $filters['types']);
+        $applications = $report->list(self::PERIODS[$filters['period']], $filters['types'])
+            ->filter(fn (LeafApplication $application) => ! $filters['withdrawn'] || $application->isWithdrawn());
 
         $filename = 'leaf-applications-' . now(config('organization.timezone'))->format('Y-m-d') . '.csv';
 
@@ -169,6 +196,8 @@ class LeafApplicationController extends Controller
             ],
             'deletedAt' => $record->trashed() ? $this->localTime($record->deleted_at) : null,
             'flaggedNote' => $this->leafApplicationFlaggedNote($record),
+            'withdrawnNote' => $this->leafApplicationWithdrawnNote($record),
+            'canWithdraw' => ! $record->trashed() && $record->status === LeafApplication::STATUS_PENDING,
             'contact' => $record->contact,
             'reviewReasons' => $record->needsContactReview() ? $this->reviewReasons($record, $candidates) : [],
             'reviewedNote' => $this->reviewedNote($record),
@@ -183,9 +212,10 @@ class LeafApplicationController extends Controller
     }
 
     /**
-     * An application's follow-up: marked as a test or spam, complete once
-     * its pickup or drop-off is logged, not linked to a contact yet (Needs
-     * Review lists it), or its follow-up group and why, as FollowUpReport
+     * An application's follow-up: marked as a test or spam, withdrawn with
+     * why, needing review with why, complete once its pickup or drop-off is
+     * logged, not linked to a contact yet (Needs Review lists it), or its
+     * follow-up group and why, as FollowUpReport
      * gives them. A cell for the list: a label with its tone, then words.
      *
      * @param  array{application: LeafApplication, tier: string, reason: string, last_reached_at: ?\Carbon\CarbonInterface}|null  $item
@@ -195,6 +225,7 @@ class LeafApplicationController extends Controller
     {
         return match (true) {
             $application->isFlagged() => ['badge' => ApplicationFlagController::FLAG_CHOICES[$application->flagged_as], 'tone' => 'muted', 'text' => ''],
+            $application->isWithdrawn() => ['badge' => 'Withdrawn', 'tone' => 'muted', 'text' => LeafApplication::WITHDRAWN_REASON_LABELS[$application->withdrawn_reason]],
             $application->needsContactReview() => [
                 'badge' => 'Needs review',
                 'tone' => 'soon',
@@ -264,10 +295,11 @@ class LeafApplicationController extends Controller
 
     /**
      * The list's filters from the query string, with spam and tests only
-     * with `spam=1`. Anything unexpected falls back to the defaults, since
-     * the form itself can only send valid values.
+     * with `spam=1`, and only withdrawn applications with `withdrawn=1`.
+     * Anything unexpected falls back to the defaults, since the form itself
+     * can only send valid values.
      *
-     * @return array{period: string, types: array<int, string>, spam: bool}
+     * @return array{period: string, types: array<int, string>, spam: bool, withdrawn: bool}
      */
     private function filters(Request $request): array
     {
@@ -277,6 +309,7 @@ class LeafApplicationController extends Controller
             'period' => $this->periodFilter($request),
             'types' => is_array($types) ? array_values(array_intersect(LeafApplication::TYPES, $types)) : [],
             'spam' => $request->query('spam') === '1',
+            'withdrawn' => $request->query('withdrawn') === '1',
         ];
     }
 
@@ -284,7 +317,7 @@ class LeafApplicationController extends Controller
      * The query string for the filters, for the CSV download link, which
      * leaves out spam and tests.
      *
-     * @param  array{period: string, types: array<int, string>, spam: bool}  $filters
+     * @param  array{period: string, types: array<int, string>, spam: bool, withdrawn: bool}  $filters
      * @return array<string, mixed>
      */
     private function query(array $filters): array
@@ -292,6 +325,7 @@ class LeafApplicationController extends Controller
         return array_filter([
             'period' => $filters['period'],
             'type' => $filters['types'],
+            'withdrawn' => $filters['withdrawn'] ? '1' : null,
         ]);
     }
 }

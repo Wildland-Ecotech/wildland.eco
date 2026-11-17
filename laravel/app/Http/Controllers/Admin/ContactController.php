@@ -608,6 +608,21 @@ class ContactController extends Controller
             'edit' => null,
         ]);
 
+        // Withdrawals, by the admin, with why and the note
+        $withdrawals = $contact->applications->filter(fn (LeafApplication $application) => $application->isWithdrawn())
+            ->map(fn (LeafApplication $application) => [
+                'time' => $application->withdrawn_at,
+                'incoming' => false,
+                'automatic' => false,
+                'what' => 'Withdrawn: ' . LeafApplication::WITHDRAWN_REASON_LABELS[$application->withdrawn_reason]
+                    . ($application->withdrawnBy ? " · {$application->withdrawnBy->name}" : ''),
+                'body' => $application->withdrawn_note,
+                'link' => $applicationLink($application->id),
+                'after' => '',
+                'edited' => false,
+                'edit' => null,
+            ]);
+
         $errors = $formErrors->map(function (FormSubmission $submission) {
             $fields = $this->formSubmissionFields($submission);
 
@@ -625,7 +640,7 @@ class ContactController extends Controller
         });
 
         // A stable sort, so entries at the same minute stay in this order
-        return $activities->concat($applications)->concat($errors)
+        return $activities->concat($applications)->concat($withdrawals)->concat($errors)
             ->sortByDesc(fn (array $entry) => $entry['time']->getTimestamp())
             ->map(fn (array $entry) => ['when' => $this->listTime($entry['time']), ...Arr::except($entry, 'time')])
             ->values()

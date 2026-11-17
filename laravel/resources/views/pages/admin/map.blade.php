@@ -137,7 +137,7 @@
     {{-- Needs scheduling: soonest first, with a running total of bags for filling the trailer --}}
     @if ($pickupRows !== [])
         <h2>Pickups</h2>
-        <p class="summary">{{ $editing ? 'This load’s stops, and the pickups not in another load, soonest first.' : 'Soonest first, with a running total of bags, for filling the trailer.' }}</p>
+        <p class="summary">{{ $editing ? "This load's stops, and the pickups not in another load, soonest first." : 'Soonest first, with a running total of bags, for filling the trailer.' }}</p>
 
         @if ($builder !== null)
             <x-admin-records
@@ -180,7 +180,7 @@
             <p class="summary">This load has no stops.</p>
         @else
             @if ($canEdit)
-                <p class="summary">In your route’s order. Move a stop up or down to change it.</p>
+                <p class="summary">In your route's order. Move a stop up or down to change it.</p>
             @endif
 
             {{-- A table on wider screens, and on phones a card for each stop with everything shown --}}
@@ -212,7 +212,7 @@
                                 <td class="stop-phone">@if ($stop['tel'] !== null)<a href="{{ $stop['tel'] }}">{{ $stop['phone'] }}</a>@else{{ $stop['phone'] ?? '—' }}@endif</td>
                                 <td class="stop-notes">{{ $stop['notes'] !== '' ? $stop['notes'] : '—' }}</td>
                                 @if ($showPickups)
-                                    <td>{{ $stop['pickup'] }}</td>
+                                    <td>{{ $stop['pickup'] !== '' ? $stop['pickup'] : '—' }}</td>
                                 @endif
                                 @if ($canEdit)
                                     <td>
@@ -250,7 +250,7 @@
                             @if ($stop['notes'] !== '')
                                 <p class="stop-notes">{{ $stop['notes'] }}</p>
                             @endif
-                            @if ($showPickups)
+                            @if ($showPickups && $stop['pickup'] !== '')
                                 <p class="stop-pickup">{{ $stop['pickup'] }}</p>
                             @endif
                             @if ($canEdit && count($stops) > 1)
@@ -311,7 +311,7 @@
         <p class="summary">@if ($result['details'] !== ''){{ $result['details'] }} · @endif<a href="{{ $result['url'] }}">View contact</a></p>
 
         @if (! $result['located'])
-            <p class="summary">No location yet, so the distances aren’t known. Locate their address below.</p>
+            <p class="summary">No location yet, so the distances aren't known. Locate their address below.</p>
         @elseif ($result['sites'] !== [])
             <dl class="record">
                 @foreach ($result['sites'] as $index => $site)

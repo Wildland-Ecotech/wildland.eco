@@ -34,6 +34,15 @@
             </label>
         </fieldset>
 
+        <fieldset class="filter">
+            <legend>Show</legend>
+
+            <label class="checkbox">
+                <input type="checkbox" name="withdrawn" value="1" @checked($filters['withdrawn'])>
+                <span>Withdrawn only</span>
+            </label>
+        </fieldset>
+
         <div class="page-actions">
             @if ($reviewCount > 0)
                 <a class="button dark small" href="{{ route('admin.contacts.review') }}">Needs Review ({{ number_format($reviewCount) }})</a>
@@ -51,6 +60,10 @@
 
     @if ($bags)
         <p class="summary">{{ $bags }}</p>
+    @endif
+
+    @if ($withdrawn)
+        <p class="summary">{{ $withdrawn }}</p>
     @endif
 
     @if ($rows !== [])

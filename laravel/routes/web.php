@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AbandonedCheckoutController as AdminAbandonedCheckoutController;
 use App\Http\Controllers\Admin\ApplicationContactController as AdminApplicationContactController;
 use App\Http\Controllers\Admin\ApplicationFlagController as AdminApplicationFlagController;
+use App\Http\Controllers\Admin\ApplicationWithdrawalController as AdminApplicationWithdrawalController;
 use App\Http\Controllers\Admin\ContactActivityController as AdminContactActivityController;
 use App\Http\Controllers\Admin\ContactActivityEditController as AdminContactActivityEditController;
 use App\Http\Controllers\Admin\ContactController as AdminContactController;
@@ -161,6 +162,12 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
     Route::post('/leaves/{application}/flag', [AdminApplicationFlagController::class, 'flag'])
         ->whereNumber('application')
         ->name('admin.leaves.flag');
+    Route::post('/leaves/{application}/withdraw', [AdminApplicationWithdrawalController::class, 'withdraw'])
+        ->whereNumber('application')
+        ->name('admin.leaves.withdraw');
+    Route::post('/leaves/{application}/reopen', [AdminApplicationWithdrawalController::class, 'reopen'])
+        ->whereNumber('application')
+        ->name('admin.leaves.reopen');
     // Marked applications are soft-deleted, so unmarking finds deleted ones
     Route::post('/leaves/{application}/unflag', [AdminApplicationFlagController::class, 'unflag'])
         ->whereNumber('application')

@@ -1,5 +1,6 @@
 @use('App\Http\Controllers\Admin\ApplicationFlagController')
 @use('App\Http\Requests\FlagLeafApplicationRequest')
+@use('App\Http\Requests\WithdrawLeafApplicationRequest')
 @use('App\Models\LeafApplication')
 
 <x-admin-page :title="'Application ' . $application->id" current="admin.leaves">
@@ -11,6 +12,8 @@
         <p class="notice">{{ $flaggedNote }} The application list leaves it out unless it includes spam and tests.</p>
     @elseif ($deletedAt)
         <p class="notice">This application was deleted on {{ $deletedAt }}, so the application list leaves it out.</p>
+    @elseif ($withdrawnNote)
+        <p class="notice">{{ $withdrawnNote }}</p>
     @endif
 
     <dl class="record">
@@ -70,6 +73,52 @@
             </form>
         </div>
     @endunless
+
+    @if ($withdrawnNote && ! $deletedAt)
+        <h2 id="withdraw">Withdrawn</h2>
+
+        <form class="close-form" method="POST" action="{{ route('admin.leaves.reopen', $application->id) }}">
+            @csrf
+
+            <p>Reopening puts the application back to pending, on the follow-up list and the map. The withdrawal stays in the edit history.</p>
+
+            <button type="submit" class="button dark small">Reopen Application</button>
+        </form>
+    @elseif ($canWithdraw)
+        <h2 id="withdraw">Withdraw</h2>
+
+        <form class="close-form" method="POST" action="{{ route('admin.leaves.withdraw', $application->id) }}">
+            @csrf
+
+            <fieldset>
+                <legend>Why it's withdrawn</legend>
+
+                @foreach (LeafApplication::WITHDRAWN_REASON_LABELS as $value => $label)
+                    <label class="checkbox">
+                        <input type="radio" name="reason" value="{{ $value }}" @checked(old('reason') === $value)>
+                        <span>{{ $label }}</span>
+                    </label>
+                @endforeach
+
+                @error('reason')
+                    <p class="field-error">{{ $message }}</p>
+                @enderror
+            </fieldset>
+
+            <div class="field">
+                <label for="withdrawn_note">Note (optional, required for Other)</label>
+                <textarea id="withdrawn_note" name="withdrawn_note" rows="3" maxlength="{{ WithdrawLeafApplicationRequest::NOTE_MAX_LENGTH }}" @error('withdrawn_note') aria-invalid="true" aria-describedby="withdrawn_note-error" @enderror>{{ old('withdrawn_note') }}</textarea>
+
+                @error('withdrawn_note')
+                    <p class="field-error" id="withdrawn_note-error">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <p>Withdrawn applications stay listed, with why, but leave the follow-up list, the map, waiting totals, and trailer load planning. Their contacts can't be deleted.</p>
+
+            <button type="submit" class="button dark small">Withdraw Application</button>
+        </form>
+    @endif
 
     @if ($flaggedNote)
         <h2 id="mark">Spam or Test</h2>
