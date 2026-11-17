@@ -10,6 +10,7 @@ use App\Http\Requests\SaveTrailerLoadRequest;
 use App\Models\ContactActivity;
 use App\Models\LeafApplication;
 use App\Models\TrailerLoad;
+use App\Reports\LeafLedgerReport;
 use App\Reports\MapReport;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
@@ -144,11 +145,12 @@ class TrailerLoadController extends Controller
 
     /**
      * The Mark Done page for a planned load: when, and each stop still
-     * pending, checked, with its estimated bags filled in. A stop not linked
+     * pending, checked, with its estimated bags filled in and a brand field
+     * suggesting earlier brands. A stop not linked
      * to a contact is listed without a box, since its pickup has nowhere to
      * go until it's linked.
      */
-    public function done(TrailerLoad $load, MapReport $report): View|RedirectResponse
+    public function done(TrailerLoad $load, MapReport $report, LeafLedgerReport $ledger): View|RedirectResponse
     {
         if (! $load->isPlanned()) {
             return $this->unchangeable($load);
@@ -176,22 +178,25 @@ class TrailerLoadController extends Controller
                     'address' => $stop['address']?->value ?? $application->address,
                     'estimate' => $application->estimated_bag_count,
                     'bags' => (string) old("bags.{$id}", (string) $application->estimated_bag_count),
+                    'brand' => (string) old("brands.{$id}", ''),
                     'loggable' => in_array($id, $loggable, true),
                     'checked' => $old === null || in_array((string) $id, $old, true),
                     'url' => route('admin.leaves.show', $id),
                 ];
             })->all(),
             'skipped' => $load->applications()->count() - $stops->count(),
+            'brands' => $ledger->brands(),
         ]);
     }
 
     /**
      * Mark a planned load done, as the admin: log a pickup on the contact's
-     * timeline for each stop checked, which marks its application complete
+     * timeline for each stop checked, with the brand spelled as earlier
+     * entries spell it, which marks its application complete
      * (ContactActivity), and keep it on the stop. Stops left unchecked stay
      * pending and need scheduling again.
      */
-    public function finish(MarkTrailerLoadDoneRequest $request, TrailerLoad $load): RedirectResponse
+    public function finish(MarkTrailerLoadDoneRequest $request, TrailerLoad $load, LeafLedgerReport $ledger): RedirectResponse
     {
         if (! $load->isPlanned()) {
             return $this->unchangeable($load);
@@ -200,7 +205,7 @@ class TrailerLoadController extends Controller
         $pickups = $request->pickups();
         $happenedAt = $request->finishedAt();
 
-        DB::transaction(function () use ($request, $load, $pickups, $happenedAt) {
+        DB::transaction(function () use ($request, $load, $ledger, $pickups, $happenedAt) {
             $applications = $load->loggableApplications()->keyBy('id');
 
             foreach ($pickups as $id => $bags) {
@@ -208,6 +213,7 @@ class TrailerLoadController extends Controller
                     'type' => ContactActivity::TYPE_PICKUP,
                     'happened_at' => $happenedAt,
                     'bag_count' => $bags,
+                    'bag_brand' => $ledger->brand($request->brand($id)),
                     'leaf_application_id' => $id,
                 ]);
                 $activity->forceFill([
@@ -257,7 +263,7 @@ class TrailerLoadController extends Controller
     {
         return redirect()->route('admin.map', ['load' => $load->id])->with(
             'status',
-            'This load is ' . strtolower(TrailerLoad::STATUS_LABELS[$load->status]) . ', so it can’t be changed.',
+            'This load is ' . strtolower(TrailerLoad::STATUS_LABELS[$load->status]) . ", so it can't be changed.",
         );
     }
 }

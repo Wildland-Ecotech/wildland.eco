@@ -18,7 +18,7 @@
         <fieldset class="field">
             <legend>Pickups</legend>
 
-            @foreach (['stops', 'stops.*', 'bags'] as $field)
+            @foreach (['stops', 'stops.*', 'bags', 'brands'] as $field)
                 @error($field)
                     <p class="field-error">{{ $message }}</p>
                 @enderror
@@ -52,7 +52,7 @@
                                     @endif
                                     <span class="done-address">{{ $stop['address'] }}</span>
                                     @unless ($stop['loggable'])
-                                        <span class="done-address">Not linked to a contact, so its pickup can’t be logged here. <a href="{{ $stop['url'] }}">Link it</a>, then log the pickup on the contact’s page. Until then it stays pending.</span>
+                                        <span class="done-address">Not linked to a contact, so its pickup can't be logged here. <a href="{{ $stop['url'] }}">Link it</a>, then log the pickup on the contact's page. Until then it stays pending.</span>
                                     @endunless
                                 </td>
                                 <td>
@@ -64,6 +64,14 @@
                                         @error($field)
                                             <p class="field-error" id="bags-{{ $stop['application'] }}-error">{{ $message }}</p>
                                         @enderror
+
+                                        @php($brandField = "brands.{$stop['application']}")
+                                        <input type="text" class="done-brand" name="brands[{{ $stop['application'] }}]" value="{{ $stop['brand'] }}" list="bag-brands" maxlength="{{ LogContactActivityRequest::BRAND_MAX_LENGTH }}" autocomplete="off" aria-label="Brand of bags from {{ $stop['name'] }}" aria-describedby="brands-{{ $stop['application'] }}-hint{{ $errors->has($brandField) ? " brands-{$stop['application']}-error" : '' }}" @error($brandField) aria-invalid="true" @enderror>
+                                        <span class="hint" id="brands-{{ $stop['application'] }}-hint">brand, optional</span>
+
+                                        @error($brandField)
+                                            <p class="field-error" id="brands-{{ $stop['application'] }}-error">{{ $message }}</p>
+                                        @enderror
                                     @else
                                         —
                                     @endif
@@ -72,13 +80,14 @@
                         @endforeach
                     </tbody>
                 </table>
+                <x-bag-brands :brands="$brands" />
             @endif
 
             <p class="hint">
-                Uncheck a stop that wasn’t picked up; it stays pending, ready for another load.
-                Each checked stop is logged as a pickup on its contact’s timeline, which marks the application complete.
+                Uncheck a stop that wasn't picked up; it stays pending, ready for another load.
+                Each checked stop is logged as a pickup on its contact's timeline, which marks the application complete.
                 @if ($skipped > 0)
-                    {{ $skipped === 1 ? '1 other stop was' : "{$skipped} other stops were" }} already picked up or deleted, so {{ $skipped === 1 ? 'it isn’t' : 'they aren’t' }} listed.
+                    {{ $skipped === 1 ? '1 other stop was' : "{$skipped} other stops were" }} already picked up or deleted, so {{ $skipped === 1 ? "it isn't" : "they aren't" }} listed.
                 @endif
             </p>
         </fieldset>

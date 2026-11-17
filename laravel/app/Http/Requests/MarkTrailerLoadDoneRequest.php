@@ -5,12 +5,13 @@ namespace App\Http\Requests;
 use App\Models\TrailerLoad;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Validator;
 
 /**
  * Validates marking a planned trailer load done on its Mark Done page: when
  * the pickups happened, the stops picked up (`stops[]`, application IDs),
- * and the bags from each (`bags[ID]`). Only stops whose pickup can be logged
+ * and the bags from each (`bags[ID]`) and their brand (`brands[ID]`). Only stops whose pickup can be logged
  * (TrailerLoad::loggableApplications()) can be checked. Only admins reach
  * it, through the admin routes' middleware.
  */
@@ -22,15 +23,20 @@ class MarkTrailerLoadDoneRequest extends FormRequest
     }
 
     /**
-     * Bag counts are typed by people, so commas and spaces are allowed. A
-     * stop left unchecked isn't logged, so its bags are left out and never
-     * checked. The form keeps them as typed, since old input is flashed
-     * before this cleanup.
+     * Bag counts are typed by people, so commas and spaces are allowed, and
+     * brands keep single spaces between words. A stop left unchecked isn't
+     * logged, so its bags are left out and never checked. The form keeps
+     * them as typed, since old input is flashed before this cleanup.
      */
     protected function prepareForValidation(): void
     {
         $bags = $this->input('bags');
         $stops = $this->input('stops');
+        $brands = $this->input('brands');
+
+        if (is_array($brands)) {
+            $this->merge(['brands' => array_map(fn ($value) => is_string($value) ? Str::squish($value) : $value, $brands)]);
+        }
 
         if (is_array($bags)) {
             $chosen = is_array($stops) ? array_map('strval', array_filter($stops, 'is_scalar')) : [];
@@ -55,6 +61,8 @@ class MarkTrailerLoadDoneRequest extends FormRequest
             'stops.*' => ['integer'],
             'bags' => ['nullable', 'array'],
             'bags.*' => ['nullable', 'integer', 'min:1', 'max:' . LogContactActivityRequest::MAX_BAGS],
+            'brands' => ['nullable', 'array'],
+            'brands.*' => ['nullable', 'string', 'max:' . LogContactActivityRequest::BRAND_MAX_LENGTH],
         ];
     }
 
@@ -110,6 +118,8 @@ class MarkTrailerLoadDoneRequest extends FormRequest
             'stops.*' => 'Choose the stops picked up from the list.',
             'bags' => 'Enter how many bags as a whole number, such as 25.',
             'bags.*' => 'Enter how many bags as a whole number, such as 25.',
+            'brands' => 'Keep each brand to ' . LogContactActivityRequest::BRAND_MAX_LENGTH . ' characters or fewer.',
+            'brands.*' => 'Keep each brand to ' . LogContactActivityRequest::BRAND_MAX_LENGTH . ' characters or fewer.',
         ];
     }
 
@@ -143,6 +153,17 @@ class MarkTrailerLoadDoneRequest extends FormRequest
     public function pickups(): array
     {
         return collect($this->chosen())->mapWithKeys(fn (int $id) => [$id => (int) $this->input("bags.{$id}")])->all();
+    }
+
+    /**
+     * The brand of bags from a stop, as typed, or null. Only for valid
+     * input.
+     */
+    public function brand(int $id): ?string
+    {
+        $brand = $this->input("brands.{$id}");
+
+        return is_string($brand) && $brand !== '' ? $brand : null;
     }
 
     /**

@@ -943,6 +943,10 @@ $control-height: 16px * $control-line-height + 16px + 4px;
         &:not(:has(input[name="type"][value="pickup"]:checked, input[name="type"][value="drop_off"]:checked)) .bags-field {
             display: none;
         }
+
+        &:not(:has(input[name="type"][value="drop_off"]:checked)) .site-field {
+            display: none;
+        }
     }
 
     // A contact's timeline, newest first: when, what happened, and what was
@@ -1276,6 +1280,11 @@ $control-height: 16px * $control-line-height + 16px + 4px;
 
         .done-bags {
             width: 6.5em;
+        }
+
+        .done-brand {
+            width: 10em;
+            margin-top: 0.5em;
         }
 
         .hint {

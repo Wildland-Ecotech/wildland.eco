@@ -8,6 +8,7 @@ use App\Models\Contact;
 use App\Models\ContactActivity;
 use App\Models\ContactDetail;
 use App\Models\LeafApplication;
+use App\Reports\LeafLedgerReport;
 use App\Reports\Traits\DescribesLeafApplications;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
@@ -18,8 +19,9 @@ use Illuminate\View\View;
 /**
  * Logging an entry on a contact's timeline (/admin/contacts/{id}/activities):
  * a text or call, a visit, a note, or a pickup or drop-off, which marks its
- * application complete. Save goes back to the contact; Save and Add Another
- * comes back to the form, for the reply in a back-and-forth.
+ * application complete, with the bag brand and, for drop-offs, the drop-off
+ * site. Save goes back to the contact; Save and Add Another comes back to
+ * the form, for the reply in a back-and-forth.
  */
 class ContactActivityController extends Controller
 {
@@ -44,9 +46,10 @@ class ContactActivityController extends Controller
 
     /**
      * The form: their pending applications to choose from, newest first,
-     * and now as the time.
+     * the drop-off sites, earlier bag brands as suggestions, and now as the
+     * time.
      */
-    public function create(Contact $contact): View
+    public function create(Contact $contact, LeafLedgerReport $ledger): View
     {
         $applications = $contact->applications()->pending()->orderByDesc('created_at')->orderByDesc('id')->get();
 
@@ -56,27 +59,33 @@ class ContactActivityController extends Controller
             'applications' => $applications->mapWithKeys(fn (LeafApplication $application) => [
                 $application->id => "{$application->id} · {$this->leafApplicationType($application)} · applied {$application->created_at->copy()->setTimezone(config('organization.timezone'))->format('M j')}",
             ])->all(),
+            'sites' => Contact::query()->dropOffSites()->pluck('name', 'id')->all(),
+            'brands' => $ledger->brands(),
             'now' => Carbon::now(LogContactActivityRequest::TIMEZONE)->format(LogContactActivityRequest::TIME_FORMAT),
         ]);
     }
 
     /**
-     * Log the entry, recording which admin logged it. A follow-up date goes
-     * on the application chosen, or on all their pending applications when
-     * none is.
+     * Log the entry, recording which admin logged it, with the brand
+     * spelled as earlier entries spell it. A follow-up date goes on the
+     * application chosen, or on all their pending applications when none
+     * is.
      */
-    public function store(LogContactActivityRequest $request, Contact $contact): RedirectResponse
+    public function store(LogContactActivityRequest $request, Contact $contact, LeafLedgerReport $ledger): RedirectResponse
     {
         $validated = $request->validated();
         $type = $validated['type'];
+        $completing = in_array($type, ContactActivity::COMPLETING_TYPES, true);
 
-        $activity = DB::transaction(function () use ($request, $contact, $validated, $type) {
+        $activity = DB::transaction(function () use ($request, $contact, $ledger, $validated, $type, $completing) {
             $activity = $contact->activities()->make([
                 'type' => $type,
                 'direction' => in_array($type, ContactActivity::MESSAGE_TYPES, true) ? $validated['direction'] : null,
                 'happened_at' => $request->happenedAt(),
                 'body' => $validated['body'] ?? null,
-                'bag_count' => in_array($type, ContactActivity::COMPLETING_TYPES, true) ? (int) $validated['bag_count'] : null,
+                'bag_count' => $completing ? (int) $validated['bag_count'] : null,
+                'bag_brand' => $completing ? $ledger->brand($validated['bag_brand'] ?? null) : null,
+                'drop_off_site_id' => $type === ContactActivity::TYPE_DROP_OFF ? (int) $validated['drop_off_site_id'] : null,
                 'leaf_application_id' => $validated['leaf_application_id'] ?? null,
             ]);
             $activity->forceFill(['logged_by' => $request->user()->id])->save();
@@ -95,10 +104,11 @@ class ContactActivityController extends Controller
         if ($request->boolean('add_another')) {
             return redirect()->route('admin.contacts.activities.create', $contact->id)
                 ->with('status', $status)
-                // The same kind, direction, and application, None included
+                // The same kind, direction, drop-off site, and application, None included
                 ->withInput([
                     'type' => $type,
                     'direction' => $validated['direction'] ?? ContactActivity::DIRECTION_OUTGOING,
+                    'drop_off_site_id' => $validated['drop_off_site_id'] ?? null,
                     'leaf_application_id' => $validated['leaf_application_id'] ?? null,
                 ]);
         }

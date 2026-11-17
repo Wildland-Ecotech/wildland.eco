@@ -603,13 +603,13 @@ class TrailerLoadTest extends TestCase
             $this->actingAs($this->admin)
                 ->post($url, $input)
                 ->assertRedirect(route('admin.map', ['load' => $load->id]))
-                ->assertSessionHas('status', 'This load is canceled, so it can’t be changed.');
+                ->assertSessionHas('status', "This load is canceled, so it can't be changed.");
         }
 
         $this->actingAs($this->admin)
             ->get("/admin/map/loads/{$load->id}/done")
             ->assertRedirect(route('admin.map', ['load' => $load->id]))
-            ->assertSessionHas('status', 'This load is canceled, so it can’t be changed.');
+            ->assertSessionHas('status', "This load is canceled, so it can't be changed.");
 
         $load->refresh();
         $this->assertSame('2026-11-08', $load->planned_on->toDateString());
@@ -646,15 +646,17 @@ class TrailerLoadTest extends TestCase
                 '10 New Rd, Fort Collins, CO 80521',
                 'name="bags[' . $jamie->id . ']" value="25"',
                 'estimated 25',
+                'name="brands[' . $jamie->id . ']" value="" list="bag-brands"',
+                'brand, optional',
                 '<input type="checkbox" id="stop-' . $dana->id . '" name="stops[]" value="' . $dana->id . '" checked>',
                 '2. Dana Cruz',
                 'name="bags[' . $dana->id . ']" value="30"',
                 '3. Morgan Ellis',
-                'Not linked to a contact, so its pickup can’t be logged here.',
+                "Not linked to a contact, so its pickup can't be logged here.",
             ], false)
             ->assertDontSee('name="stops[]" value="' . $morgan->id . '"', false)
             ->assertDontSee('Sam Lee')
-            ->assertSee('1 other stop was already picked up or deleted, so it isn’t listed.')
+            ->assertSee("1 other stop was already picked up or deleted, so it isn't listed.")
             ->assertSee('Mark Done</button>', false)
             ->assertSee('href="' . route('admin.map', ['load' => $load->id]) . '">Cancel</a>', false);
     }
@@ -667,6 +669,7 @@ class TrailerLoadTest extends TestCase
         $dana = $this->application($danaContact, 30);
         $taylor = $this->application($this->contact('Taylor Brooks', '2 Sample Ct, Fort Collins, CO 80525'), 15);
         $load = $this->load('2026-11-08', [$jamie, $dana, $taylor]);
+        $this->contact('Sam Lee', '412 Sample Ave, Fort Collins, CO 80521')->activities()->create(['type' => ContactActivity::TYPE_PICKUP, 'happened_at' => now()->subWeek(), 'bag_count' => 5, 'bag_brand' => 'Home Depot']);
 
         $this->actingAs($this->admin)
             ->post("/admin/map/loads/{$load->id}/done", [
@@ -674,6 +677,8 @@ class TrailerLoadTest extends TestCase
                 'stops' => [(string) $jamie->id, (string) $dana->id],
                 // Typed by people; an unchecked stop's bags are ignored
                 'bags' => [$jamie->id => '28', $dana->id => ' 1,0 ', $taylor->id => 'none'],
+                // Spelled as earlier entries spell it; left empty, no brand
+                'brands' => [$jamie->id => ' home  depot ', $dana->id => ''],
             ])
             ->assertSessionHasNoErrors()
             ->assertRedirect(route('admin.map', ['load' => $load->id]))
@@ -688,6 +693,8 @@ class TrailerLoadTest extends TestCase
         $pickup = $jamieContact->activities()->sole();
         $this->assertSame(ContactActivity::TYPE_PICKUP, $pickup->type);
         $this->assertSame(28, $pickup->bag_count);
+        $this->assertSame('Home Depot', $pickup->bag_brand);
+        $this->assertNull($danaContact->activities()->sole()->bag_brand);
         $this->assertSame($jamie->id, $pickup->leaf_application_id);
         $this->assertSame($this->admin->id, $pickup->logged_by);
         $this->assertSame('2026-11-06 16:30', $pickup->happened_at->utc()->format('Y-m-d H:i'));
@@ -726,6 +733,7 @@ class TrailerLoadTest extends TestCase
             'finished_at' => '2026-11-07T09:30',
             'stops' => [(string) $jamie->id],
             'bags' => [$jamie->id => '', $dana->id => '31'],
+            'brands' => [$jamie->id => 'Ace Hardware'],
         ];
 
         $this->actingAs($this->admin)
@@ -745,6 +753,7 @@ class TrailerLoadTest extends TestCase
             ->assertSee('<input type="checkbox" id="stop-' . $jamie->id . '" name="stops[]" value="' . $jamie->id . '" checked>', false)
             ->assertSee('<input type="checkbox" id="stop-' . $dana->id . '" name="stops[]" value="' . $dana->id . '">', false)
             ->assertSee('name="bags[' . $dana->id . ']" value="31"', false)
+            ->assertSee('name="brands[' . $jamie->id . ']" value="Ace Hardware"', false)
             ->assertSee('Enter how many bags were picked up.');
 
         $this->assertTrue($load->fresh()->isPlanned());
