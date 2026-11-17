@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\LeavesController as AdminLeavesController;
 use App\Http\Controllers\Admin\MapController as AdminMapController;
 use App\Http\Controllers\Admin\SignInController as AdminSignInController;
 use App\Http\Controllers\Admin\TrailerLoadController as AdminTrailerLoadController;
+use App\Http\Controllers\Admin\UnknownBagsController as AdminUnknownBagsController;
 use App\Http\Controllers\DonationController;
 use App\Http\Controllers\DonationReceiptPreviewController;
 use App\Http\Controllers\FormTokenController;
@@ -134,6 +135,9 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
     Route::get('/leaves/applications/csv', [AdminLeafApplicationController::class, 'download'])->name('admin.leaves.applications.csv');
     Route::get('/leaves/ledger', [AdminLeafLedgerController::class, 'index'])->name('admin.leaves.ledger');
     Route::get('/leaves/ledger/csv', [AdminLeafLedgerController::class, 'download'])->name('admin.leaves.ledger.csv');
+    // Logging bags found at drop-off sites with no known donor
+    Route::get('/leaves/ledger/unknown/new', [AdminUnknownBagsController::class, 'create'])->name('admin.leaves.ledger.unknown.create');
+    Route::post('/leaves/ledger/unknown', [AdminUnknownBagsController::class, 'store'])->name('admin.leaves.ledger.unknown.store');
     Route::get('/leaves/{application}', [AdminLeafApplicationController::class, 'show'])
         ->whereNumber('application')
         ->name('admin.leaves.show');

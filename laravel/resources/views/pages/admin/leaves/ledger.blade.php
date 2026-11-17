@@ -1,7 +1,15 @@
 @use('App\Http\Controllers\Admin\LeafLedgerController')
 
 <x-admin-page title="Leaf Ledger" current="admin.leaves">
-    <p class="intro">Pickups and drop-offs logged on contacts’ timelines and by finishing trailer loads. Each season runs July through June, so late deliveries count toward the autumn before.</p>
+    @if (session('status'))
+        <p class="status" role="status">{{ session('status') }}</p>
+    @endif
+
+    <p class="intro">Pickups and drop-offs logged on contacts' timelines, by finishing trailer loads, and as unknown bags left at drop-off sites. Each season runs July through June, so late deliveries count toward the autumn before.</p>
+
+    <div class="record-actions">
+        <a class="button dark small" href="{{ route('admin.leaves.ledger.unknown.create') }}">Log Unknown Bags</a>
+    </div>
 
     {{-- A plain GET form, so the filter is in the URL and works without JavaScript --}}
     <form class="filters" method="GET" action="{{ route('admin.leaves.ledger') }}">

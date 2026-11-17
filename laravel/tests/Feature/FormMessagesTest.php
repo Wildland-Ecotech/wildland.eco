@@ -8,6 +8,7 @@ use App\Http\Requests\DeleteContactRequest;
 use App\Http\Requests\FlagLeafApplicationRequest;
 use App\Http\Requests\LinkApplicationContactRequest;
 use App\Http\Requests\LogContactActivityRequest;
+use App\Http\Requests\LogUnknownBagsRequest;
 use App\Http\Requests\MarkTrailerLoadDoneRequest;
 use App\Http\Requests\SaveLocationsRequest;
 use App\Http\Requests\SaveTrailerLoadRequest;
@@ -37,6 +38,7 @@ class FormMessagesTest extends TestCase
             new DeleteContactRequest,
             new LinkApplicationContactRequest,
             new LogContactActivityRequest,
+            new LogUnknownBagsRequest,
             new SaveLocationsRequest,
             new SaveTrailerLoadRequest,
             new CancelTrailerLoadRequest,
