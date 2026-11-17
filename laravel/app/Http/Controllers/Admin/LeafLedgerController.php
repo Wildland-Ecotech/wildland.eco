@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ContactActivity;
 use App\Reports\LeafLedgerReport;
+use App\Reports\ReviewReport;
 use App\Reports\Traits\DescribesLedgerEntries;
 use App\Reports\Traits\FormatsCsv;
 use App\Reports\Traits\FormatsTimes;
@@ -41,7 +42,7 @@ class LeafLedgerController extends Controller
      * contact yet with `unknown=1`. The totals are always the whole
      * season's.
      */
-    public function index(Request $request, LeafLedgerReport $report): View
+    public function index(Request $request, LeafLedgerReport $report, ReviewReport $reviewReport): View
     {
         $season = $this->seasonFilter($request, $report);
         $unknownOnly = $this->unknownFilter($request);
@@ -52,12 +53,16 @@ class LeafLedgerController extends Controller
             'season' => $season,
             'seasons' => collect($report->seasons())->mapWithKeys(fn (int $season) => [$season => $report->name($season)])->all(),
             'unknownOnly' => $unknownOnly,
+            'reviewCount' => $reviewReport->count(),
             'summary' => $this->summary($entries, $report->name($season)),
             'noneShown' => $entries->isNotEmpty() && $shown->isEmpty() ? "No unknown bags in {$report->name($season)}." : null,
             'headers' => self::HEADERS,
             'rows' => $shown->map(fn (ContactActivity $entry) => [
                 // The date opens the entry's edit page
                 'url' => route('admin.activities.edit', $entry->id),
+                // Flagged for review: drop-offs with no contact, or with no site
+                'badge' => ReviewReport::entryNeedsReview($entry) ? ($entry->isUnknown() ? 'To identify' : 'Needs site') : null,
+                'badgeTone' => 'soon',
                 'cells' => [
                     $this->listTime($entry->happened_at),
                     $this->ledgerEntryNameCell($entry),

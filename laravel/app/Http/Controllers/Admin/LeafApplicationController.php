@@ -10,6 +10,7 @@ use App\Models\ContactDetail;
 use App\Models\LeafApplication;
 use App\Reports\FollowUpReport;
 use App\Reports\LeafApplicationReport;
+use App\Reports\ReviewReport;
 use App\Reports\Traits\DescribesFollowUps;
 use App\Reports\Traits\DescribesLeafApplications;
 use App\Reports\Traits\FormatsCsv;
@@ -57,7 +58,7 @@ class LeafApplicationController extends Controller
     /**
      * The list of applications, filtered by the query string.
      */
-    public function index(Request $request, LeafApplicationReport $report, FollowUpReport $followUpReport): View
+    public function index(Request $request, LeafApplicationReport $report, FollowUpReport $followUpReport, ReviewReport $reviewReport): View
     {
         $filters = $this->filters($request);
         $applications = $report->list(self::PERIODS[$filters['period']], $filters['types'], $filters['spam'])->load('contact');
@@ -66,6 +67,7 @@ class LeafApplicationController extends Controller
 
         return view('pages.admin.leaves.index', [
             'filters' => $filters,
+            'reviewCount' => $reviewReport->count(),
             'summary' => $this->periodSummary($filters['period'], $count, $this->leafApplicationListName($filters['types'], $count)),
             'bags' => $this->bags($applications),
             'headers' => [...self::LEAF_APPLICATION_TABLE_HEADERS, 'Follow-up'],
@@ -193,6 +195,11 @@ class LeafApplicationController extends Controller
     {
         return match (true) {
             $application->isFlagged() => ['badge' => ApplicationFlagController::FLAG_CHOICES[$application->flagged_as], 'tone' => 'muted', 'text' => ''],
+            $application->needsContactReview() => [
+                'badge' => 'Needs review',
+                'tone' => 'soon',
+                'text' => collect($application->contact_review)->map(fn (string $reason) => LeafApplication::REVIEW_LABELS[$reason] ?? $reason)->implode('; '),
+            ],
             $application->status === LeafApplication::STATUS_COMPLETE => ['badge' => 'Complete', 'tone' => 'muted', 'text' => ''],
             $application->contact_id === null => ['badge' => 'Not linked', 'tone' => 'soon', 'text' => 'Link it to a contact'],
             $item !== null => [
@@ -232,7 +239,7 @@ class LeafApplicationController extends Controller
         return collect($application->contact_review)->map(fn (string $reason) => match ($reason) {
             LeafApplication::REVIEW_SHARED_EMAIL => $sentence('Email also on another contact', $sharing(ContactDetail::TYPE_EMAIL)),
             LeafApplication::REVIEW_SHARED_PHONE => $sentence('Phone number also on another contact', $sharing(ContactDetail::TYPE_PHONE)),
-            LeafApplication::REVIEW_ADDRESS => $sentence('Different address from the contact’s current one'),
+            LeafApplication::REVIEW_ADDRESS => $sentence("Different address from the contact's current one"),
             LeafApplication::REVIEW_CONFLICT => $sentence('Matches more than one contact with this name', $candidates->map(
                 fn (array $candidate) => $link($candidate, ' (by ' . ($candidate['types'][0] === ContactDetail::TYPE_EMAIL ? 'email' : 'phone number') . ')'),
             )->all()),
