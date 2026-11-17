@@ -156,7 +156,7 @@ class ContactController extends Controller
             return redirect()->route('admin.contacts.show', $into->id)->with('status', 'That contact was merged into ' . $into->name . '.');
         }
 
-        $record->load(['activities' => fn ($query) => $query->with('loggedBy')->orderByDesc('happened_at')->orderByDesc('id')]);
+        $record->load(['activities' => fn ($query) => $query->with(['loggedBy', 'dropOffSite'])->orderByDesc('happened_at')->orderByDesc('id')]);
         $formErrors = $submissions->forContact($record);
 
         return view('pages.admin.contacts.show', [
@@ -391,10 +391,10 @@ class ContactController extends Controller
     private function summary(int $count, int $followUpCount, string $search, string $sort): string
     {
         if ($count === 0) {
-            return $search === '' ? 'No contacts yet.' : "No contacts match “{$search}”.";
+            return $search === '' ? 'No contacts yet.' : "No contacts match \"{$search}\".";
         }
 
-        $contacts = "{$count} " . Str::plural('contact', $count) . ($search === '' ? '' : " matching “{$search}”");
+        $contacts = "{$count} " . Str::plural('contact', $count) . ($search === '' ? '' : " matching \"{$search}\"");
 
         return match (true) {
             $sort === self::SORT_RECENT => "{$contacts}, most recent application first.",
@@ -555,7 +555,8 @@ class ContactController extends Controller
 
     /**
      * What a logged entry was, such as "Text from us · Rachel", "Call from
-     * Jamie Rivera", or "Pickup: 28 bags · Rachel", with the admin who
+     * Jamie Rivera", "Pickup: 28 bags · Rachel", or "Drop-off: 6 Ace
+     * Hardware bags at North Drop-off Site · Rachel", with the admin who
      * logged it when they were the one in touch.
      */
     private function activityTitle(Contact $contact, ContactActivity $activity): string
@@ -566,7 +567,11 @@ class ContactController extends Controller
         return match (true) {
             $activity->direction === ContactActivity::DIRECTION_INCOMING => "{$label} from {$contact->name}",
             $activity->direction === ContactActivity::DIRECTION_OUTGOING => "{$label} from us{$by}",
-            $activity->bag_count !== null => "{$label}: {$activity->bag_count} " . Str::plural('bag', $activity->bag_count) . $by,
+            $activity->bag_count !== null => "{$label}: {$activity->bag_count} "
+                . ($activity->bag_brand !== null ? "{$activity->bag_brand} " : '')
+                . Str::plural('bag', $activity->bag_count)
+                . ($activity->dropOffSite ? " at {$activity->dropOffSite->name}" : '')
+                . $by,
             default => $label . $by,
         };
     }

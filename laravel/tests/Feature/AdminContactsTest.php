@@ -218,7 +218,7 @@ class AdminContactsTest extends TestCase
 
             $this->actingAs($this->admin)
                 ->get('/admin/contacts?q=' . urlencode($search))
-                ->assertSee("1 contact matching “{$search}”", false)
+                ->assertSee("1 contact matching \"{$search}\"")
                 ->assertSee($name)
                 ->assertDontSee($other);
         }
@@ -240,7 +240,7 @@ class AdminContactsTest extends TestCase
 
         $this->actingAs($this->admin)
             ->get('/admin/contacts?q=%25')
-            ->assertSee('No contacts match “%”.', false)
+            ->assertSee('No contacts match "%".')
             ->assertSee('value="%"', false);
     }
 
@@ -323,13 +323,13 @@ class AdminContactsTest extends TestCase
 
         $this->actingAs($this->admin)
             ->get('/admin/contacts?q=rivera')
-            ->assertSee('3 contacts matching “rivera”. The 2 waiting for a pickup or drop-off are first, who needs to hear from us first at the top.', false)
+            ->assertSee('3 contacts matching "rivera". The 2 waiting for a pickup or drop-off are first, who needs to hear from us first at the top.')
             ->assertSeeInOrder(['Jamie Rivera', 'Sam Rivera', 'Alex Rivera'])
             ->assertDontSee('Taylor Brooks');
 
         $this->actingAs($this->admin)
             ->get('/admin/contacts?q=taylor')
-            ->assertSee('1 contact matching “taylor”, most recent application first. Nobody is waiting for a pickup or drop-off.', false)
+            ->assertSee('1 contact matching "taylor", most recent application first. Nobody is waiting for a pickup or drop-off.')
             ->assertSee('Taylor Brooks');
     }
 
