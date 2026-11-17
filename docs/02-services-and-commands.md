@@ -200,7 +200,7 @@ What each list includes, such as which payments count as received or when a chec
 
 ### Shared Report Helpers (`app/Reports/Traits/`, `app/Console/Traits/`)
 
-Traits shared by the report commands, so each command has only its own fields. Those in `app/Reports/Traits/` describe and format records for reading anywhere, so the admin pages can show the same values as the commands; those in `app/Console/Traits/` write to the console.
+Traits shared by the report commands and the seed commands, so each command has only its own fields. Those in `app/Reports/Traits/` describe and format records for reading anywhere, so the admin pages can show the same values as the commands; those in `app/Console/Traits/` write to the console.
 
 **`app/Reports/Traits/`:**
 
@@ -209,7 +209,7 @@ Traits shared by the report commands, so each command has only its own fields. T
 - **`DescribesDonationTotals`:** how `donations:totals`, its CSV, and the dashboard's Donation Statistics describe totals: `DONATION_TOTALS_HEADERS` and `donationTotalRow()` for a table, and `donationTotalsCsvHeader()` and `donationTotalsCsvRows()` for a CSV with a Grouping column. Uses `FormatsMoney`.
 - **`DescribesCheckouts`:** how `donations:abandoned`, its CSV, and the admin abandoned checkouts page describe an abandoned checkout: `CHECKOUT_TABLE_HEADERS` and `checkoutTableRow()` for a list, `checkoutCsvHeader()` and `checkoutCsvRow()` for a CSV with the donor's name and email address, and `donatedLater()` (Yes or No). Uses `DescribesDonations`.
 - **`DescribesFormSubmissions`:** how `submissions:list`, its CSV, and the admin Error Logs pages describe a form submission: `formSubmissionFields()` (keyed by `FORM_SUBMISSION_LABELS`), `formSubmissionOutcome()` (what happened, in plain words), `formSubmissionDetails()` (the amount and frequency, or the pickup or drop-off details), and `formSubmissionFollowUp()` with `formSubmissionFollowUpText()`: whether the visitor got through later ("Submitted 4 minutes later", followed by " as PAID44" in the CSV and the command), an admin closed it ("Resolved by Rachel Shelton", "Marked as a test", or "Marked as spam", followed by the admin's note in the CSV and the command), or neither ("No record"); empty for one that went through. `formSubmissionClosedBy()` names the admin who closed it. `FORM_SUBMISSION_TABLE_HEADERS` and `formSubmissionTableRow()` are a submission's row in a list (the email address stands in for a missing name), `formSubmissionCsvHeader()` and `formSubmissionCsvRow()` its row in a CSV, and `formSubmissionListName()` names a list ("submissions that did not succeed"). Get submissions from `FormSubmissionReport`, which loads their checkouts and later submissions. Uses `FormatsTimes`.
-- **`DescribesLedgerEntries`:** how the admin Leaf Ledger, its CSV, and the Leaves dashboard name the donor of a ledger entry: `ledgerEntryName()`, the contact's name or Unknown (`UNKNOWN_DONOR`) for drop-offs with no contact yet, and `ledgerEntryNameCell()`, the same linking to the contact's page, for a table cell.
+- **`DescribesLedgerEntries`:** how the admin Leaf Ledger, its CSV, and the Leaves dashboard describe a ledger entry: `ledgerEntryName()`, the contact's name or Unknown (`UNKNOWN_DONOR`) for drop-offs with no contact yet; `ledgerEntryNameCell()`, the same linking to the contact's page, for a table cell; and `ledgerEntrySite()`, the drop-off site's name, Not recorded (`SITE_NOT_RECORDED`) for drop-offs with no site, or empty for pickups.
 - **`DescribesFollowUps`:** how the admin pages describe who needs follow-up, so Contacts, a contact's page, and the dashboard say the same: `followUpsByContact($report)` (each contact's first pending application in `FollowUpReport`'s order, keyed by contact ID, leaving out applications not linked to a contact), `FOLLOW_UP_GROUP_LABELS` (Waiting on us, Ready, Contacted, Later), `FOLLOW_UP_GROUP_TONES` (their labels' colors: `urgent` red, `soon` yellow, green, and `muted` gray), and `followUpReason($item)`, why someone is in their group, such as "Their text on Nov 5 needs a reply", "Follow-up due today", "Follow-up was due Nov 4", "Follow up on Nov 13", "No word from us in 10 days", "Bags ready Dec 5", "Bags ready now", "Bags ready since Nov 3", or "Reached Nov 2". Uses `FormatsTimes`.
 - **`FormatsMoney`:** `money($cents, $currency)` formats an amount for reading the way receipts do, such as `$1,250.00` or `-$1.75`, with the currency code instead of a dollar sign for anything but US dollars (`20.00 EUR`). `decimal($cents)` formats it as a plain number for CSV, such as `1250.00`. Laravel's `Number::currency()` isn't used because it needs PHP's `intl` extension, which the Docker image doesn't install.
 - **`FormatsTimes`:** `localTime($time, $format)` formats a time in Fort Collins time, by default such as `Wed, Oct 21, 2026 7:30 PM MDT`, `tableTime($time)` without the weekday for commands' table columns, such as `Oct 21, 2026 7:30 PM MDT`, `listTime($time)` for admin pages' lists, without the time zone, such as `Oct 21, 7:30 PM`, and `shortDate($time)` for a short line, such as `Oct 21`. The last two have the year only when it isn't this year (`Oct 21, 2025, 7:30 PM` and `Oct 21, 2025`). Admin list controllers replace the time in a command's table row with `listTime()`.
@@ -218,6 +218,7 @@ Traits shared by the report commands, so each command has only its own fields. T
 **`app/Console/Traits/`:**
 
 - **`ListsRecords`:** `daysOption()` reads `--days`, a whole number of at least 1, or shows an error and returns null so the command can exit with `INVALID`. `writeTable($headers, $rows, $rightAligned)` writes records as a table, one row each, for an overview, with the columns listed in `$rightAligned` (by index) lined up on the right, for amounts; tests pass the same `rightAlignedColumns()` styles to `expectsTable()`. `writeRecord($heading, $fields)` writes one record in full, as a heading followed by one `Label: value` line per field, with a dash for an empty value; the heading may use console formatting tags. Both escape the values, so submitted text cannot add console formatting. Uses `FormatsTimes`.
+- **`CreatesTestRecords`:** made-up records for the seed commands ([leaves:seed](#leavesseed-appconsolecommandsseedtestapplicationsphp) and [leaves:seed-drop-offs](#leavesseed-drop-offs-appconsolecommandsseedtestdropoffsphp)): `onAdminComputer()`, which refuses outside the `local` and `testing` environments; `testAdmin()`, the first admin, or an error saying to create one; `testApplication($type)`, an application with Faker names, `@example.com` emails, 970-555 numbers, and Fort Collins addresses (`testAddress()`); and `locateRandomly($address, $admin)`, a map location in the box around Fort Collins (`LATITUDES`, `LONGITUDES`).
 - **`WritesCsv`:** `writeCsv($header, $rows)` writes `FormatsCsv`'s CSV to the console, raw and in one piece, so values are never read as console formatting tags.
 
 Fort Collins time is `timezone` in `config/organization.php` (`America/Denver`); dates are stored in UTC.
@@ -461,6 +462,22 @@ Applications are about 75% pickups and 25% drop-offs, with 3 to 60 bags, ready n
 
 ```bash
 docker compose exec app php artisan leaves:seed 25
+```
+
+### leaves:seed-drop-offs (`app/Console/Commands/SeedTestDropOffs.php`)
+
+Creates made-up drop-offs needing attention for local QA testing, like those on the live site: drop-offs logged before drop-off sites were recorded, and bags left at drop-off sites with no known donor. Like [leaves:seed](#leavesseed-appconsolecommandsseedtestapplicationsphp), it runs only on an admin's computer and needs an admin account first.
+
+| Argument or option | Default | Effect |
+|--------|---------|--------|
+| `count` | 12 | How many drop-offs with no drop-off site to create, from 0 to 200 |
+| `--unknown` | 3 | How many drop-offs with no contact to create at the drop-off sites, from 0 to 200 |
+
+At least one drop-off is needed in all. When there are fewer than two drop-off sites, it adds North Test Drop-off Site and South Test Drop-off Site, as many as needed for two, each with a made-up address and map location. Each drop-off with no site is for a new contact (linked like a real application, as with leaves:seed) and their drop-off application, applied for 1 to 7 days before; logging it marks the application complete. Drop-offs with no contact are at a random drop-off site. Entries are logged by the first admin within the last three weeks, with the application's bags give or take three (1 to 20 for those with no contact), and Ace Hardware, Home Depot, Lowe's, or Walmart bags for about four in five. To clear test data, empty the local database with `migrate:fresh` and create the admin again.
+
+```bash
+docker compose exec app php artisan leaves:seed-drop-offs
+docker compose exec app php artisan leaves:seed-drop-offs 20 --unknown=5
 ```
 
 ### addresses:geocode (`app/Console/Commands/GeocodeAddresses.php`)

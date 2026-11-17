@@ -85,7 +85,7 @@ class SeedTestApplicationsTest extends TestCase
         $this->app['env'] = 'production';
 
         $this->artisan('leaves:seed', ['count' => '1'])
-            ->expectsOutputToContain('Test applications can only be created on an admin’s computer, never on a server.')
+            ->expectsOutputToContain("Test applications can only be created on an admin's computer, never on a server.")
             ->assertFailed();
 
         $this->assertSame(0, LeafApplication::count());

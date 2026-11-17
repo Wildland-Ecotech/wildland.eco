@@ -16,6 +16,17 @@ Review the relevant documentation files in this `docs/` directory before beginni
 
 This ensures new work builds on existing patterns rather than introducing inconsistencies.
 
+## Development Workflow
+
+Features move through planning, iteration, and finishing. Documentation and automated tests wait until the feature has settled: QA testing often turns up bugs and problems that change how a feature works, and docs and tests written earlier would be rewritten at every iteration.
+
+1. **Scope:** a new session starts with the problem, the context needed, and the desired end state.
+2. **Plan:** follow-up questions settle technical decisions before any code is written. The plan covers the design and the commits, answering as much as possible in advance. No assumptions: a reviewer signs off on each decision and on the plan.
+3. **Branch:** a new branch for the feature, and an issue or PR on GitHub describing the agreed scope of work.
+4. **Iterate:** small commits of fewer than 20 files, logically isolated between components, so the codebase is never left broken between commits. Each commit comes with manual QA steps, and no documentation or test changes. Changes to agreed decisions, such as fixes for problems found in QA, are signed off the same way as the plan.
+5. **Finish:** once QA testing has passed and development is complete, commits for the documentation and the automated tests, covering new behavior and updating existing tests for changed behavior.
+6. **Merge:** with QA testing, automated tests, and docs complete, the PR is finalized and the feature branch merged.
+
 ## Never Guess Implementation Details
 
 Never guess function names, file contents, or implementation details. Read the relevant source in the repository before building on it, including packages under `laravel/vendor/` when a dependency's behavior matters. A dependency often already provides what is needed, so check before reinventing it.
@@ -26,7 +37,7 @@ If the information is not in the repository (server configuration, account setti
 
 ## Keep Documentation Updated
 
-When development work introduces new files, database columns, design decisions, or changes to existing patterns, update the relevant documentation files as part of the same session. Documentation should always reflect the current state of the project, not lag behind it.
+When a feature introduces new files, database columns, design decisions, or changes to existing patterns, update the relevant documentation files at the end of the feature, once QA testing has passed and before the PR is finalized (see [Development Workflow](#development-workflow)). The merged branch's documentation reflects the current state of the project. During iteration, the agreed plan and the GitHub issue or PR hold the scope instead.
 
 ## Provide Full File Artifacts
 
@@ -99,7 +110,7 @@ Write about things as categories, using short noun phrases, instead of describin
 
 **Straight quotes only:** use `'` and `"`, never curly quotes or apostrophes (U+2018, U+2019, U+201C, U+201D), in code, page text, messages, and documentation, since curly quotes cause encoding problems and break plain-text searches. Older files still have some; replace them as work touches each file, rather than all at once:
 
-- **Each commit replaces the curly quotes in the files it changes**, and updates the tests asserting that text. Tests asserting text from files the commit doesn't change keep their curly quotes until those files change.
+- **Each commit replaces the curly quotes in the files it changes.** Tests asserting that text are updated with the rest of the tests at the end of the feature; tests asserting text from files the feature doesn't change keep their curly quotes until those files change.
 - **PHP strings with an apostrophe use double quotes**, such as `"Contacts with applications can't be deleted."`.
 - **Blade prints `'` as `&#039;` inside `{{ }}`**, but leaves text written in the template as is. `assertSee()` escapes what it looks for, matching `{{ }}` output; template text with an apostrophe needs `assertSee(..., false)`, and output of `{{ }}` checked with `false` needs `e()`.
 
@@ -132,6 +143,8 @@ If one of these seems necessary, provide the command for the developer to run in
 - Check that links between documentation files resolve.
 
 Then provide the changed files along with QA testing steps: the test commands to run and any manual checks to perform. The developer runs them locally on a machine with more resources and reports back any failures.
+
+Automated tests are written at the end of the feature (see [Development Workflow](#development-workflow)). During iteration, QA steps are manual checks plus the existing tests for the areas a commit touches, to catch regressions. Failures from intended behavior changes are noted and fixed when the tests are updated, before the PR is finalized, when the full suite must pass.
 
 Tests run against PostgreSQL in Docker, never SQLite. A separate test database, identical to production, keeps tests on the same code paths as production so they cannot pass on behavior that would break there. It runs as the `db-test` service (see [Running Tests](07-deployment.md#running-tests)). Feature tests that render pages call `$this->withoutVite()` so they do not depend on built assets.
 
