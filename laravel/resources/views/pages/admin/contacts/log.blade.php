@@ -70,6 +70,36 @@
             @enderror
         </div>
 
+        <div class="field bags-field">
+            <label for="bag_brand">Brand of bags (optional)</label>
+            <input type="text" id="bag_brand" name="bag_brand" list="bag-brands" maxlength="{{ LogContactActivityRequest::BRAND_MAX_LENGTH }}" autocomplete="off" value="{{ $errors->any() ? old('bag_brand') : '' }}" @error('bag_brand') aria-invalid="true" aria-describedby="bag_brand-error" @enderror>
+            <x-bag-brands :brands="$brands" />
+
+            @error('bag_brand')
+                <p class="field-error" id="bag_brand-error">{{ $message }}</p>
+            @enderror
+        </div>
+
+        <div class="field site-field">
+            <label for="drop_off_site_id">Drop-off site</label>
+            @if ($sites === [])
+                <p class="hint">No drop-off sites yet. Drop-off sites are contacts with the Drop-off site box checked on the edit page.</p>
+            @else
+                <select id="drop_off_site_id" name="drop_off_site_id" @error('drop_off_site_id') aria-invalid="true" aria-describedby="drop_off_site_id-error" @enderror>
+                    @if (count($sites) > 1)
+                        <option value="">Choose a site</option>
+                    @endif
+                    @foreach ($sites as $id => $name)
+                        <option value="{{ $id }}" @selected((string) old('drop_off_site_id') === (string) $id)>{{ $name }}</option>
+                    @endforeach
+                </select>
+            @endif
+
+            @error('drop_off_site_id')
+                <p class="field-error" id="drop_off_site_id-error">{{ $message }}</p>
+            @enderror
+        </div>
+
         @if ($applications !== [])
             <div class="field">
                 <label for="leaf_application_id">Application</label>

@@ -6,6 +6,7 @@ use App\Models\ContactActivity;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Str;
 
 /**
  * The leaf ledger, for the admin Leaf Ledger page: logged pickups and
@@ -42,6 +43,45 @@ class LeafLedgerReport
             ->orderBy('happened_at')
             ->orderBy('id')
             ->get();
+    }
+
+    /**
+     * Bag brands already logged, for the brand fields' suggestions, most
+     * used first. Brands differing only in capitalization count as one,
+     * under their most used spelling. Deleted entries are left out.
+     *
+     * @return list<string>
+     */
+    public function brands(): array
+    {
+        return ContactActivity::query()
+            ->whereNotNull('bag_brand')
+            ->groupBy('bag_brand')
+            ->selectRaw('bag_brand, count(*) as uses')
+            ->get()
+            ->groupBy(fn (ContactActivity $entry) => Str::lower($entry->bag_brand))
+            ->map(fn ($spellings) => [
+                'brand' => $spellings->sortByDesc('uses')->first()->bag_brand,
+                'uses' => $spellings->sum('uses'),
+            ])
+            ->sortBy([['uses', 'desc'], ['brand', 'asc']])
+            ->pluck('brand')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * A brand as typed, spelled the way earlier entries spell it when it
+     * matches one apart from capitalization, so "ace hardware" is saved as
+     * "Ace Hardware". Null for no brand.
+     */
+    public function brand(?string $typed): ?string
+    {
+        if ($typed === null || $typed === '') {
+            return null;
+        }
+
+        return collect($this->brands())->first(fn (string $brand) => Str::lower($brand) === Str::lower($typed)) ?? $typed;
     }
 
     /**

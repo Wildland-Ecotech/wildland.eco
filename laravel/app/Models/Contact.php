@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -217,5 +219,16 @@ class Contact extends Model
             // A current one first
             ->orderByRaw('removed_at IS NOT NULL')
             ->first();
+    }
+
+    /**
+     * Drop-off sites, by name, for the drop-off site fields.
+     *
+     * @param  Builder<Contact>  $query
+     */
+    #[Scope]
+    protected function dropOffSites(Builder $query): void
+    {
+        $query->where('is_drop_off_site', true)->orderBy('name')->orderBy('id');
     }
 }

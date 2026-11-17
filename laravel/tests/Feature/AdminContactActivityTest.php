@@ -179,6 +179,86 @@ class AdminContactActivityTest extends TestCase
         $this->assertNull(ContactActivity::sole()->bag_count);
     }
 
+    public function test_pickups_and_drop_offs_keep_the_brand_spelled_as_before(): void
+    {
+        $earlier = $this->contact->activities()->make(['type' => ContactActivity::TYPE_PICKUP, 'happened_at' => now()->subDays(3), 'bag_count' => 10, 'bag_brand' => 'Ace Hardware']);
+        $earlier->save();
+
+        $this->actingAs($this->admin)
+            ->get("/admin/contacts/{$this->contact->id}/activities/new")
+            ->assertSeeInOrder(['<label for="bag_brand">Brand of bags (optional)</label>', 'list="bag-brands"', '<datalist id="bag-brands">', '<option value="Ace Hardware"></option>'], false);
+
+        $this->log(['type' => ContactActivity::TYPE_PICKUP, 'bag_count' => 12, 'bag_brand' => '  ace   hardware '])->assertSessionHasNoErrors();
+        $this->assertSame('Ace Hardware', ContactActivity::latest('id')->first()->bag_brand);
+
+        // A new brand is kept as typed, apart from spaces
+        $this->log(['type' => ContactActivity::TYPE_PICKUP, 'bag_count' => 12, 'bag_brand' => "Lowe's  "])->assertSessionHasNoErrors();
+        $this->assertSame("Lowe's", ContactActivity::latest('id')->first()->bag_brand);
+
+        // Brands only apply to pickups and drop-offs
+        $this->log(['type' => ContactActivity::TYPE_NOTE, 'body' => 'Uses paper bags', 'bag_brand' => 'Ace Hardware'])->assertSessionHasNoErrors();
+        $this->assertNull(ContactActivity::latest('id')->first()->bag_brand);
+
+        $this->log(['type' => ContactActivity::TYPE_PICKUP, 'bag_count' => 12, 'bag_brand' => str_repeat('a', 101)])
+            ->assertSessionHasErrors(['bag_brand' => 'Keep the brand to 100 characters or fewer.']);
+    }
+
+    public function test_a_drop_off_needs_a_drop_off_site(): void
+    {
+        $north = Contact::create(['name' => 'North Drop-off Site', 'is_drop_off_site' => true]);
+        $south = Contact::create(['name' => 'South Drop-off Site', 'is_drop_off_site' => true]);
+        $deleted = Contact::create(['name' => 'Old Drop-off Site', 'is_drop_off_site' => true]);
+        $deleted->delete();
+
+        $this->actingAs($this->admin)
+            ->get("/admin/contacts/{$this->contact->id}/activities/new")
+            ->assertSeeInOrder(['<div class="field site-field">', '<option value="">Choose a site</option>', 'North Drop-off Site', 'South Drop-off Site'], false)
+            ->assertDontSee('Old Drop-off Site');
+
+        $this->log(['type' => ContactActivity::TYPE_DROP_OFF, 'bag_count' => 6])
+            ->assertSessionHasErrors(['drop_off_site_id' => 'Choose the drop-off site the bags were left at.']);
+
+        foreach ([$deleted->id, $this->contact->id] as $notASite) {
+            $this->log(['type' => ContactActivity::TYPE_DROP_OFF, 'bag_count' => 6, 'drop_off_site_id' => $notASite])
+                ->assertSessionHasErrors(['drop_off_site_id' => 'Choose one of the drop-off sites.']);
+        }
+
+        $this->assertSame(0, ContactActivity::count());
+
+        $this->log(['type' => ContactActivity::TYPE_DROP_OFF, 'bag_count' => 6, 'drop_off_site_id' => $south->id])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('status', 'Logged a drop-off of 6 bags.');
+        $this->assertSame($south->id, ContactActivity::sole()->drop_off_site_id);
+
+        // Only drop-offs keep a site
+        $this->log(['type' => ContactActivity::TYPE_PICKUP, 'bag_count' => 6, 'drop_off_site_id' => $north->id])->assertSessionHasNoErrors();
+        $this->assertNull(ContactActivity::latest('id')->first()->drop_off_site_id);
+    }
+
+    public function test_a_single_drop_off_site_is_chosen_to_start_with(): void
+    {
+        $site = Contact::create(['name' => 'North Drop-off Site', 'is_drop_off_site' => true]);
+
+        $this->actingAs($this->admin)
+            ->get("/admin/contacts/{$this->contact->id}/activities/new")
+            ->assertSee('<option value="' . $site->id . '" >North Drop-off Site</option>', false)
+            ->assertDontSee('Choose a site');
+    }
+
+    public function test_save_and_add_another_keeps_the_drop_off_site(): void
+    {
+        Contact::create(['name' => 'North Drop-off Site', 'is_drop_off_site' => true]);
+        $south = Contact::create(['name' => 'South Drop-off Site', 'is_drop_off_site' => true]);
+
+        $this->log(['type' => ContactActivity::TYPE_DROP_OFF, 'bag_count' => 6, 'drop_off_site_id' => $south->id, 'add_another' => '1'])
+            ->assertRedirect(route('admin.contacts.activities.create', $this->contact->id));
+
+        $this->actingAs($this->admin)
+            ->get("/admin/contacts/{$this->contact->id}/activities/new")
+            ->assertSee('value="drop_off" checked>', false)
+            ->assertSee('<option value="' . $south->id . '" selected>South Drop-off Site</option>', false);
+    }
+
     public function test_save_and_add_another_comes_back_to_the_form(): void
     {
         $application = $this->application();
@@ -242,7 +322,7 @@ class AdminContactActivityTest extends TestCase
             ->assertSessionHasErrors([
                 'type' => 'Choose what happened: a text, call, visit, note, pickup, or drop-off.',
                 'happened_at' => 'Enter the date and time it happened.',
-                'leaf_application_id' => 'Choose one of this contact’s applications, or None.',
+                'leaf_application_id' => "Choose one of this contact's applications, or None.",
                 'follow_up_on' => 'Choose today or a later date to follow up.',
             ]);
 

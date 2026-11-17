@@ -97,7 +97,11 @@ Write about things as categories, using short noun phrases, instead of describin
 | A contact whose applications are all marked can be deleted | Contacts with only test or spam applications can be deleted |
 | An application that isn't a real request, such as one from someone probing the form | Test and spam applications |
 
-**Straight quotes only:** use `'` and `"`, never curly quotes or apostrophes (U+2018, U+2019, U+201C, U+201D), in code, page text, messages, and documentation, since curly quotes cause encoding problems and break plain-text searches. PHP strings with an apostrophe use double quotes. Tests asserting unescaped HTML wrap expected text with an apostrophe in `e()`, since Blade prints `'` as `&#039;`.
+**Straight quotes only:** use `'` and `"`, never curly quotes or apostrophes (U+2018, U+2019, U+201C, U+201D), in code, page text, messages, and documentation, since curly quotes cause encoding problems and break plain-text searches. Older files still have some; replace them as work touches each file, rather than all at once:
+
+- **Each commit replaces the curly quotes in the files it changes**, and updates the tests asserting that text. Tests asserting text from files the commit doesn't change keep their curly quotes until those files change.
+- **PHP strings with an apostrophe use double quotes**, such as `"Contacts with applications can't be deleted."`.
+- **Blade prints `'` as `&#039;` inside `{{ }}`**, but leaves text written in the template as is. `assertSee()` escapes what it looks for, matching `{{ }}` output; template text with an apostrophe needs `assertSee(..., false)`, and output of `{{ }}` checked with `false` needs `e()`.
 
 ## Commit Messages
 

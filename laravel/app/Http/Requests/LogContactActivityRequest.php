@@ -2,18 +2,22 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Contact;
 use App\Models\ContactActivity;
 use App\Models\LeafApplication;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Exists;
 use Illuminate\Validation\Validator;
 
 /**
  * Validates an entry logged on a contact's timeline from the admin Log
  * Activity page: what happened, who reached out (for texts and calls), when,
- * what was said, bags (for pickups and drop-offs), the application it was
- * about, and when to follow up. Only admins reach it, through the admin
+ * what was said, bags and their brand (for pickups and drop-offs), the
+ * drop-off site (for drop-offs), the application it was about, and when to
+ * follow up. Only admins reach it, through the admin
  * routes' middleware.
  */
 class LogContactActivityRequest extends FormRequest
@@ -32,6 +36,8 @@ class LogContactActivityRequest extends FormRequest
 
     public const MAX_BAGS = 10000;
 
+    public const BRAND_MAX_LENGTH = 100;
+
     public function authorize(): bool
     {
         return true;
@@ -39,11 +45,16 @@ class LogContactActivityRequest extends FormRequest
 
     /**
      * Bag counts are typed by people, so commas and spaces are allowed.
+     * Brands keep single spaces between words.
      */
     protected function prepareForValidation(): void
     {
         if (is_string($this->input('bag_count'))) {
             $this->merge(['bag_count' => preg_replace('/[\s,]/', '', $this->input('bag_count'))]);
+        }
+
+        if (is_string($this->input('bag_brand'))) {
+            $this->merge(['bag_brand' => Str::squish($this->input('bag_brand'))]);
         }
     }
 
@@ -60,6 +71,8 @@ class LogContactActivityRequest extends FormRequest
             'happened_at' => ['required', 'string', 'date_format:' . self::TIME_FORMAT],
             'body' => ['nullable', 'string', 'max:' . self::BODY_MAX_LENGTH],
             'bag_count' => ['nullable', 'required_if:type,' . implode(',', ContactActivity::COMPLETING_TYPES), 'integer', 'min:1', 'max:' . self::MAX_BAGS],
+            'bag_brand' => ['nullable', 'string', 'max:' . self::BRAND_MAX_LENGTH],
+            'drop_off_site_id' => ['nullable', 'required_if:type,' . ContactActivity::TYPE_DROP_OFF, 'integer', self::dropOffSite()],
             // One of the contact's applications, not deleted
             'leaf_application_id' => [
                 'nullable',
@@ -104,11 +117,22 @@ class LogContactActivityRequest extends FormRequest
             'body' => 'Keep it to ' . number_format(self::BODY_MAX_LENGTH) . ' characters or fewer.',
             'bag_count.required_if' => 'Enter how many bags.',
             'bag_count' => 'Enter how many bags as a whole number, such as 25.',
-            'leaf_application_id' => 'Choose one of this contact’s applications, or None.',
+            'bag_brand' => 'Keep the brand to ' . self::BRAND_MAX_LENGTH . ' characters or fewer.',
+            'drop_off_site_id.required_if' => 'Choose the drop-off site the bags were left at.',
+            'drop_off_site_id' => 'Choose one of the drop-off sites.',
+            'leaf_application_id' => "Choose one of this contact's applications, or None.",
             'follow_up_on.after_or_equal' => 'Choose today or a later date to follow up.',
             'follow_up_on' => 'Enter the date to follow up, such as Nov 13.',
             'add_another' => 'Choose Save or Save and Add Another.',
         ];
+    }
+
+    /**
+     * One of the drop-off sites, not deleted, for drop-off site fields.
+     */
+    public static function dropOffSite(): Exists
+    {
+        return Rule::exists(Contact::class, 'id')->where('is_drop_off_site', true)->whereNull('deleted_at');
     }
 
     /**
