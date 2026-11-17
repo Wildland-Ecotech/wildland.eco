@@ -56,6 +56,8 @@ class LeafLedgerController extends Controller
             'noneShown' => $entries->isNotEmpty() && $shown->isEmpty() ? "No unknown bags in {$report->name($season)}." : null,
             'headers' => self::HEADERS,
             'rows' => $shown->map(fn (ContactActivity $entry) => [
+                // The date opens the entry's edit page
+                'url' => route('admin.activities.edit', $entry->id),
                 'cells' => [
                     $this->listTime($entry->happened_at),
                     $this->ledgerEntryNameCell($entry),

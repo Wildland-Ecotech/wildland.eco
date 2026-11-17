@@ -156,7 +156,7 @@ class ContactController extends Controller
             return redirect()->route('admin.contacts.show', $into->id)->with('status', 'That contact was merged into ' . $into->name . '.');
         }
 
-        $record->load(['activities' => fn ($query) => $query->with(['loggedBy', 'dropOffSite'])->orderByDesc('happened_at')->orderByDesc('id')]);
+        $record->load(['activities' => fn ($query) => $query->with(['loggedBy', 'dropOffSite'])->withExists('edits')->orderByDesc('happened_at')->orderByDesc('id')]);
         $formErrors = $submissions->forContact($record);
 
         return view('pages.admin.contacts.show', [
@@ -499,11 +499,12 @@ class ContactController extends Controller
      * The contact's timeline, newest first: their logged entries, then, added
      * automatically, their applications and form errors. Each has when it
      * happened, whether it came from them, whether it was added
-     * automatically, what happened, what was said, and a link to the record
-     * it's about with any words after the link. Activities must be loaded.
+     * automatically, what happened, what was said, a link to the record it's
+     * about with any words after the link, and, for logged entries, whether
+     * they were edited and their edit page. Activities must be loaded.
      *
      * @param  Collection<int, FormSubmission>  $formErrors
-     * @return list<array{when: string, incoming: bool, automatic: bool, what: string, body: ?string, link: ?array{text: string, url: string}, after: string}>
+     * @return list<array{when: string, incoming: bool, automatic: bool, what: string, body: ?string, link: ?array{text: string, url: string}, after: string, edited: bool, edit: ?string}>
      */
     private function timeline(Contact $contact, Collection $formErrors): array
     {
@@ -517,6 +518,8 @@ class ContactController extends Controller
             'body' => $activity->body,
             'link' => $activity->leaf_application_id !== null ? $applicationLink($activity->leaf_application_id) : null,
             'after' => '',
+            'edited' => (bool) $activity->edits_exists,
+            'edit' => route('admin.activities.edit', $activity->id),
         ]);
 
         $applications = $contact->applications->map(fn (LeafApplication $application) => [
@@ -529,6 +532,8 @@ class ContactController extends Controller
             'body' => null,
             'link' => $applicationLink($application->id),
             'after' => '',
+            'edited' => false,
+            'edit' => null,
         ]);
 
         $errors = $formErrors->map(function (FormSubmission $submission) {
@@ -542,6 +547,8 @@ class ContactController extends Controller
                 'body' => null,
                 'link' => ['text' => $submission->reference, 'url' => route('admin.errors.show', $submission->reference)],
                 'after' => ' · ' . Str::lcfirst($this->formSubmissionFollowUpText($submission)),
+                'edited' => false,
+                'edit' => null,
             ];
         });
 

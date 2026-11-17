@@ -49,6 +49,7 @@
             :rows="$rows"
             :summary-columns="LeafLedgerController::SUMMARY_COLUMNS"
             :numeric="LeafLedgerController::NUMBER_COLUMNS"
+            link-label="Edit Entry"
         />
     @endif
 

@@ -2,9 +2,12 @@
 
 namespace App\Providers;
 
+use App\Models\ContactActivity;
+use App\Models\LeafApplication;
 use App\Payments\PaymentGateway;
 use App\Payments\Stripe\StripeGateway;
 use App\Payments\Stripe\StripeMode;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
 use Stripe\StripeClient;
 
@@ -35,6 +38,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Short type names for polymorphic relations, such as the edits
+        // table's editable_type, so renaming a class never breaks stored
+        // records. Enforced: a model missing here can't be stored
+        Relation::enforceMorphMap([
+            'contact_activity' => ContactActivity::class,
+            'leaf_application' => LeafApplication::class,
+        ]);
     }
 }
