@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Traits\RecordsEdits;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,8 +18,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * the map and the follow-up list. Drop-offs can have no contact yet: bags
  * left at a drop-off site without anyone seeing who brought them, assigned
  * to contacts once the donor is known. Holds conversations with people:
- * never paste them into issues, chat, or the repository. Deleting an entry
- * soft-deletes it.
+ * never paste them into issues, chat, or the repository. Edits and
+ * deletions by admins are recorded in the edits table (RecordsEdits, and
+ * ContactActivityEditor); deleting an entry soft-deletes it.
  */
 #[Fillable([
     'type',
@@ -32,7 +34,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 ])]
 class ContactActivity extends Model
 {
-    use SoftDeletes;
+    use RecordsEdits, SoftDeletes;
 
     public const TYPE_TEXT = 'text';
 

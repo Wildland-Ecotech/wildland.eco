@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Traits\RecordsEdits;
 use App\Reports\FormSubmissionReport;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -48,7 +49,7 @@ use Illuminate\Support\Facades\DB;
 ])]
 class LeafApplication extends Model
 {
-    use SoftDeletes;
+    use RecordsEdits, SoftDeletes;
 
     public const TYPE_DROP_OFF = 'drop_off';
 

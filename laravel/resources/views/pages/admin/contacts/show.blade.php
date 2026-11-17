@@ -36,7 +36,7 @@
             @endforeach
         </ul>
 
-        <p class="detail-hint">Merging moves their applications and details to {{ $contact->name }}, keeps a second address or main number as a previous one, adds their notes, and deletes their contact. Leave them apart if they’re different people.</p>
+        <p class="detail-hint">Merging moves their applications and details to {{ $contact->name }}, keeps a second address or main number as a previous one, adds their notes, and deletes their contact. Leave them apart if they're different people.</p>
     @endif
 
     {{-- Logged texts, calls, visits, notes, pickups, and drop-offs, with their applications and form errors, newest first --}}
@@ -52,7 +52,7 @@
         <ol class="timeline">
             @foreach ($timeline as $entry)
                 <li @class(['incoming' => $entry['incoming'], 'automatic' => $entry['automatic']])>
-                    <p class="timeline-when">{{ $entry['when'] }}</p>
+                    <p class="timeline-when">{{ $entry['when'] }}@if ($entry['edited']) · Edited @endif @if ($entry['edit'] !== null) · <a href="{{ $entry['edit'] }}">Edit</a>@endif</p>
                     <p class="timeline-what">{{ $entry['what'] }}</p>
                     @if ($entry['body'] !== null)
                         <p class="timeline-body">{{ $entry['body'] }}</p>

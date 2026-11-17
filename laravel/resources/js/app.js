@@ -12,6 +12,7 @@ import { initBlobs } from './blob';
 import { initRainbowBorders } from './rainbow-border';
 import { initProofOfWork } from './proof-of-work';
 import { initAutoSubmit } from './auto-submit';
+import { initContactApplications } from './contact-applications';
 
 initMenu();
 initDisappearingContent();
@@ -22,6 +23,7 @@ initBlobs();
 initRainbowBorders();
 initProofOfWork();
 initAutoSubmit();
+initContactApplications();
 
 // The admin Map page's map, loaded only there, since Leaflet is large
 const mapElement = document.querySelector('[data-map]');

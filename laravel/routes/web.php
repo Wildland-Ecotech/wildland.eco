@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AbandonedCheckoutController as AdminAbandonedChec
 use App\Http\Controllers\Admin\ApplicationContactController as AdminApplicationContactController;
 use App\Http\Controllers\Admin\ApplicationFlagController as AdminApplicationFlagController;
 use App\Http\Controllers\Admin\ContactActivityController as AdminContactActivityController;
+use App\Http\Controllers\Admin\ContactActivityEditController as AdminContactActivityEditController;
 use App\Http\Controllers\Admin\ContactController as AdminContactController;
 use App\Http\Controllers\Admin\ContactDetailController as AdminContactDetailController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
@@ -90,6 +91,16 @@ Route::middleware(['auth', 'auth.session', AdminOnly::class])->prefix('admin')->
     Route::post('/contacts/{contact}/activities', [AdminContactActivityController::class, 'store'])
         ->whereNumber('contact')
         ->name('admin.contacts.activities.store');
+    // Editing and deleting timeline entries, drop-offs with no contact included
+    Route::get('/activities/{activity}/edit', [AdminContactActivityEditController::class, 'edit'])
+        ->whereNumber('activity')
+        ->name('admin.activities.edit');
+    Route::post('/activities/{activity}', [AdminContactActivityEditController::class, 'update'])
+        ->whereNumber('activity')
+        ->name('admin.activities.update');
+    Route::post('/activities/{activity}/delete', [AdminContactActivityEditController::class, 'destroy'])
+        ->whereNumber('activity')
+        ->name('admin.activities.destroy');
     // A contact's phone numbers, emails, and address; a detail must be the contact's own
     Route::scopeBindings()->whereNumber(['contact', 'detail'])->group(function () {
         Route::post('/contacts/{contact}/details', [AdminContactDetailController::class, 'store'])->name('admin.contacts.details.store');
