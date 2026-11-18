@@ -177,7 +177,7 @@ Requests to donate leaves to the leaf program, by drop-off or pickup. Model: `Ap
 | terms_accepted_at | Timestamp; when the donor agreed to the program's terms |
 | created_at, updated_at | |
 | deleted_at | Nullable; soft deletes. Deleted applications are kept but hidden, including from `leaves:applications`; `leaves:view` still shows one by its ID, marked as deleted (see [Deletion](06-planned-features.md#deletion)). Set when an admin marks the application as a test or spam (`flagged_as`) |
-| status | String, up to 20 characters, default `pending` (`LeafApplication::STATUSES`): `pending` while waiting for its pickup or drop-off, and `complete` once one is logged for it on the contact's timeline (see [contact_activities](#contact_activities)). Indexed. `pending()` finds those waiting. Set only that way and by admin pages, never from the application form |
+| status | String, up to 20 characters, default `pending` (`LeafApplication::STATUSES`): `pending` while waiting for its pickup or drop-off, `complete` once one is logged for it on the contact's timeline (see [contact_activities](#contact_activities)), and `withdrawn` when an admin closes it without one. Indexed. `pending()` finds those waiting. Set only that way and by admin pages, never from the application form. Editing or deleting the pickup or drop-off puts a complete application back to `pending` when nothing else covers it (see [ContactActivityEditor](02-services-and-commands.md#contactactivityeditor-appservicescontactactivityeditorphp)) |
 | follow_up_on | Nullable date; when an admin said to check back, such as when the donor asked to hear from us next week. Until then the application waits in the follow-up list's Later group (see [Report Classes](02-services-and-commands.md#report-classes-appreports)) |
 | contact_id | Nullable foreign key; restricts deletes. The person who applied, linked by `ContactLinker` after the application is saved, or by [contacts:link](02-services-and-commands.md#contactslink-appconsolecommandslinkcontactsphp) for earlier ones (see [contacts](#contacts)). Null until linked, or while an application that matches more than one contact with the same name waits for review. The application keeps its own name, email, phone, and address as submitted |
 | contact_review | Nullable JSONB list of why linking needs an admin to look (`LeafApplication::REVIEW_REASONS`): `address` (the contact it was linked to has a different current address), `shared_email` or `shared_phone` (its email or phone number is also on another contact, such as two people sharing a phone, or the same person with a name written differently), or `conflict` (it matches more than one contact with the same name, so it isn't linked). Null when nothing needs a look. `needsContactReview()` and the `needingContactReview()` scope find those not reviewed yet |
@@ -185,8 +185,13 @@ Requests to donate leaves to the leaf program, by drop-off or pickup. Model: `Ap
 | flagged_as | Nullable string, up to 20 characters: `test` or `spam` (`LeafApplication::FLAGS`, the same values as `form_submissions.resolution`). Null for real applications. `isFlagged()`; the `notFlagged()` scope finds real applications |
 | flagged_at, flagged_by | Nullable timestamp, and a nullable foreign key to `users` that restricts deletes: when and by which admin it was marked (`$application->flaggedBy`) |
 | flag_note | Nullable text; the admin's note |
+| withdrawn_reason | Nullable string, up to 30 characters, on withdrawn applications only (`LeafApplication::WITHDRAWN_REASONS`, labels in `WITHDRAWN_REASON_LABELS`): `not_eligible` (Didn't meet requirements), `replaced` (Replaced by a newer application), `went_elsewhere` (Took leaves elsewhere), `unreachable` (Couldn't reach them), `no_longer_donating`, or `other` |
+| withdrawn_note | Nullable text; the admin's note on what happened, required for `other` |
+| withdrawn_at, withdrawn_by | Nullable timestamp, and a nullable foreign key to `users` that restricts deletes: when and by which admin it was withdrawn (`$application->withdrawnBy`) |
 
 **Test and spam applications:** `flag($admin, $flag, $note)` records the four flag columns and soft-deletes the application, removing it from every list, the map, and the follow-up list. Linked form submissions close the same way, with the note "Application 43 was marked as spam.": the saving submission, and earlier failed submissions matched by email or phone number (`FormSubmissionReport::forApplication()`). Submissions already closed by an admin keep their resolution. Failed submissions without an email or phone number have no link, so admins close them on Error Logs. Contacts with only test or spam applications can be deleted. `unflag()` clears the flag columns and restores the application, plus its contact after a deletion (not a merge); closed submissions stay closed. The flag columns change only through these two methods, never from form input.
+
+**Withdrawn applications:** real applications closed without a pickup or drop-off, such as replaced applications, leaves taken elsewhere, or applicants who couldn't be reached. `withdraw($admin, $reason, $note)` sets `status` to `withdrawn` with the withdrawal columns; `reopen($admin)` puts it back to `pending` and clears them. Each is recorded in [edits](#edits), so reopening keeps the withdrawal on record. Unlike test and spam applications, withdrawn applications stay listed and aren't deleted, and their contacts can't be deleted, keeping a record of who applied. They leave everything built on pending applications: the follow-up list, the map, waiting totals, trailer load planning, and application choices on forms. `isWithdrawn()`. A check constraint (`leaf_applications_withdrawn_details`) keeps a reason and time on withdrawn applications only. Rolling back the migration puts withdrawn applications back to pending.
 
 ### contacts
 
@@ -227,7 +232,7 @@ A contact has **one current address**, and at most **one current primary detail 
 
 ### contact_activities
 
-Entries on a contact's timeline, logged by admins: texts and calls, visits, notes, and pickups and drop-offs of leaves. Applications and form errors appear on the timeline from their own tables and aren't copied here. Drop-offs can have no contact yet: bags left at a drop-off site without anyone seeing who brought them, assigned to contacts once the donor is known. Model: `App\Models\ContactActivity`. Holds conversations with people; never copy its rows into the repository, issues, or chat.
+Entries on a contact's timeline, logged by admins: texts and calls, visits, notes, and pickups and drop-offs of leaves. Applications, their withdrawals, and form errors appear on the timeline from their own tables and aren't copied here. Drop-offs can have no contact yet: bags found at drop-off sites with no known donor, assigned to contacts once the donor is known. Every field can be edited, and entries deleted, from the admin edit page, each change recorded in [edits](#edits). Model: `App\Models\ContactActivity`. Holds conversations with people; never copy its rows into the repository, issues, or chat.
 
 | Column | Notes |
 |--------|-------|
@@ -237,18 +242,31 @@ Entries on a contact's timeline, logged by admins: texts and calls, visits, note
 | happened_at | Timestamp; when it happened, which may be before it was logged |
 | body | Nullable text; what was said, or the note |
 | bag_count | Nullable integer; for pickups and drop-offs |
-| bag_brand | Nullable string, up to 100 characters; the brand of bags, as typed, such as Ace Hardware, for any pickup or drop-off. Most donors use one brand, which helps work out who left unknown bags |
-| drop_off_site_id | Nullable foreign key to `contacts`; restricts deletes. For drop-offs: the drop-off site the bags were left at (`$activity->dropOffSite`). Required for drop-offs with no contact |
+| bag_brand | Nullable string, up to 100 characters; the brand of bags, such as Ace Hardware, for any pickup or drop-off, spelled like a matching earlier brand (`LeafLedgerReport::brand()`). Most donors use one brand, which helps work out who left unknown bags |
+| drop_off_site_id | Nullable foreign key to `contacts`; restricts deletes. For drop-offs: the drop-off site the bags were left at (`$activity->dropOffSite`). Required for drop-offs with no contact, and by the admin forms for every drop-off saved. Null on drop-offs logged before sites were recorded, which Needs Review lists |
 | leaf_application_id | Nullable foreign key; restricts deletes. The application a pickup or drop-off was for |
 | logged_by | Nullable foreign key to `users`; restricts deletes. The admin who logged it, set by the admin pages, never from form input |
-| split_from_id | Nullable foreign key to `contact_activities`; restricts deletes. For entries split from a drop-off with no contact, when only some of its bags were assigned: the entry the bags came from (`$activity->splitFrom`). Set by the admin pages, never from form input |
-| assigned_at, assigned_by | Nullable timestamp, and a nullable foreign key to `users` that restricts deletes: when and by which admin the bags of a drop-off with no contact were assigned to a contact (`$activity->assignedBy`). Set by the admin pages, never from form input |
+| assigned_at, assigned_by | Nullable timestamp, and a nullable foreign key to `users` that restricts deletes: when and by which admin the bags of a drop-off with no contact were assigned to a contact (`$activity->assignedBy`), by choosing a contact on the edit page. Cleared when the bags go back to Unknown; the edit history keeps both. Set by the admin pages, never from form input |
 | created_at, updated_at | |
 | deleted_at | Nullable; soft deletes. Deleted entries are kept but left off the timeline |
 
 **Drop-offs with no contact:** check constraints make the database refuse an entry with no contact unless it's a drop-off at a drop-off site with no application (`contact_activities_unknown_only_drop_offs`), and refuse a drop-off site on anything but a drop-off (`contact_activities_site_only_on_drop_offs`). Rolling back the migration that added them fails while drop-offs with no contact exist.
 
 **A pickup or drop-off for an application marks it complete** (`status`), when it's saved with that type and application, so it leaves the map and the follow-up list. `reachedThem()` is true for a text or call from us, or a visit, which the follow-up list counts as reaching someone; notes are only for us. `$activity->contact`, `application`, and `loggedBy` are what they belong to, and `$application->activities` an application's entries. Merging contacts moves their entries, and the drop-offs left at a merged drop-off site (see [ContactMerger](02-services-and-commands.md#contactmerger-appservicescontactmergerphp)).
+
+### edits
+
+The audit trail for any record: an append-only log of changes by admins, never changed or deleted, so a later edit never hides who made an earlier one. Model: `App\Models\Edit`. Records gain a history with the `RecordsEdits` trait (`app/Models/Traits/`): `$record->edits` (newest first), `recordEdit($action, $fields, $admin)`, and `saveRecordingEdit($admin, $action)`, which saves the record and records its changed fields, leaving out timestamps. Timeline entries and leaf applications have a history so far.
+
+| Column | Notes |
+|--------|-------|
+| editable_type, editable_id | The record changed (`$edit->editable`, deleted records included): a short type name from the morph map and its ID. Indexed together |
+| action | String, up to 20 characters (`Edit::ACTIONS`, labels in `ACTION_LABELS`): `edited`, `deleted`, `assigned` (a drop-off with no contact given one), `withdrawn`, or `reopened` |
+| fields | JSONB; each changed field's stored value before and after, such as `{"bag_count": {"from": 24, "to": 22}}`. Empty for deletions |
+| edited_by | Nullable foreign key to `users`; restricts deletes. The admin (`$edit->editedBy`) |
+| created_at | When; there's no `updated_at` |
+
+**Morph map:** `AppServiceProvider` maps short type names to models for polymorphic relations, so renaming a class never breaks stored records: `contact_activity` (`ContactActivity`) and `leaf_application` (`LeafApplication`). It's enforced, so a model missing from the map can't be stored; add a name before giving another model a history.
 
 ### trailer_loads
 

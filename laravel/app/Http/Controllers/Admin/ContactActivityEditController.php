@@ -46,7 +46,6 @@ class ContactActivityEditController extends Controller
         'drop_off_site_id' => 'Drop-off site',
         'leaf_application_id' => 'Application',
         'logged_by' => 'Logged by',
-        'split_from_id' => 'Split from',
         'assigned_at' => 'Assigned',
         'assigned_by' => 'Assigned by',
     ];

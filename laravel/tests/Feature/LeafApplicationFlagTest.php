@@ -263,7 +263,7 @@ class LeafApplicationFlagTest extends TestCase
         $this->actingAs($this->admin)
             ->get("/admin/leaves/{$application->id}")
             ->assertOk()
-            ->assertSee('Marked as spam by Sam Rivera on Nov 12, 2026 9:30 AM MST: “Probing the form.” The application list leaves it out unless it includes spam and tests.')
+            ->assertSee('Marked as spam by Sam Rivera on Nov 12, 2026 9:30 AM MST: "Probing the form." The application list leaves it out unless it includes spam and tests.')
             ->assertSee('action="' . route('admin.leaves.unflag', $application->id) . '"', false)
             ->assertDontSee('Mark Application')
             ->assertDontSee('was deleted on');

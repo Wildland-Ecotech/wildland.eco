@@ -218,11 +218,11 @@ class AdminLeafApplicationsTest extends TestCase
 
         $rows = $this->csvRows(['type' => ['drop_off']]);
 
-        $this->assertSame(['ID', 'Applied', 'Type', 'Name', 'Email', 'Phone', 'Address', 'Estimated bags', 'Bags ready', 'Heard about us', 'Questions'], $rows[0]);
+        $this->assertSame(['ID', 'Applied', 'Status', 'Type', 'Name', 'Email', 'Phone', 'Address', 'Estimated bags', 'Bags ready', 'Heard about us', 'Questions'], $rows[0]);
         $this->assertCount(2, $rows);
         // Kept from running as a formula in a spreadsheet
-        $this->assertSame('\'=HYPERLINK("https://example.com")', $rows[1][3]);
-        $this->assertSame('970-555-0123', $rows[1][5]);
+        $this->assertSame('\'=HYPERLINK("https://example.com")', $rows[1][4]);
+        $this->assertSame('970-555-0123', $rows[1][6]);
     }
 
     public function test_shows_one_application_in_full(): void

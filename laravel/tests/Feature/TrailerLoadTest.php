@@ -453,7 +453,7 @@ class TrailerLoadTest extends TestCase
             ->assertDontSee('value="' . $robin->id . '"', false)
             // The map numbers its stops in route order
             ->assertSee('<script type="application/json" id="load-order">[' . $dana->id . ',' . $jamie->id . ']</script>', false)
-            ->assertSee('This load’s stops, and the pickups not in another load, soonest first.')
+            ->assertSee("This load's stops, and the pickups not in another load, soonest first.")
             ->assertSee('<button type="submit" class="button dark small">Save Changes</button>', false)
             ->assertSee('href="' . route('admin.map', ['load' => $load->id]) . '">Cancel</a>', false)
             // Not the load's own page, nor the rest of the Map page
@@ -521,7 +521,7 @@ class TrailerLoadTest extends TestCase
         // The first stop can only go down, the last only up
         $this->actingAs($this->admin)
             ->get(route('admin.map', ['load' => $load->id]))
-            ->assertSee('In your route’s order. Move a stop up or down to change it.')
+            ->assertSee("In your route's order. Move a stop up or down to change it.", false)
             ->assertSee('action="' . route('admin.map.loads.move', [$load->id, $dana->id, 'up']) . '"', false)
             ->assertSee('aria-label="Move Dana Cruz down">Down</button>', false)
             ->assertDontSee('aria-label="Move Jamie Rivera up"', false)
@@ -656,7 +656,7 @@ class TrailerLoadTest extends TestCase
             ], false)
             ->assertDontSee('name="stops[]" value="' . $morgan->id . '"', false)
             ->assertDontSee('Sam Lee')
-            ->assertSee("1 other stop was already picked up or deleted, so it isn't listed.")
+            ->assertSee("1 other stop was already picked up, withdrawn, or deleted, so it isn't listed.")
             ->assertSee('Mark Done</button>', false)
             ->assertSee('href="' . route('admin.map', ['load' => $load->id]) . '">Cancel</a>', false);
     }
