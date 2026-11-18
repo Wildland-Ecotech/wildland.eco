@@ -155,16 +155,6 @@ class ContactActivity extends Model
     }
 
     /**
-     * The drop-off the bags were split from, even if deleted, or null.
-     *
-     * @return BelongsTo<ContactActivity, $this>
-     */
-    public function splitFrom(): BelongsTo
-    {
-        return $this->belongsTo(ContactActivity::class, 'split_from_id')->withTrashed();
-    }
-
-    /**
      * The admin who assigned the bags to the contact, if any.
      *
      * @return BelongsTo<User, $this>

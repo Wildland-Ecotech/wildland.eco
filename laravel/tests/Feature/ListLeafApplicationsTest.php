@@ -127,7 +127,7 @@ class ListLeafApplicationsTest extends TestCase
         $rows = $this->csvRows();
 
         $this->assertCount(2, $rows);
-        $this->assertSame('Kept Donor', $rows[1][3]);
+        $this->assertSame('Kept Donor', $rows[1][4]);
     }
 
     public function test_says_when_there_are_no_applications(): void
@@ -151,13 +151,13 @@ class ListLeafApplicationsTest extends TestCase
         $rows = $this->csvRows();
 
         $this->assertSame(
-            ['ID', 'Applied', 'Type', 'Name', 'Email', 'Phone', 'Address', 'Estimated bags', 'Bags ready', 'Heard about us', 'Questions'],
+            ['ID', 'Applied', 'Status', 'Type', 'Name', 'Email', 'Phone', 'Address', 'Estimated bags', 'Bags ready', 'Heard about us', 'Questions'],
             $rows[0],
         );
         $this->assertCount(3, $rows);
-        $this->assertSame('First Donor', $rows[1][3]);
-        $this->assertSame("Two lines,\nwith a comma", $rows[1][10]);
-        $this->assertSame('Second Donor', $rows[2][3]);
+        $this->assertSame('First Donor', $rows[1][4]);
+        $this->assertSame("Two lines,\nwith a comma", $rows[1][11]);
+        $this->assertSame('Second Donor', $rows[2][4]);
     }
 
     public function test_csv_values_cannot_run_as_spreadsheet_formulas(): void
@@ -170,9 +170,9 @@ class ListLeafApplicationsTest extends TestCase
 
         $row = $this->csvRows()[1];
 
-        $this->assertSame("'=HYPERLINK(\"https://example.com\")", $row[3]);
+        $this->assertSame("'=HYPERLINK(\"https://example.com\")", $row[4]);
         // Formatted, so it no longer starts with +
-        $this->assertSame('970-555-0123', $row[5]);
-        $this->assertSame("'@SUM(A1:A2)", $row[10]);
+        $this->assertSame('970-555-0123', $row[6]);
+        $this->assertSame("'@SUM(A1:A2)", $row[11]);
     }
 }

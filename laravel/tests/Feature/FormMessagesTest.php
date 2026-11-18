@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Requests\AddContactDetailRequest;
 use App\Http\Requests\CancelTrailerLoadRequest;
+use App\Http\Requests\DeleteContactActivityRequest;
 use App\Http\Requests\DeleteContactRequest;
 use App\Http\Requests\FlagLeafApplicationRequest;
 use App\Http\Requests\LinkApplicationContactRequest;
@@ -16,6 +17,8 @@ use App\Http\Requests\LoginRequest;
 use App\Http\Requests\SaveContactRequest;
 use App\Http\Requests\StartDonationRequest;
 use App\Http\Requests\StoreLeafApplicationRequest;
+use App\Http\Requests\UpdateContactActivityRequest;
+use App\Http\Requests\WithdrawLeafApplicationRequest;
 use Illuminate\Foundation\Http\FormRequest;
 use Tests\TestCase;
 
@@ -39,11 +42,14 @@ class FormMessagesTest extends TestCase
             new LinkApplicationContactRequest,
             new LogContactActivityRequest,
             new LogUnknownBagsRequest,
+            new UpdateContactActivityRequest,
+            new DeleteContactActivityRequest,
             new SaveLocationsRequest,
             new SaveTrailerLoadRequest,
             new CancelTrailerLoadRequest,
             new MarkTrailerLoadDoneRequest,
             new FlagLeafApplicationRequest,
+            new WithdrawLeafApplicationRequest,
         ];
 
         foreach ($requests as $request) {

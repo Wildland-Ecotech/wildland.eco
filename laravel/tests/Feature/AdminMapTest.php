@@ -199,7 +199,7 @@ class AdminMapTest extends TestCase
 
         $response = $this->actingAs($this->admin)->get('/admin/map?q=rivera');
 
-        $response->assertSee('1 contact matching “rivera”.', false)
+        $response->assertSee('1 contact matching "rivera".')
             ->assertSeeInOrder([
                 '<h2>Jamie Rivera</h2>',
                 '123 Example St, Fort Collins, CO 80521 · 970-555-0123',
@@ -221,11 +221,11 @@ class AdminMapTest extends TestCase
 
         $this->actingAs($this->admin)
             ->get('/admin/map?q=dana')
-            ->assertSee('No location yet, so the distances aren’t known.', false);
+            ->assertSee("No location yet, so the distances aren't known.", false);
 
         $this->actingAs($this->admin)
             ->get('/admin/map?q=nobody')
-            ->assertSee('No contacts match “nobody”.', false);
+            ->assertSee('No contacts match "nobody".');
     }
 
     public function test_a_contacts_address_opens_them_with_the_closest_drop_off_sites(): void
@@ -261,8 +261,8 @@ class AdminMapTest extends TestCase
         $this->actingAs($this->admin)
             ->get("/admin/map?contact={$dana->id}")
             ->assertOk()
-            ->assertSee('Dana Cruz’s address isn’t on the map yet.', false)
-            ->assertSee('No location yet, so the distances aren’t known.', false);
+            ->assertSee("Dana Cruz's address isn't on the map yet.")
+            ->assertSee("No location yet, so the distances aren't known.", false);
     }
 
     public function test_an_unknown_or_deleted_contact_is_not_found(): void

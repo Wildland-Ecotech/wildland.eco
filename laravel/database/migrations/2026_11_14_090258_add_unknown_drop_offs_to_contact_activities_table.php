@@ -21,9 +21,6 @@ return new class extends Migration
             // For drop-offs: the drop-off site (a contact) the bags were left
             // at. Required for drop-offs with no contact
             $table->foreignId('drop_off_site_id')->nullable()->index()->constrained('contacts')->restrictOnDelete();
-            // For entries split from a drop-off with no contact: the entry
-            // the bags came from
-            $table->foreignId('split_from_id')->nullable()->index()->constrained('contact_activities')->restrictOnDelete();
             // When and by which admin the bags were assigned to a contact
             $table->timestamp('assigned_at')->nullable();
             $table->foreignId('assigned_by')->nullable()->constrained('users')->restrictOnDelete();
@@ -48,7 +45,6 @@ return new class extends Migration
 
         Schema::table('contact_activities', function (Blueprint $table) {
             $table->dropConstrainedForeignId('assigned_by');
-            $table->dropConstrainedForeignId('split_from_id');
             $table->dropConstrainedForeignId('drop_off_site_id');
             $table->dropColumn(['bag_brand', 'assigned_at']);
             $table->foreignId('contact_id')->nullable(false)->change();

@@ -8,8 +8,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
  * One change to a record by an admin, for the audit trail: edits,
- * deletions, assignments, splits, and application withdrawals and
- * reopenings, with each changed field's stored
+ * deletions, assignments, and application withdrawals and reopenings, with each changed field's stored
  * value before and after (`fields`). Append-only: rows are never changed or deleted, so a
  * later edit never hides who made an earlier one. Records gain a history
  * with the RecordsEdits trait; their type is stored as a short name from
@@ -28,8 +27,6 @@ class Edit extends Model
 
     public const ACTION_ASSIGNED = 'assigned';
 
-    public const ACTION_SPLIT = 'split';
-
     public const ACTION_WITHDRAWN = 'withdrawn';
 
     public const ACTION_REOPENED = 'reopened';
@@ -38,7 +35,6 @@ class Edit extends Model
         self::ACTION_EDITED,
         self::ACTION_DELETED,
         self::ACTION_ASSIGNED,
-        self::ACTION_SPLIT,
         self::ACTION_WITHDRAWN,
         self::ACTION_REOPENED,
     ];
@@ -50,7 +46,6 @@ class Edit extends Model
         self::ACTION_EDITED => 'Edited',
         self::ACTION_DELETED => 'Deleted',
         self::ACTION_ASSIGNED => 'Assigned',
-        self::ACTION_SPLIT => 'Split',
         self::ACTION_WITHDRAWN => 'Withdrawn',
         self::ACTION_REOPENED => 'Reopened',
     ];
